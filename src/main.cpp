@@ -8,7 +8,7 @@
 
 float currentSpeed;
 float desiredSpeed;
-float currentRoll=0;
+float currentRoll;
 float desiredRoll;
 
 //receive input from imu (in progress)
@@ -56,6 +56,8 @@ void setup() {
     Wire.write(0);
     Wire.endTransmission(true);
     Serial.begin(9600);
+
+    currentRoll=0;
 
     Scheduler.startLoop(maintainStability);
 }
