@@ -4,7 +4,6 @@
 
 #include <Arduino.h>
 #include <Wire.h>
-//#include <../.pio/libdeps/due/Scheduler_ID884/src/Scheduler.h>
 
 float currentSpeed;
 float desiredSpeed;
