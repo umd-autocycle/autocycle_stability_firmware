@@ -4,6 +4,7 @@
 
 #include <Arduino.h>
 #include <Wire.h>
+#include <Scheduler.h>
 
 float currentSpeed;
 float desiredSpeed;
@@ -55,8 +56,10 @@ void setup() {
     Wire.write(0);
     Wire.endTransmission(true);
     Serial.begin(9600);
+
+    Scheduler.startLoop(maintainStability);
 }
 
 void loop() {
-    maintainStability();
+    delay(100);
 }
