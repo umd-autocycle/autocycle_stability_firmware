@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CMakeRunConfigurationManager" shouldGenerate="true" shouldDeleteObsolete="true">
+    <generated>
+      <config projectName="autocycle_stability_firmware" targetName="Debug" />
+      <config projectName="autocycle_stability_firmware" targetName="Z_DUMMY_TARGET" />
+      <config projectName="autocycle_stability_firmware" targetName="Production" />
+    </generated>
+  </component>
+  <component name="CMakeSettings">
+    <configurations>
+      <configuration PROFILE_NAME="due" CONFIG_NAME="due" />
+    </configurations>
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="ec37c801-f052-484c-ab55-d841aea6c105" name="Default Changelist" comment="" />
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="ClangdSettings">
+    <option name="formatViaClangd" value="false" />
+  </component>
+  <component name="ExecutionTargetManager" SELECTED_TARGET="CMakeBuildProfile:due" />
+  <component name="ProjectId" id="1ZxeMHTmDoPjGBV418YhmEoqx0a" />
+  <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showExcludedFiles" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent">
+    <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
+    <property name="WebServerToolWindowFactoryState" value="false" />
+    <property name="settings.editor.selected.configurable" value="CPPToolchains" />
+  </component>
+  <component name="RunManager" selected="PlatformIO.PlatformIO Debug">
+    <configuration name="Z_DUMMY_TARGET" type="CMakeRunConfiguration" factoryName="Application" PASS_PARENT_ENVS_2="true" PROJECT_NAME="autocycle_stability_firmware" TARGET_NAME="Z_DUMMY_TARGET" CONFIG_NAME="due" RUN_TARGET_PROJECT_NAME="autocycle_stability_firmware" RUN_TARGET_NAME="Z_DUMMY_TARGET">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="PlatformIO Debug" type="platformio" factoryName="PlatformIO Debug" PASS_PARENT_ENVS_2="true" PROJECT_NAME="autocycle_stability_firmware" TARGET_NAME="Debug" CONFIG_NAME="due" RUN_TARGET_PROJECT_NAME="autocycle_stability_firmware" RUN_TARGET_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="PlatformIO Upload" type="platformio" factoryName="PlatformIO Upload" PASS_PARENT_ENVS_2="true" PROJECT_NAME="autocycle_stability_firmware" TARGET_NAME="Production" CONFIG_NAME="due" RUN_TARGET_PROJECT_NAME="autocycle_stability_firmware" RUN_TARGET_NAME="Production">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <list>
+      <item itemvalue="CMake Application.Z_DUMMY_TARGET" />
+      <item itemvalue="PlatformIO.PlatformIO Debug" />
+      <item itemvalue="PlatformIO.PlatformIO Upload" />
+    </list>
+  </component>
+  <component name="SvnConfiguration">
+    <configuration />
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="ec37c801-f052-484c-ab55-d841aea6c105" name="Default Changelist" comment="" />
+      <created>1585785122470</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1585785122470</updated>
+      <workItem from="1585785124638" duration="456000" />
+    </task>
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="1" />
+  </component>
+</project>
