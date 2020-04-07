@@ -6,10 +6,17 @@
 #include <Wire.h>
 #include <Scheduler.h>
 
-float currentSpeed;
-float desiredSpeed;
+float currentSpeed = 0; //in m/s
+float desiredSpeed; //in m/s
 float currentRoll;
 float desiredRoll;
+
+//for speed
+float delT1 = 0;
+float delT2;
+float radius = .35; //dummy value in inches, need to measure
+float circumference = 2 * 3.14 * radius;
+const interruptPin = 26;
 
 //receive input from imu (in progress)
 //convert python PID interpolated to C++ (need help from Jack)
@@ -46,7 +53,47 @@ void maintainStability() {
 }
 
 void maintainSpeed() {
+    float speedKp = .01;
+    float speedKd = .01;
+    float speedPreError = 0;
+    float dt = .01;
+    float outputMax = .5;
+    float outputMin = -.5;
 
+    //testing maintainSpeed
+    //assume starting units are already in m/s, and matching output units (also in m/s)
+
+    float speedError = desiredSpeed - currentSpeed;
+
+    while(speedError > .01 || speedError < -.01) {
+        float pOut = speedKp * speedError;
+        float speedDeriv = (speedError - speedPreError) / dt;
+        float dOut = speedKd * speedDeriv;
+        float output = dOut + pOut;
+
+        if (output > outputMax)
+            output = outputMax;
+        else if (output < outputMin)
+            output = outputMin;
+
+        currentSpeed += output; // this is just for testing, output will eventually actually send a signal
+        speedPreError = speedError;
+        speedError = desiredSpeed - currentSpeed;
+    }
+}
+
+void updateSpeed()
+{
+    delT2 = millis();
+    if(delT1 = 0)
+    {
+        currentSpeed = 0;
+    }
+    else
+    {
+        currentSpeed = circumference/(delT2-delT1);
+    }
+    delT1 = delT2;
 }
 
 void setup() {
@@ -58,6 +105,13 @@ void setup() {
     Serial.begin(9600);
 
     currentRoll=0;
+
+    //speed stuff
+    speedCounter = maxSpeedCounter;
+    circumference = 2*3.14*radius;
+    pinMode(interruptPin, INPUT);
+    attachInterrupt(digitalPinToInterrupt(interruptPin), updateSpeed, RISING);
+    //anytime the speed pin goes from low to high, this interrupt should update speed accordingly
 
     Scheduler.startLoop(maintainStability);
 }
