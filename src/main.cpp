@@ -10,6 +10,9 @@ float currentSpeed = 0; //in m/s
 float desiredSpeed; //in m/s
 float currentRoll;
 float desiredRoll;
+int maxThrottle = 7; // in m/s, need to determine what max throttle actually corresponds to
+int minThrottle = 0;
+const throttlePin = A0; //this is the pin that will control throttle/speed output, to be determined which one for sure
 
 //for speed
 float delT1 = 0;
@@ -76,9 +79,11 @@ void maintainSpeed() {
         else if (output < outputMin)
             output = outputMin;
 
-        currentSpeed += output; // this is just for testing, output will eventually actually send a signal
+        //currentSpeed += output; // this is just for testing, output will eventually actually send a signal
         speedPreError = speedError;
         speedError = desiredSpeed - currentSpeed;
+        int newThrottle = int((currentSpeed += output)/(maxThrottle-minThrottle)*1024);
+        analogWrite(throttlePin, newThrottle);
     }
 }
 
@@ -110,6 +115,7 @@ void setup() {
     speedCounter = maxSpeedCounter;
     circumference = 2*3.14*radius;
     pinMode(interruptPin, INPUT);
+    pinMode(throttlePin, OUTPUT);
     attachInterrupt(digitalPinToInterrupt(interruptPin), updateSpeed, RISING);
     //anytime the speed pin goes from low to high, this interrupt should update speed accordingly
 
