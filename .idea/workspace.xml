@@ -14,7 +14,6 @@
   <component name="ChangeListManager">
     <list default="true" id="ec37c801-f052-484c-ab55-d841aea6c105" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/main.cpp" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -71,7 +70,8 @@
       <workItem from="1585785124638" duration="1459000" />
       <workItem from="1585786599568" duration="53000" />
       <workItem from="1585786664115" duration="1294000" />
-      <workItem from="1586287031938" duration="582000" />
+      <workItem from="1586287031938" duration="629000" />
+      <workItem from="1586304917351" duration="598000" />
     </task>
     <task id="LOCAL-00001" summary="init">
       <created>1585785733538</created>
@@ -101,7 +101,14 @@
       <option name="project" value="LOCAL" />
       <updated>1586287192492</updated>
     </task>
-    <option name="localTasksCounter" value="5" />
+    <task id="LOCAL-00005" summary="Added conversion at end of speed control from m/s to analog (0-1024). Based off of guessing max and min throttle speeds, variables at top will have to be updated after testing.">
+      <created>1586287658968</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1586287658968</updated>
+    </task>
+    <option name="localTasksCounter" value="6" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -111,7 +118,8 @@
     <MESSAGE value="init" />
     <MESSAGE value="fix" />
     <MESSAGE value="Added update speed function using timer interrupts to update speed when pulsed from speed sensor&#10;Added speed PID loop that takes current speed and works towards desired speed (currently outputs in m/s, will change to analog in next push)" />
-    <option name="LAST_COMMIT_MESSAGE" value="Added update speed function using timer interrupts to update speed when pulsed from speed sensor&#10;Added speed PID loop that takes current speed and works towards desired speed (currently outputs in m/s, will change to analog in next push)" />
+    <MESSAGE value="Added conversion at end of speed control from m/s to analog (0-1024). Based off of guessing max and min throttle speeds, variables at top will have to be updated after testing." />
+    <option name="LAST_COMMIT_MESSAGE" value="Added conversion at end of speed control from m/s to analog (0-1024). Based off of guessing max and min throttle speeds, variables at top will have to be updated after testing." />
   </component>
   <component name="WindowStateProjectService">
     <state x="186" y="0" key="#com.intellij.execution.impl.EditConfigurationsDialog" timestamp="1586287052491">
@@ -123,10 +131,10 @@
       <screen x="0" y="0" width="1536" height="824" />
     </state>
     <state x="537" y="242" key="#com.intellij.tools.ToolEditorDialog/0.0.1536.824@0.0.1536.824" timestamp="1585786835537" />
-    <state x="308" y="0" key="CommitChangelistDialog2" timestamp="1586287191488">
+    <state x="0" y="0" key="CommitChangelistDialog2" timestamp="1586287658095">
       <screen x="0" y="0" width="1280" height="680" />
     </state>
-    <state x="308" y="0" key="CommitChangelistDialog2/0.0.1280.680@0.0.1280.680" timestamp="1586287191488" />
+    <state x="0" y="0" key="CommitChangelistDialog2/0.0.1280.680@0.0.1280.680" timestamp="1586287658095" />
     <state x="369" y="6" key="CommitChangelistDialog2/0.0.1536.824@0.0.1536.824" timestamp="1585788027608" />
     <state width="1493" height="210" key="GridCell.Tab.0.bottom" timestamp="1585787976946">
       <screen x="0" y="0" width="1536" height="824" />
@@ -152,6 +160,10 @@
       <screen x="0" y="0" width="1536" height="824" />
     </state>
     <state x="361" y="145" key="Vcs.Push.Dialog.v2/0.0.1536.824@0.0.1536.824" timestamp="1585788029881" />
+    <state x="337" y="166" key="com.intellij.ide.util.TipDialog" timestamp="1586798665541">
+      <screen x="0" y="0" width="1280" height="680" />
+    </state>
+    <state x="337" y="166" key="com.intellij.ide.util.TipDialog/0.0.1280.680@0.0.1280.680" timestamp="1586798665541" />
     <state x="578" y="329" key="com.intellij.openapi.vcs.update.UpdateOrStatusOptionsDialogupdate-v2" timestamp="1585785713220">
       <screen x="0" y="0" width="1536" height="824" />
     </state>

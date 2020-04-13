@@ -96,7 +96,7 @@ void updateSpeed()
     }
     else
     {
-        currentSpeed = circumference/(delT2-delT1);
+        currentSpeed = circumference/((delT2-delT1)/1000);
     }
     delT1 = delT2;
 }
