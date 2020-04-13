@@ -68,7 +68,7 @@ void maintainSpeed() {
 
     float speedError = desiredSpeed - currentSpeed;
 
-    while(speedError > .01 || speedError < -.01) {
+    while(speedError > .01 || speedError < -.01) { //should this be an if statement instead?? to maintain concurrency
         float pOut = speedKp * speedError;
         float speedDeriv = (speedError - speedPreError) / dt;
         float dOut = speedKd * speedDeriv;
