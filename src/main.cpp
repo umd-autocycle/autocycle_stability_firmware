@@ -51,7 +51,7 @@ void maintainStability() {
     Serial.print(" | GY = "); Serial.print(gy);
     Serial.print(" | GZ = "); Serial.println(gz);
 
-    phi=0.98*(phi+gx*0.01)+0.02*atan2(ay, az)*180/PI;    //complementary filter to determine roll (in radians)
+    phi=(0.98*(phi*180/PI+gx*0.01)+0.02*atan2(ay, az)*180/PI)*PI/180;    //complementary filter to determine roll (in radians)
     Serial.print("Roll = "); Serial.println(phi);
 
     double torque=controls.get_torque(0.01, {phi, 0, dphi, 0}, currentSpeed);
