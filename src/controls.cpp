@@ -2,7 +2,6 @@
 // Created by Cooper Grill on 4/7/2020.
 //
 
-float last_time=0;
 double integral=0;
 double params[][]={{33.69352243, 0.263932, 21.15690148}, {101.20843419, 4.4401922, 38.1772637},
                  {102.20843419, 5.4401922, 37.55922972}, {103.20843419, 5.8221582, 35.94119572},
@@ -25,9 +24,8 @@ double max(double a, double b) {
     return(a>b ? a:b);
 }
 
-double get_torque(float t, double *e, float v, double max_torque) {
-    integral+=e[0]*(t-last_time);
-    last_time=t;
+double get_torque(float dt, double *e, float v, double max_torque) {
+    integral+=e[0]*dt;
 
     int index=(int)((v-4)/0.5);
     float interpolation=(v-4-index*0.5)/0.5;

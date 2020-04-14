@@ -10,7 +10,6 @@
 float currentSpeed;
 float desiredSpeed;
 float delta;
-float currentDelta;
 
 //receive input from imu (in progress)
 //convert python PID interpolated to C++ (need help from Jack)
@@ -43,10 +42,10 @@ void maintainStability() {
     Serial.print(" | GY = "); Serial.print(gy);
     Serial.print(" | GZ = "); Serial.println(gz);
 
-    delta=(0.98*(delta*180/PI+gx*0.01)+0.02*atan2(ay, az)*180/PI)*PI/180;    //complementary filter to determine roll
+    delta=(0.98*(delta*180/PI+gx*0.01)+0.02*atan2(ay, az)*180/PI)*PI/180;    //complementary filter to determine roll (in radians)
     Serial.print("Roll = "); Serial.println(delta);
 
-    double torque=get_torque(t, e, v);
+    double torque=controls.get_torque(0.01, {delta, phi, delta/0.01, dphi}, currentSpeed);
 }
 
 void maintainSpeed() {
