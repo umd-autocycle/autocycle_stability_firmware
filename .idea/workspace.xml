@@ -54,6 +54,10 @@
         <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
       </method>
     </configuration>
+    <list>
+      <item itemvalue="PlatformIO.PlatformIO Debug" />
+      <item itemvalue="PlatformIO.PlatformIO Upload" />
+    </list>
   </component>
   <component name="SvnConfiguration">
     <configuration />
