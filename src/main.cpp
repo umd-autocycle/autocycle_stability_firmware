@@ -11,14 +11,14 @@ float desiredSpeed; //in m/s
 float phi;
 int maxThrottle = 7; // in m/s, need to determine what max throttle actually corresponds to
 int minThrottle = 0;
-const throttlePin = A0; //this is the pin that will control throttle/speed output, to be determined which one for sure
+int const throttlePin = 0; //this is the pin that will control throttle/speed output, to be determined which one for sure
 
 //for speed
 float delT1 = 0;
 float delT2;
 float radius = .35; //dummy value in inches, need to measure
 float circumference = 2 * 3.14 * radius;
-const interruptPin = 26;
+int const interruptPin = 26;
 
 //receive input from imu (in progress)
 //convert python PID interpolated to C++ (need help from Jack)

@@ -60,15 +60,15 @@
     </key>
   </component>
   <component name="RunManager" selected="PlatformIO.PlatformIO Upload">
-    <configuration name="Z_DUMMY_TARGET" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="autocycle_stability_firmware" TARGET_NAME="Z_DUMMY_TARGET" CONFIG_NAME="due" RUN_TARGET_PROJECT_NAME="autocycle_stability_firmware" RUN_TARGET_NAME="Z_DUMMY_TARGET">
+    <configuration name="Z_DUMMY_TARGET" type="CMakeRunConfiguration" factoryName="Application" PASS_PARENT_ENVS_2="true" PROJECT_NAME="autocycle_stability_firmware" TARGET_NAME="Z_DUMMY_TARGET" CONFIG_NAME="due" RUN_TARGET_PROJECT_NAME="autocycle_stability_firmware" RUN_TARGET_NAME="Z_DUMMY_TARGET">
       <method v="2">
         <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
       </method>
     </configuration>
-    <configuration name="PlatformIO Debug" type="platformio" factoryName="PlatformIO Debug" REDIRECT_INPUT="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="autocycle_stability_firmware" TARGET_NAME="Debug" CONFIG_NAME="due" RUN_TARGET_PROJECT_NAME="autocycle_stability_firmware" RUN_TARGET_NAME="Debug">
+    <configuration name="PlatformIO Debug" type="platformio" factoryName="PlatformIO Debug" PASS_PARENT_ENVS_2="true" PROJECT_NAME="autocycle_stability_firmware" TARGET_NAME="Debug" CONFIG_NAME="due" RUN_TARGET_PROJECT_NAME="autocycle_stability_firmware" RUN_TARGET_NAME="Debug">
       <method v="2" />
     </configuration>
-    <configuration name="PlatformIO Upload" type="platformio" factoryName="PlatformIO Upload" REDIRECT_INPUT="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="autocycle_stability_firmware" TARGET_NAME="Production" CONFIG_NAME="due" RUN_TARGET_PROJECT_NAME="autocycle_stability_firmware" RUN_TARGET_NAME="Production">
+    <configuration name="PlatformIO Upload" type="platformio" factoryName="PlatformIO Upload" PASS_PARENT_ENVS_2="true" PROJECT_NAME="autocycle_stability_firmware" TARGET_NAME="Production" CONFIG_NAME="due" RUN_TARGET_PROJECT_NAME="autocycle_stability_firmware" RUN_TARGET_NAME="Production">
       <method v="2" />
     </configuration>
     <list>
