@@ -5,10 +5,11 @@
 #include <Arduino.h>
 #include <Wire.h>
 #include <Scheduler.h>
+#include "controls.h"
 
 float currentSpeed = 0; //in m/s
 float desiredSpeed; //in m/s
-float phi;
+double phi;
 int maxThrottle = 7; // in m/s, need to determine what max throttle actually corresponds to
 int minThrottle = 0;
 int const throttlePin = 0; //this is the pin that will control throttle/speed output, to be determined which one for sure
@@ -54,7 +55,7 @@ void maintainStability() {
     phi=(0.98*(phi*180/PI+gx*0.01)+0.02*atan2(ay, az)*180/PI)*PI/180;    //complementary filter to determine roll (in radians)
     Serial.print("Roll = "); Serial.println(phi);
 
-    double torque=controls.get_torque(0.01, {phi, 0, dphi, 0}, currentSpeed);
+    double torque=get_torque(0.01, [phi, 0.0, 0.0, 0.0], currentSpeed, 20.0);
     Serial.print("Torque = "); Serial.print(torque);
 }
 
