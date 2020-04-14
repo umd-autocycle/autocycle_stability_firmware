@@ -68,23 +68,23 @@ void maintainSpeed() {
 
     float speedError = desiredSpeed - currentSpeed;
 
-    while(speedError > .01 || speedError < -.01) { //should this be an if statement instead?? to maintain concurrency
-        float pOut = speedKp * speedError;
-        float speedDeriv = (speedError - speedPreError) / dt;
-        float dOut = speedKd * speedDeriv;
-        float output = dOut + pOut;
 
-        if (output > outputMax)
-            output = outputMax;
-        else if (output < outputMin)
-            output = outputMin;
+    float pOut = speedKp * speedError;
+    float speedDeriv = (speedError - speedPreError) / dt;
+    float dOut = speedKd * speedDeriv;
+    float output = dOut + pOut;
 
-        //currentSpeed += output; // this is just for testing, output will eventually actually send a signal
-        speedPreError = speedError;
-        speedError = desiredSpeed - currentSpeed;
-        int newThrottle = int((currentSpeed += output)/(maxThrottle-minThrottle)*1024);
-        analogWrite(throttlePin, newThrottle);
-    }
+    if (output > outputMax)
+        output = outputMax;
+    else if (output < outputMin)
+        output = outputMin;
+
+    //currentSpeed += output; // this is just for testing, output will eventually actually send a signal
+    speedPreError = speedError;
+    speedError = desiredSpeed - currentSpeed;
+    int newThrottle = int((currentSpeed += output)/(maxThrottle-minThrottle)*4096); //what is due analog res?
+    analogWrite(throttlePin, newThrottle);
+
 }
 
 void updateSpeed()
@@ -112,6 +112,7 @@ void setup() {
     currentRoll=0;
 
     //speed stuff
+    analogWriteResolution(12);
     speedCounter = maxSpeedCounter;
     circumference = 2*3.14*radius;
     pinMode(interruptPin, INPUT);
