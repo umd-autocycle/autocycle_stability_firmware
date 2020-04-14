@@ -1,10 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="CMakeRunConfigurationManager" shouldGenerate="true" shouldDeleteObsolete="true">
-    <generated>
-      <config projectName="autocycle_stability_firmware" targetName="Debug" />
-      <config projectName="autocycle_stability_firmware" targetName="Production" />
-    </generated>
+    <generated />
   </component>
   <component name="CMakeSettings">
     <configurations>
@@ -12,10 +9,7 @@
     </configurations>
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="ec37c801-f052-484c-ab55-d841aea6c105" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/main.cpp" afterDir="false" />
-    </list>
+    <list default="true" id="de99c6c9-6332-424b-ab03-e9122f5c5676" name="Default Changelist" comment="" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -128,7 +122,21 @@
       <option name="project" value="LOCAL" />
       <updated>1586798836096</updated>
     </task>
-    <option name="localTasksCounter" value="8" />
+    <task id="LOCAL-00008" summary="Merge remote-tracking branch 'origin/master'&#10;&#10;# Conflicts:&#10;#&#9;.idea/workspace.xml&#10;#&#9;src/main.cpp">
+      <created>1586896935010</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1586896935010</updated>
+    </task>
+    <task id="LOCAL-00009" summary="Merge remote-tracking branch 'origin/master'&#10;&#10;# Conflicts:&#10;#&#9;.idea/workspace.xml&#10;#&#9;src/main.cpp">
+      <created>1586897171597</created>
+      <option name="number" value="00009" />
+      <option name="presentableId" value="LOCAL-00009" />
+      <option name="project" value="LOCAL" />
+      <updated>1586897171597</updated>
+    </task>
+    <option name="localTasksCounter" value="10" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -141,9 +149,14 @@
     <MESSAGE value="Added conversion at end of speed control from m/s to analog (0-1024). Based off of guessing max and min throttle speeds, variables at top will have to be updated after testing." />
     <MESSAGE value="converted milliseconds to seconds on speed reader" />
     <MESSAGE value="question for team added in comments" />
-    <option name="LAST_COMMIT_MESSAGE" value="question for team added in comments" />
+    <MESSAGE value="Merge remote-tracking branch 'origin/master'&#10;&#10;# Conflicts:&#10;#&#9;.idea/workspace.xml&#10;#&#9;src/main.cpp" />
+    <option name="LAST_COMMIT_MESSAGE" value="Merge remote-tracking branch 'origin/master'&#10;&#10;# Conflicts:&#10;#&#9;.idea/workspace.xml&#10;#&#9;src/main.cpp" />
   </component>
   <component name="WindowStateProjectService">
+    <state x="0" y="0" key="#Deployment" timestamp="1586897117126">
+      <screen x="0" y="0" width="1280" height="680" />
+    </state>
+    <state x="0" y="0" key="#Deployment/0.0.1280.680@0.0.1280.680" timestamp="1586897117126" />
     <state x="33" y="0" key="#com.intellij.execution.impl.EditConfigurationsDialog" timestamp="1586896671123">
       <screen x="0" y="0" width="1280" height="680" />
     </state>
@@ -157,10 +170,10 @@
       <screen x="0" y="0" width="1536" height="824" />
     </state>
     <state x="537" y="242" key="#com.intellij.tools.ToolEditorDialog/0.0.1536.824@0.0.1536.824" timestamp="1585786835537" />
-    <state x="0" y="0" key="CommitChangelistDialog2" timestamp="1586896934182">
+    <state x="0" y="0" key="CommitChangelistDialog2" timestamp="1586897169660">
       <screen x="0" y="0" width="1280" height="680" />
     </state>
-    <state x="0" y="0" key="CommitChangelistDialog2/0.0.1280.680@0.0.1280.680" timestamp="1586896934182" />
+    <state x="0" y="0" key="CommitChangelistDialog2/0.0.1280.680@0.0.1280.680" timestamp="1586897169660" />
     <state x="369" y="6" key="CommitChangelistDialog2/0.0.1536.824@0.0.1536.824" timestamp="1585788027608" />
     <state width="1493" height="210" key="GridCell.Tab.0.bottom" timestamp="1585787976946">
       <screen x="0" y="0" width="1536" height="824" />
@@ -183,9 +196,10 @@
     </state>
     <state x="94" y="0" key="SettingsEditor/0.0.1280.680@0.0.1280.680" timestamp="1586896601232" />
     <state x="277" y="54" key="SettingsEditor/0.0.1536.824@0.0.1536.824" timestamp="1585787045525" />
-    <state x="361" y="145" key="Vcs.Push.Dialog.v2" timestamp="1585788029881">
-      <screen x="0" y="0" width="1536" height="824" />
+    <state x="301" y="120" key="Vcs.Push.Dialog.v2" timestamp="1586897176607">
+      <screen x="0" y="0" width="1280" height="680" />
     </state>
+    <state x="301" y="120" key="Vcs.Push.Dialog.v2/0.0.1280.680@0.0.1280.680" timestamp="1586897176607" />
     <state x="361" y="145" key="Vcs.Push.Dialog.v2/0.0.1536.824@0.0.1536.824" timestamp="1585788029881" />
     <state x="337" y="166" key="com.intellij.ide.util.TipDialog" timestamp="1586896628544">
       <screen x="0" y="0" width="1280" height="680" />
