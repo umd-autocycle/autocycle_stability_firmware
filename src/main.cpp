@@ -5,11 +5,12 @@
 #include <Arduino.h>
 #include <Wire.h>
 #include <Scheduler.h>
+#include "controls.cpp"
 
 float currentSpeed;
 float desiredSpeed;
-float currentRoll;
-float desiredRoll;
+float delta;
+float currentDelta;
 
 //receive input from imu (in progress)
 //convert python PID interpolated to C++ (need help from Jack)
@@ -27,6 +28,7 @@ void maintainStability() {
     raw_ax=Wire.read()<<8|Wire.read();
     raw_ay=Wire.read()<<8|Wire.read();
     raw_az=Wire.read()<<8|Wire.read();
+    Wire.read(); Wire.read();   //account for temperature values
     raw_gx=Wire.read()<<8|Wire.read();
     raw_gy=Wire.read()<<8|Wire.read();
     raw_gz=Wire.read()<<8|Wire.read();
@@ -37,12 +39,14 @@ void maintainStability() {
     Serial.print("AX = "); Serial.print(ax);
     Serial.print(" | AY = "); Serial.print(ay);
     Serial.print(" | AZ = "); Serial.print(az);
-    Serial.print(" | GX = "); Serial.print(gx);
+    Serial.print(" | GX = "); Serial.print(gx)
     Serial.print(" | GY = "); Serial.print(gy);
     Serial.print(" | GZ = "); Serial.println(gz);
 
-    currentRoll=0.98*(currentRoll+gx*0.01)+0.02*atan2(ay, az)*180/PI;    //complementary filter to determine roll
-    Serial.print("Roll = "); Serial.println(currentRoll);
+    delta=(0.98*(delta*180/PI+gx*0.01)+0.02*atan2(ay, az)*180/PI)*PI/180;    //complementary filter to determine roll
+    Serial.print("Roll = "); Serial.println(delta);
+
+    double torque=get_torque(t, e, v);
 }
 
 void maintainSpeed() {
@@ -63,5 +67,5 @@ void setup() {
 }
 
 void loop() {
-    delay(100);
+    delay(1);
 }
