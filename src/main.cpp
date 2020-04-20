@@ -5,14 +5,17 @@
 #include <Arduino.h>
 #include <Wire.h>
 #include <Scheduler.h>
+#include <MPU6050.h>
 #include "controls.h"
+
+MPU6050 accelgyro;  //used to set offset values
 
 float currentSpeed = 0; //in m/s
 float desiredSpeed; //in m/s
 double phi=NULL;
-int maxThrottle = 7; // in m/s, need to determine what max throttle actually corresponds to
+int maxThrottle = 7;    // in m/s, need to determine what max throttle actually corresponds to
 int minThrottle = 0;
-int const throttlePin = 0; //this is the pin that will control throttle/speed output, to be determined which one for sure
+int const throttlePin = 0;  //this is the pin that will control throttle/speed output, to be determined which one for sure
 
 //for speed
 float delT1 = 0;
@@ -57,9 +60,9 @@ void maintainStability() {
     phi=(0.98*(phi*180/PI+gx*0.001)+0.02*atan2(ay, az)*180/PI)*PI/180;    //complementary filter to determine roll (in radians)
     Serial.print("Roll = "); Serial.println(phi*180/PI);
 
-    double e[]={phi, 0, gx*PI/180, 0};
-    double torque=get_torque(0.001, e, 5, 20.0);
-    Serial.print("Torque = "); Serial.println(torque);
+//    double e[]={phi, 0, gx*PI/180, 0};
+//    double torque=get_torque(0.001, e, 5, 20.0);
+//    Serial.print("Torque = "); Serial.println(torque);
 }
 
 void maintainSpeed() {
@@ -115,6 +118,13 @@ void setup() {
     Wire.write(0);
     Wire.endTransmission(true);
     Serial.begin(9600);
+
+    accelgyro.setXAccelOffset(1675);
+    accelgyro.setYAccelOffset(311);
+    accelgyro.setZAccelOffset(1653);
+    accelgyro.setXGyroOffset(-1620);
+    accelgyro.setYGyroOffset(-72);
+    accelgyro.setZGyroOffset(7);
 
     //speed stuff
     analogWriteResolution(12);
