@@ -19,7 +19,7 @@ double params[][3]={{33.69352243, 0.263932, 21.15690148}, {101.20843419, 4.44019
                    {104.02280384, 10.68266114, 9.226414}};
 
 double min(double a, double b) {
-    return(a>b ? b:a);
+    return(a<b ? a:b);
 }
 
 double max(double a, double b) {

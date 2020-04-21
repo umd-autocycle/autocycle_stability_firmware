@@ -13,7 +13,7 @@ MPU6050 accelgyro;  //used to set offset values
 float currentSpeed = 0; //in m/s
 float desiredSpeed; //in m/s
 double phi=NULL;
-int maxThrottle = 7;    // in m/s, need to determine what max throttle actually corresponds to
+int maxThrottle = 7;    //in m/s, need to determine what max throttle actually corresponds to
 int minThrottle = 0;
 int const throttlePin = 0;  //this is the pin that will control throttle/speed output, to be determined which one for sure
 
@@ -24,9 +24,9 @@ float radius = .35; //dummy value in inches, need to measure
 float circumference = 2 * 3.14 * radius;
 int const interruptPin = 26;
 
-//receive input from imu (in progress)
-//convert python PID interpolated to C++ (need help from Jack)
-//send torque info to motor (need actual motor/specs to complete this)
+//receive input from imu
+//convert python PID interpolated to C++
+//send torque info to motor
 void maintainStability() {
     int16_t raw_ax, raw_ay, raw_az, raw_gx, raw_gy, raw_gz;
     double ax, ay, az, gx, gy, gz;
@@ -57,7 +57,7 @@ void maintainStability() {
         phi=atan2(ay, az);  //initial conditions
     }
     delay(1);
-    phi=(0.98*(phi*180/PI+gx*0.001)+0.02*atan2(ay, az)*180/PI)*PI/180;    //complementary filter to determine roll (in radians)
+    phi=(0.98*(phi*180/PI+gx*0.001)+0.02*atan2(ay, az)*180/PI)*PI/180;    //complementary filter to determine roll (in radians/s)
     Serial.print("Roll = "); Serial.println(phi*180/PI);
 
 //    double e[]={phi, 0, gx*PI/180, 0};
@@ -97,15 +97,11 @@ void maintainSpeed() {
 
 }
 
-void updateSpeed()
-{
+void updateSpeed() {
     delT2 = millis();
-    if(delT1 == 0)
-    {
+    if (delT1 == 0) {
         currentSpeed = 0;
-    }
-    else
-    {
+    } else {
         currentSpeed = circumference/((delT2-delT1)/1000);
     }
     delT1 = delT2;
