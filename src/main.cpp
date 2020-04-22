@@ -60,8 +60,8 @@ void maintainStability() {
     phi=(0.98*(phi*180/PI+gx*0.001)+0.02*atan2(ay, az)*180/PI)*PI/180;    //complementary filter to determine roll (in radians/s)
     Serial.print("Roll = "); Serial.println(phi*180/PI);
 
-//    double e[]={phi, 0, gx*PI/180, 0};
-//    double torque=get_torque(0.001, e, 5, 20.0);
+    double e[]={phi, 0, gx*PI/180, 0};
+    double torque=get_torque(0.001, e, 5, 20.0);
 //    Serial.print("Torque = "); Serial.println(torque);
 }
 
