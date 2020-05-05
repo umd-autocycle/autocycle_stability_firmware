@@ -18,11 +18,11 @@ void setup() {
     CANport0.initialize(_1000K);
 
     RAW_CAN_Frame1.ID = 0x100;  //does this ID need to match the motor id?
-    RAW_CAN_Frame1.rate = _5Hz_Rate; //this is sending the message over and over again, is there a way to send it just once?
+    RAW_CAN_Frame1.rate = QUERY_MSG; //this is sending the message over and over again, is there a way to send it just once?
     //do we want to send it just once?
 
     RAW_CAN_Frame2.ID = 0x200;
-    RAW_CAN_Frame2.rate  = _10Hz_Rate;
+    RAW_CAN_Frame2.rate  = QUERY_MSG;
     CANport0.addMessage(&RAW_CAN_Frame1, TRANSMIT);
     CANport0.addMessage(&RAW_CAN_Frame2, RECEIVE);
 
@@ -30,14 +30,14 @@ void setup() {
 }
 
 void loop() {
-    RAW_CAN_Frame1.U.b[0] = 40;
-    RAW_CAN_Frame1.U.b[1] = 41;
-    RAW_CAN_Frame1.U.b[2] = 60;
-    RAW_CAN_Frame1.U.b[3] = 00;
-    RAW_CAN_Frame1.U.b[4] = 00;
-    RAW_CAN_Frame1.U.b[5] = 00;
-    RAW_CAN_Frame1.U.b[6] = 00;
-    RAW_CAN_Frame1.U.b[7] = 00;
+    RAW_CAN_Frame1.U.b[0] = 0x40;
+    RAW_CAN_Frame1.U.b[1] = 0x41;
+    RAW_CAN_Frame1.U.b[2] = 0x60;
+    RAW_CAN_Frame1.U.b[3] = 0x00;
+    RAW_CAN_Frame1.U.b[4] = 0x00;
+    RAW_CAN_Frame1.U.b[5] = 0x00;
+    RAW_CAN_Frame1.U.b[6] = 0x00;
+    RAW_CAN_Frame1.U.b[7] = 0x00;
 
     for (int i=0; i<=7; i++) {
         Serial.print(RAW_CAN_Frame2.U.b[i], HEX);
