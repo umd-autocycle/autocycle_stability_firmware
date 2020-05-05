@@ -14,8 +14,9 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="de99c6c9-6332-424b-ab03-e9122f5c5676" name="Default Changelist" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/autocycle_stability_firmware.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/autocycle_stability_firmware.iml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/motorping.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/src/motorping.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/CMakeLists.txt" beforeDir="false" afterPath="$PROJECT_DIR$/CMakeLists.txt" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -25,6 +26,7 @@
   <component name="ClangdSettings">
     <option name="formatViaClangd" value="false" />
   </component>
+  <component name="ExecutionTargetManager" SELECTED_TARGET="CMakeBuildProfile:due" />
   <component name="FileTemplateManagerImpl">
     <option name="RECENT_TEMPLATES">
       <list>
@@ -61,15 +63,15 @@
     </key>
   </component>
   <component name="RunManager" selected="PlatformIO.PlatformIO Upload">
-    <configuration name="Z_DUMMY_TARGET" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="autocycle_stability_firmware_new" TARGET_NAME="Z_DUMMY_TARGET" CONFIG_NAME="due" RUN_TARGET_PROJECT_NAME="autocycle_stability_firmware_new" RUN_TARGET_NAME="Z_DUMMY_TARGET">
+    <configuration name="Z_DUMMY_TARGET" type="CMakeRunConfiguration" factoryName="Application" PASS_PARENT_ENVS_2="true" PROJECT_NAME="autocycle_stability_firmware_new" TARGET_NAME="Z_DUMMY_TARGET" CONFIG_NAME="due" RUN_TARGET_PROJECT_NAME="autocycle_stability_firmware_new" RUN_TARGET_NAME="Z_DUMMY_TARGET">
       <method v="2">
         <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
       </method>
     </configuration>
-    <configuration name="PlatformIO Debug" type="platformio" factoryName="PlatformIO Debug" REDIRECT_INPUT="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="autocycle_stability_firmware_new" TARGET_NAME="Debug" CONFIG_NAME="due" RUN_TARGET_PROJECT_NAME="autocycle_stability_firmware_new" RUN_TARGET_NAME="Debug">
+    <configuration name="PlatformIO Debug" type="platformio" factoryName="PlatformIO Debug" PASS_PARENT_ENVS_2="true" PROJECT_NAME="autocycle_stability_firmware_new" TARGET_NAME="Debug" CONFIG_NAME="due" RUN_TARGET_PROJECT_NAME="autocycle_stability_firmware_new" RUN_TARGET_NAME="Debug">
       <method v="2" />
     </configuration>
-    <configuration name="PlatformIO Upload" type="platformio" factoryName="PlatformIO Upload" REDIRECT_INPUT="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="autocycle_stability_firmware_new" TARGET_NAME="Production" CONFIG_NAME="due" RUN_TARGET_PROJECT_NAME="autocycle_stability_firmware_new" RUN_TARGET_NAME="Production">
+    <configuration name="PlatformIO Upload" type="platformio" factoryName="PlatformIO Upload" PASS_PARENT_ENVS_2="true" PROJECT_NAME="autocycle_stability_firmware_new" TARGET_NAME="Production" CONFIG_NAME="due" RUN_TARGET_PROJECT_NAME="autocycle_stability_firmware_new" RUN_TARGET_NAME="Production">
       <method v="2" />
     </configuration>
     <list>
