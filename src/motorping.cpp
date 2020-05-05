@@ -7,6 +7,12 @@ cAcquireCAN CANport0(CAN_PORT_0);   //do i need to show that this applies to the
 cCANFrame RAW_CAN_Frame1;
 cCANFrame RAW_CAN_Frame2;
 
+void CAN_RxTx()
+{
+    //run CAN acquisition schedulers on both ports including OBD and RAW CAN mesages (RX/TX)
+    CANport0.run(TIMER_2mS);
+}
+
 void setup() {
     Serial.begin(115200);
     CANport0.initialize(_1000K);
@@ -38,8 +44,3 @@ void loop() {
     }
 }
 
-void CAN_RxTx()
-{
-    //run CAN acquisition schedulers on both ports including OBD and RAW CAN mesages (RX/TX)
-    CANport0.run(TIMER_2mS);
-}
