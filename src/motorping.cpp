@@ -1,20 +1,18 @@
-/*
- * #include <Arduino.h>
+#include <Arduino.h>
 #include <OBD2.h>
 #include <DueTimer.h>
 
-cAcquireCAN CANport0(CAN_PORT_0);//do i need to show that this applies to the correct port on the due or is that handled automaticallY?
+cAcquireCAN CANport0(CAN_PORT_0);   //do i need to show that this applies to the correct port on the due or is that handled automaticallY?
 
 cCANFrame RAW_CAN_Frame1;
 cCANFrame RAW_CAN_Frame2;
 
-void setup()
-{
+void setup() {
     Serial.begin(115200);
-    CANPort0.initialize(_1000K);
+    CANport0.initialize(_1000K);
 
-    RAW_CAN_Frame1.ID = 0x100; //does this ID need to match the motor id?
-    RAW_CAN_Fram1.rate = _5Hz_rate; //this is sending the message over and over again, is there a way to send it just once?
+    RAW_CAN_Frame1.ID = 0x100;  //does this ID need to match the motor id?
+    RAW_CAN_Frame1.rate = _5Hz_Rate; //this is sending the message over and over again, is there a way to send it just once?
     //do we want to send it just once?
 
     RAW_CAN_Frame2.ID = 0x200;
@@ -34,15 +32,8 @@ void loop() {
     RAW_CAN_Frame1.U.b[5] = 00;
     RAW_CAN_Frame1.U.b[6] = 00;
     RAW_CAN_Frame1.U.b[7] = 00;
-    //is there a way to do this more efficiently?
-    Serial.print(RAW_CAN_Frame2.U.b[0], HEX);
-    Serial.print(RAW_CAN_Frame2.U.b[1], HEX);
-    Serial.print(RAW_CAN_Frame2.U.b[2], HEX);
-    Serial.print(RAW_CAN_Frame2.U.b[3], HEX);
-    Serial.print(RAW_CAN_Frame2.U.b[4], HEX);
-    Serial.print(RAW_CAN_Frame2.U.b[5], HEX);
-    Serial.print(RAW_CAN_Frame2.U.b[6], HEX);
-    Serial.print(RAW_CAN_Frame2.U.b[7], HEX);
 
+    for (int i=0; i<=7; i++) {
+        Serial.print(RAW_CAN_Frame2.U.b[i], HEX);
+    }
 }
-*/
