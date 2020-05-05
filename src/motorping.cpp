@@ -2,14 +2,13 @@
 #include <OBD2.h>
 #include <DueTimer.h>
 
-cAcquireCAN CANport0(CAN_PORT_0);   //do i need to show that this applies to the correct port on the due or is that handled automaticallY?
+cAcquireCAN CANport0(CAN_PORT_0);   //do I need to show that this applies to the correct port on the due or is that handled automatically?
 
 cCANFrame RAW_CAN_Frame1;
 cCANFrame RAW_CAN_Frame2;
 
-void CAN_RxTx()
-{
-    //run CAN acquisition schedulers on both ports including OBD and RAW CAN mesages (RX/TX)
+void CAN_RxTx() {
+    //run CAN acquisition schedulers on both ports including OBD and RAW CAN messages (RX/TX)
     CANport0.run(TIMER_2mS);
 }
 
