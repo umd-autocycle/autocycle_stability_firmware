@@ -8,6 +8,13 @@
 #include <MPU6050.h>
 #include "controls.h"
 
+//CAN libraries
+#include <CAN_Acquisition.h>
+#include <DueTimer.h>
+#include <OBD2.h>
+#include <due_can.h>
+#include <sn65hvd234.h>
+
 MPU6050 accelgyro;  //used to set offset values
 
 float currentSpeed = 0; //in m/s
