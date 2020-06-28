@@ -48,6 +48,11 @@ void Indicator::boop(unsigned int duration) const {
     tone(buzz_pin, F_BOOP, duration);
 }
 
+void Indicator::silence() const {
+    noTone(buzz_pin);
+}
+
+
 void Indicator::beepstring(uint8_t bitstring, int bitrate) {
     unsigned int duration = 4 * 1000 / bitrate / 5;
     unsigned int wait = 1000 / bitrate;
@@ -68,7 +73,7 @@ void Indicator::beepstring(uint16_t bitstring, int bitrate) {
     unsigned int wait = 1000 / bitrate;
 
     for (int i = 0; i < sizeof(uint16_t) * 8; i++) {
-        if (bitstring & 0x80U)
+        if (bitstring & 0x8000U)
             beep(duration);
         else
             boop(duration);
@@ -83,7 +88,7 @@ void Indicator::beepstring(uint32_t bitstring, int bitrate) {
     unsigned int wait = 1000 / bitrate;
 
     for (int i = 0; i < sizeof(uint32_t) * 8; i++) {
-        if (bitstring & 0x80UL)
+        if (bitstring & 0x80000000UL)
             beep(duration);
         else
             boop(duration);
@@ -98,7 +103,7 @@ void Indicator::beepstring(uint64_t bitstring, int bitrate) {
     unsigned int wait = 1000 / bitrate;
 
     for (int i = 0; i < sizeof(uint64_t) * 8; i++) {
-        if (bitstring & 0x80UL)
+        if (bitstring & 0x8000000000000000UL)
             beep(duration);
         else
             boop(duration);
@@ -107,3 +112,4 @@ void Indicator::beepstring(uint64_t bitstring, int bitrate) {
         bitstring <<= 1U;
     }
 }
+

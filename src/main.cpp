@@ -2,11 +2,11 @@
 // Created by Cooper Grill on 3/31/2020.
 //
 
+// Arduino libraries
 #include <Arduino.h>
 #include <Wire.h>
-#include <Scheduler.h>
 
-
+// Internal classes
 #include "IMU.h"
 #include "Indicator.h"
 #include "controls.h"
@@ -18,12 +18,38 @@
 //#include <due_can.h>
 //#include <sn65hvd234.h>
 
+// States
+#define IDLE    0
+#define CALIB   1
+#define MANUAL  2
+#define ASSIST  3
+#define AUTO    4
+#define FALLEN  5
+#define E_STOP  6
+
+// User request bit flags
+#define R_CALIB     0b00000001U
+#define R_MANUAL    0b00000010U
+#define R_STOP      0b00000100U
+#define R_RESUME    0b00001000U
+
+// Constants
+#define FTHRESH PI/4    // Threshold for being fallen over
+#define UTHRESH PI/20
+
 IMU imu(0x68);
 Indicator indicator(3, 4, 5, 11);
 
+// State variables
+uint8_t u_req = 0;
+double phi = 0.0;
+double del = 0.0;
+double v = 0.0;
+
+
 float currentSpeed = 0; //in m/s
 float desiredSpeed; //in m/s
-double phi = 0.0;
+
 int maxThrottle = 7;    //in m/s, need to determine what max throttle actually corresponds to
 int minThrottle = 0;
 int const throttlePin = 0;  //this is the pin that will control throttle/speed output, to be determined which one for sure
@@ -103,9 +129,10 @@ void setup() {
     analogReadResolution(12);
 
     indicator.start();
-    indicator.beep(5000);
+    indicator.beep(0);
     indicator.cycle();
     indicator.setRGB(0, 0, 0);
+    indicator.silence();
 
     imu.start();                                    // Initialize IMU
     imu.configure(2, 2, 1);  // Set accelerometer and gyro resolution, on-chip low-pass filter
@@ -141,18 +168,98 @@ void setup() {
 }
 
 void loop() {
+    static uint8_t state = 0;
+
+    // Update sensor information
     imu.update();
-    Serial.print(imu.gyroX());
-    Serial.print('\t');
-    Serial.print(imu.gyroY());
-    Serial.print('\t');
-    Serial.print(imu.gyroZ());
-    Serial.print('\t');
-    Serial.print(imu.accelX());
-    Serial.print('\t');
-    Serial.print(imu.accelY());
-    Serial.print('\t');
-    Serial.print(imu.accelZ());
-    Serial.println();
-    delay(10);
+
+    // Update state variables
+
+    // Act based on machine state, transition if necessary
+    switch (state) {
+        case IDLE:      // Idle
+
+            // Transitions
+            if (fabs(phi) > FTHRESH) {
+                state = FALLEN;
+            }
+            if (v > 1.0) {
+                state = ASSIST;
+            }
+            if (u_req & R_CALIB) {
+                state = CALIB;
+            }
+            if (u_req & R_MANUAL) {
+                state = MANUAL;
+            }
+            break;
+
+        case CALIB:     // Sensor calibration
+            if (true) {
+                u_req &= ~R_CALIB;
+                state = IDLE;
+            }
+            break;
+
+        case MANUAL:    // Manual operation
+            if (u_req & R_RESUME) {
+                u_req &= ~(R_RESUME | R_MANUAL);
+                state = IDLE;
+            }
+            break;
+
+        case ASSIST:    // Assisted (training wheel) motion, only control heading
+
+            // Transitions
+            if (fabs(phi) > FTHRESH) {
+                state = FALLEN;
+            }
+            if (v > 4.0) {
+                state = AUTO;
+            }
+            if (v < 0.5) {
+                state = IDLE;
+            }
+            if (u_req & R_STOP) {
+                state = E_STOP;
+            }
+            break;
+
+        case AUTO:      // Automatic motion, control heading and stability
+
+            // Transitions
+            if (fabs(phi) > FTHRESH) {
+                state = FALLEN;
+            }
+            if (v < 3.5) {
+                state = ASSIST;
+            }
+            if (u_req & R_STOP) {
+                state = E_STOP;
+            }
+            break;
+
+        case FALLEN:    // Fallen
+
+            // Transitions
+            if (fabs(phi) < UTHRESH) {
+                state = IDLE;
+            }
+            break;
+
+        case E_STOP:    // Emergency stop
+
+            // Transitions
+            if (fabs(phi) > FTHRESH) {
+                state = FALLEN;
+            }
+            if (u_req & R_RESUME) {
+                u_req &= ~(R_RESUME | R_STOP);
+                state = IDLE;
+            }
+            break;
+
+        default:        // Invalid state, fatal error
+            break;
+    }
 }

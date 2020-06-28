@@ -24,6 +24,7 @@ public:
 
     void beep(unsigned int duration = 500) const; // beep and boop do not block until end of tone, return after setting
     void boop(unsigned int duration = 500) const;
+    void silence() const;
 
     void beepstring(uint8_t bitstring, int bitrate = 2);
     void beepstring(uint16_t bitstring, int bitrate = 2);
