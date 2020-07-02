@@ -12,6 +12,11 @@ Indicator::Indicator(uint8_t r_pin, uint8_t g_pin, uint8_t b_pin, uint8_t buzz_p
     this->g_pin = g_pin;
     this->b_pin = b_pin;
     this->buzz_pin = buzz_pin;
+
+    pr = pb = pg = br = bg = bb = 0;
+    pulse_duration = pulse_interval = 0;
+    pulse_on = pulsed = false;
+    pulse_ref = 0;
 }
 
 void Indicator::start() {
@@ -25,19 +30,51 @@ void Indicator::start() {
     analogWrite(b_pin, PWM_MAX);
 }
 
-void Indicator::setRGB(uint16_t r, uint16_t g, uint16_t b) {
+void Indicator::setPassiveRGB(uint8_t r, uint8_t g, uint8_t b) {
+    pr = ((uint16_t) r) << 4U;
+    pg = ((uint16_t) g) << 4U;
+    pb = ((uint16_t) b) << 4U;
+
     analogWrite(r_pin, constrain(PWM_MAX - r, 0, PWM_MAX));
     analogWrite(g_pin, constrain(PWM_MAX - g, 0, PWM_MAX));
     analogWrite(b_pin, constrain(PWM_MAX - b, 0, PWM_MAX));
+}
+
+void Indicator::setBlinkRGB(uint8_t r, uint8_t g, uint8_t b) {
+    br = ((uint16_t) r) << 4U;
+    bg = ((uint16_t) g) << 4U;
+    bb = ((uint16_t) b) << 4U;
 }
 
 void Indicator::cycle() {
     for (int r = 0; r < PWM_MAX; r += 64)
         for (int g = 0; g < PWM_MAX; g += 64)
             for (int b = 0; b < PWM_MAX; b += 64) {
-                setRGB(r, g, b);
+                setPassiveRGB(r, g, b);
                 delay(1);
             }
+}
+
+void Indicator::update() {
+    if (pulse_on) {
+        unsigned long t = (millis() - pulse_ref) % (pulse_duration + pulse_interval);
+
+        if (t < pulse_duration && !pulsed) {
+            beep(pulse_duration);
+            pulsed = true;
+
+            analogWrite(r_pin, constrain(PWM_MAX - br, 0, PWM_MAX));
+            analogWrite(g_pin, constrain(PWM_MAX - bg, 0, PWM_MAX));
+            analogWrite(b_pin, constrain(PWM_MAX - bb, 0, PWM_MAX));
+        } else if (t >= pulse_duration && pulsed) {
+            pulsed = false;
+
+            analogWrite(r_pin, constrain(PWM_MAX - pr, 0, PWM_MAX));
+            analogWrite(g_pin, constrain(PWM_MAX - pg, 0, PWM_MAX));
+            analogWrite(b_pin, constrain(PWM_MAX - pb, 0, PWM_MAX));
+        }
+
+    }
 }
 
 void Indicator::beep(unsigned int duration) const {
@@ -52,6 +89,17 @@ void Indicator::silence() const {
     noTone(buzz_pin);
 }
 
+void Indicator::setPulse(unsigned int duration, unsigned int interval) {
+    this->pulse_duration = duration;
+    this->pulse_interval = interval;
+    this->pulse_on = true;
+    this->pulsed = false;
+    pulse_ref = millis();
+}
+
+void Indicator::disablePulse() {
+    this->pulse_on = false;
+}
 
 void Indicator::beepstring(uint8_t bitstring, int bitrate) {
     unsigned int duration = 4 * 1000 / bitrate / 5;

@@ -6,17 +6,12 @@
 #include <Arduino.h>
 #include <Wire.h>
 
-// Internal classes
+// Internal libraries
 #include "IMU.h"
 #include "Indicator.h"
 #include "controls.h"
+#include "CANOpen.h"
 
-//CAN libraries
-//#include <CAN_Acquisition.h>
-//#include <DueTimer.h>
-//#include <OBD2.h>
-//#include <due_can.h>
-//#include <sn65hvd234.h>
 
 // States
 #define IDLE    0
@@ -27,15 +22,36 @@
 #define FALLEN  5
 #define E_STOP  6
 
+// State colors
+#define RGB_STARTUP_P   255, 255, 255
+#define RGB_IDLE_P      255, 255, 0
+#define RGB_CALIB_P     128, 0, 128
+#define RGB_MANUAL_P    255, 165, 0
+#define RGB_ASSIST_P    34, 139, 34
+#define RGB_AUTO_P      0, 255, 0
+#define RGB_FALLEN_P    255, 140, 0
+#define RGB_E_STOP_P    255, 0, 0
+#define RGB_STARTUP_B   0, 0, 255
+#define RGB_IDLE_B      0, 0, 255
+#define RGB_CALIB_B     128, 255, 128
+#define RGB_MANUAL_B    0, 89, 255
+#define RGB_ASSIST_B    140, 34, 140
+#define RGB_AUTO_B      255, 0, 255
+#define RGB_FALLEN_B    255, 0, 0
+#define RGB_E_STOP_B    0, 0, 255
+
+
 // User request bit flags
 #define R_CALIB     0b00000001U
 #define R_MANUAL    0b00000010U
 #define R_STOP      0b00000100U
 #define R_RESUME    0b00001000U
 
+
 // Constants
 #define FTHRESH PI/4    // Threshold for being fallen over
 #define UTHRESH PI/20
+
 
 IMU imu(0x68);
 Indicator indicator(3, 4, 5, 11);
@@ -61,9 +77,6 @@ float radius = .35; //dummy value in inches, need to measure
 float circumference = 2 * 3.14 * radius;
 int const interruptPin = 26;
 
-//receive input from imu
-//convert python PID interpolated to C++
-//send torque info to motor
 //void maintainStability() {
 //    if (phi == NULL) {
 //        phi = atan2(ay, az);  //initial conditions
@@ -71,8 +84,6 @@ int const interruptPin = 26;
 //    delay(1);
 //    phi = (0.98 * (phi * 180 / PI + gx * 0.001) + 0.02 * atan2(ay, az) * 180 / PI) * PI /
 //          180;    //complementary filter to determine roll (in radians/s)
-//    Serial.print("Roll = ");
-//    Serial.println(phi * 180 / PI);
 //
 //    double e[] = {phi, 0, gx * PI / 180, 0};
 //    double torque = get_torque(0.001, e, 5, 20.0);
@@ -125,13 +136,15 @@ void setup() {
     Wire.begin();                         // Begin I2C interface
     Serial.begin(115200);       // Begin Serial (UART to USB) communication
 
-    analogWriteResolution(10);        // Enable expanded PWM and ADC resolution
+    analogWriteResolution(12);        // Enable expanded PWM and ADC resolution
     analogReadResolution(12);
 
+    // Initiate indicator
     indicator.start();
     indicator.beep(0);
     indicator.cycle();
-    indicator.setRGB(0, 0, 0);
+    indicator.setPassiveRGB(RGB_STARTUP_P);
+    indicator.setBlinkRGB(RGB_STARTUP_B);
     indicator.silence();
 
     imu.start();                                    // Initialize IMU
@@ -162,9 +175,8 @@ void setup() {
 //
 //    Scheduler.startLoop(maintainStability);
     //Scheduler.startLoop(maintainSpeed);
-
-
-
+    indicator.setPassiveRGB(RGB_IDLE_P);
+    indicator.setBlinkRGB(RGB_IDLE_B);
 }
 
 void loop() {
@@ -173,7 +185,12 @@ void loop() {
     // Update sensor information
     imu.update();
 
+
     // Update state variables
+
+    // Update indicator
+    indicator.update();
+
 
     // Act based on machine state, transition if necessary
     switch (state) {
@@ -182,15 +199,25 @@ void loop() {
             // Transitions
             if (fabs(phi) > FTHRESH) {
                 state = FALLEN;
+                indicator.setPassiveRGB(RGB_FALLEN_P);
+                indicator.setBlinkRGB(RGB_FALLEN_B);
+                indicator.setPulse(500, 1500);
             }
             if (v > 1.0) {
                 state = ASSIST;
+                indicator.setPassiveRGB(RGB_ASSIST_P);
+                indicator.setBlinkRGB(RGB_ASSIST_B);
             }
             if (u_req & R_CALIB) {
                 state = CALIB;
+                indicator.setPassiveRGB(RGB_CALIB_P);
+                indicator.setBlinkRGB(RGB_CALIB_B);
+                indicator.setPulse(250, 250);
             }
             if (u_req & R_MANUAL) {
                 state = MANUAL;
+                indicator.setPassiveRGB(RGB_MANUAL_P);
+                indicator.setBlinkRGB(RGB_MANUAL_B);
             }
             break;
 
@@ -198,6 +225,9 @@ void loop() {
             if (true) {
                 u_req &= ~R_CALIB;
                 state = IDLE;
+                indicator.disablePulse();
+                indicator.setPassiveRGB(RGB_IDLE_P);
+                indicator.setBlinkRGB(RGB_IDLE_B);
             }
             break;
 
@@ -205,6 +235,8 @@ void loop() {
             if (u_req & R_RESUME) {
                 u_req &= ~(R_RESUME | R_MANUAL);
                 state = IDLE;
+                indicator.setPassiveRGB(RGB_IDLE_P);
+                indicator.setBlinkRGB(RGB_IDLE_B);
             }
             break;
 
@@ -213,15 +245,24 @@ void loop() {
             // Transitions
             if (fabs(phi) > FTHRESH) {
                 state = FALLEN;
+                indicator.setPassiveRGB(RGB_FALLEN_P);
+                indicator.setBlinkRGB(RGB_FALLEN_B);
+                indicator.setPulse(500, 1500);
             }
             if (v > 4.0) {
                 state = AUTO;
+                indicator.setPassiveRGB(RGB_AUTO_P);
+                indicator.setBlinkRGB(RGB_AUTO_B);
             }
             if (v < 0.5) {
                 state = IDLE;
+                indicator.setPassiveRGB(RGB_IDLE_P);
+                indicator.setBlinkRGB(RGB_IDLE_B);
             }
             if (u_req & R_STOP) {
                 state = E_STOP;
+                indicator.setPassiveRGB(RGB_E_STOP_P);
+                indicator.setBlinkRGB(RGB_E_STOP_B);
             }
             break;
 
@@ -230,12 +271,19 @@ void loop() {
             // Transitions
             if (fabs(phi) > FTHRESH) {
                 state = FALLEN;
+                indicator.setPassiveRGB(RGB_FALLEN_P);
+                indicator.setBlinkRGB(RGB_FALLEN_B);
+                indicator.setPulse(500, 1500);
             }
             if (v < 3.5) {
                 state = ASSIST;
+                indicator.setPassiveRGB(RGB_ASSIST_P);
+                indicator.setBlinkRGB(RGB_ASSIST_B);
             }
             if (u_req & R_STOP) {
                 state = E_STOP;
+                indicator.setPassiveRGB(RGB_E_STOP_P);
+                indicator.setBlinkRGB(RGB_E_STOP_B);
             }
             break;
 
@@ -244,6 +292,9 @@ void loop() {
             // Transitions
             if (fabs(phi) < UTHRESH) {
                 state = IDLE;
+                indicator.setPassiveRGB(RGB_IDLE_P);
+                indicator.setBlinkRGB(RGB_IDLE_B);
+                indicator.disablePulse();
             }
             break;
 
@@ -252,10 +303,15 @@ void loop() {
             // Transitions
             if (fabs(phi) > FTHRESH) {
                 state = FALLEN;
+                indicator.setPassiveRGB(RGB_FALLEN_P);
+                indicator.setBlinkRGB(RGB_FALLEN_B);
+                indicator.setPulse(500, 1500);
             }
             if (u_req & R_RESUME) {
                 u_req &= ~(R_RESUME | R_STOP);
                 state = IDLE;
+                indicator.setPassiveRGB(RGB_IDLE_P);
+                indicator.setBlinkRGB(RGB_IDLE_B);
             }
             break;
 

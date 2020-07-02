@@ -8,7 +8,7 @@
 #include <Arduino.h>
 
 #define PWM_RES     10U
-#define PWM_MAX     ((1U<<PWM_RES) - 1)
+#define PWM_MAX     4095
 #define F_BEEP      1320
 #define F_BOOP      524
 
@@ -19,12 +19,18 @@ public:
 
     void start();
 
-    void setRGB(uint16_t r, uint16_t g, uint16_t b);
+    void setPassiveRGB(uint8_t r, uint8_t g, uint8_t b);
+    void setBlinkRGB(uint8_t r, uint8_t g, uint8_t b);
+
     void cycle();
+    void update();
 
     void beep(unsigned int duration = 500) const; // beep and boop do not block until end of tone, return after setting
     void boop(unsigned int duration = 500) const;
     void silence() const;
+
+    void setPulse(unsigned int duration, unsigned int interval);
+    void disablePulse();
 
     void beepstring(uint8_t bitstring, int bitrate = 2);
     void beepstring(uint16_t bitstring, int bitrate = 2);
@@ -33,6 +39,10 @@ public:
 
 private:
     uint8_t r_pin, g_pin, b_pin, buzz_pin;
+    uint16_t pr, pg, pb, br, bg, bb;
+    bool pulse_on, pulsed;
+    unsigned int pulse_duration, pulse_interval;
+    unsigned long pulse_ref;
 };
 
 
