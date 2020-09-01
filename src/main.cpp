@@ -78,11 +78,11 @@ int minThrottle = 0;
 int const throttlePin = 0;  //this is the pin that will control throttle/speed output, to be determined which one for sure
 
 //for speed
-float delT1 = 0;
-float delT2;
-float radius = .35; //dummy value in inches, need to measure
-float circumference = 2.0f * 3.14f * radius;
-int const interruptPin = 26;
+//float delT1 = 0;
+//float delT2;
+//float radius = .35; //dummy value in inches, need to measure
+//float circumference = 2.0f * 3.14f * radius;
+//int const interruptPin = 26;
 
 //void maintainStability() {
 //    if (phi == NULL) {
@@ -97,37 +97,37 @@ int const interruptPin = 26;
 //    Serial.print("Torque = "); Serial.println(torque);
 //}
 
-//void maintainSpeed() {
-//    float speedKp = .01;
-//    float speedKd = .01;
-//    float speedPreError = 0;
-//    float dt = .01;
-//    float outputMax = .5;
-//    float outputMin = -.5;
-//
-//    //testing maintainSpeed
-//    //assume starting units are already in m/s, and matching output units (also in m/s)
-//
-//    float speedError = desiredSpeed - currentSpeed;
-//
-//
-//    float pOut = speedKp * speedError;
-//    float speedDeriv = (speedError - speedPreError) / dt;
-//    float dOut = speedKd * speedDeriv;
-//    float output = dOut + pOut;
-//
-//    if (output > outputMax)
-//        output = outputMax;
-//    else if (output < outputMin)
-//        output = outputMin;
-//
-//    //currentSpeed += output; // this is just for testing, output will eventually actually send a signal
-//    speedPreError = speedError;
-//    speedError = desiredSpeed - currentSpeed;
-//    int newThrottle = int((currentSpeed += output)/(maxThrottle-minThrottle)*4096); //what is due analog res?
+ maintainSpeed(float desiredSpeed, float currentSpeed) {
+    float speedKp = .01;
+    float speedKd = .01;
+    float speedPreError = 0;
+    float dt = .01;
+    float outputMax = .5;
+    float outputMin = -.5;
+
+    //testing maintainSpeed
+    //assume starting units are already in m/s, and matching output units (also in m/s)
+
+    float speedError = desiredSpeed - currentSpeed;
+
+
+    float pOut = speedKp * speedError;
+    float speedDeriv = (speedError - speedPreError) / dt;
+    float dOut = speedKd * speedDeriv;
+    float output = dOut + pOut;
+
+    if (output > outputMax)
+        output = outputMax;
+    else if (output < outputMin)
+        output = outputMin;
+
+    //currentSpeed += output; // this is just for testing, output will eventually actually send a signal
+    speedPreError = speedError;
+    speedError = desiredSpeed - currentSpeed;
+    return int((currentSpeed += output)/(maxThrottle-minThrottle)*4096); //what is due analog res?
 //    analogWrite(throttlePin, newThrottle);
 //
-//}
+}
 //
 //void updateSpeed() {
 //    delT2 = millis();
