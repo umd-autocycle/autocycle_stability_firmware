@@ -51,6 +51,8 @@ void CANOpenDevice::writeSDO(uint16_t index, uint8_t sub_index, uint8_t data_len
     outgoing.data.high = data;
 
     can_line->sendFrame(outgoing);
+
+    //TODO wait for response
 }
 
 void CANOpenDevice::readSDO(uint16_t index, uint8_t sub_index, uint32_t &data) {

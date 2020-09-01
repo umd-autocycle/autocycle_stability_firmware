@@ -5,13 +5,14 @@
 // Arduino libraries
 #include <Arduino.h>
 #include <Wire.h>
+#include <due_can.h>
 
 // Internal libraries
 #include "IMU.h"
 #include "Indicator.h"
 #include "controls.h"
 #include "CANOpen.h"
-
+#include "TorqueMotor.h"
 
 // States
 #define IDLE    0
@@ -47,17 +48,23 @@
 #define R_STOP      0b00000100U
 #define R_RESUME    0b00001000U
 
+// Info for torque motor
+#define TM_NODE_ID          127
+#define TM_CURRENT_MAX      1000
+#define TM_TORQUE_MAX       1000
+#define TM_TORQUE_SLOPE     1000
 
 // Constants
-#define FTHRESH PI/4    // Threshold for being fallen over
-#define UTHRESH PI/20
+#define FTHRESH PI/4.0      // Threshold for being fallen over
+#define UTHRESH PI/20.0
 
 
 IMU imu(0x68);
 Indicator indicator(3, 4, 5, 11);
+TorqueMotor *torque_motor;
 
 // State variables
-uint8_t u_req = 0;
+uint8_t user_req = 0;       // User request binary flags
 double phi = 0.0;
 double del = 0.0;
 double v = 0.0;
@@ -74,7 +81,7 @@ int const throttlePin = 0;  //this is the pin that will control throttle/speed o
 float delT1 = 0;
 float delT2;
 float radius = .35; //dummy value in inches, need to measure
-float circumference = 2 * 3.14 * radius;
+float circumference = 2.0f * 3.14f * radius;
 int const interruptPin = 26;
 
 //void maintainStability() {
@@ -133,8 +140,9 @@ int const interruptPin = 26;
 //}
 
 void setup() {
-    Wire.begin();                         // Begin I2C interface
-    Serial.begin(115200);       // Begin Serial (UART to USB) communication
+    Wire.begin();                              // Begin I2C interface
+    Serial.begin(115200);           // Begin Serial (UART to USB) communication
+    Can0.begin(CAN_BPS_1000K, 0xFF);     // 1M baud rate, no enable pin
 
     analogWriteResolution(12);        // Enable expanded PWM and ADC resolution
     analogReadResolution(12);
@@ -146,6 +154,9 @@ void setup() {
     indicator.setPassiveRGB(RGB_STARTUP_P);
     indicator.setBlinkRGB(RGB_STARTUP_B);
     indicator.silence();
+
+    torque_motor = new TorqueMotor(&Can0, TM_NODE_ID, TM_CURRENT_MAX, TM_TORQUE_MAX, TM_TORQUE_SLOPE);
+    torque_motor->start();                          // Initialize torque control motor
 
     imu.start();                                    // Initialize IMU
     imu.configure(2, 2, 1);  // Set accelerometer and gyro resolution, on-chip low-pass filter
@@ -173,8 +184,7 @@ void setup() {
 //    attachInterrupt(digitalPinToInterrupt(interruptPin), updateSpeed, RISING);
 //    //anytime the speed pin goes from low to high, this interrupt should update speed accordingly
 //
-//    Scheduler.startLoop(maintainStability);
-    //Scheduler.startLoop(maintainSpeed);
+
     indicator.setPassiveRGB(RGB_IDLE_P);
     indicator.setBlinkRGB(RGB_IDLE_B);
 }
@@ -208,13 +218,13 @@ void loop() {
                 indicator.setPassiveRGB(RGB_ASSIST_P);
                 indicator.setBlinkRGB(RGB_ASSIST_B);
             }
-            if (u_req & R_CALIB) {
+            if (user_req & R_CALIB) {
                 state = CALIB;
                 indicator.setPassiveRGB(RGB_CALIB_P);
                 indicator.setBlinkRGB(RGB_CALIB_B);
                 indicator.setPulse(250, 250);
             }
-            if (u_req & R_MANUAL) {
+            if (user_req & R_MANUAL) {
                 state = MANUAL;
                 indicator.setPassiveRGB(RGB_MANUAL_P);
                 indicator.setBlinkRGB(RGB_MANUAL_B);
@@ -223,7 +233,7 @@ void loop() {
 
         case CALIB:     // Sensor calibration
             if (true) {
-                u_req &= ~R_CALIB;
+                user_req &= ~R_CALIB;
                 state = IDLE;
                 indicator.disablePulse();
                 indicator.setPassiveRGB(RGB_IDLE_P);
@@ -232,8 +242,8 @@ void loop() {
             break;
 
         case MANUAL:    // Manual operation
-            if (u_req & R_RESUME) {
-                u_req &= ~(R_RESUME | R_MANUAL);
+            if (user_req & R_RESUME) {
+                user_req &= ~(R_RESUME | R_MANUAL);
                 state = IDLE;
                 indicator.setPassiveRGB(RGB_IDLE_P);
                 indicator.setBlinkRGB(RGB_IDLE_B);
@@ -259,7 +269,7 @@ void loop() {
                 indicator.setPassiveRGB(RGB_IDLE_P);
                 indicator.setBlinkRGB(RGB_IDLE_B);
             }
-            if (u_req & R_STOP) {
+            if (user_req & R_STOP) {
                 state = E_STOP;
                 indicator.setPassiveRGB(RGB_E_STOP_P);
                 indicator.setBlinkRGB(RGB_E_STOP_B);
@@ -280,7 +290,7 @@ void loop() {
                 indicator.setPassiveRGB(RGB_ASSIST_P);
                 indicator.setBlinkRGB(RGB_ASSIST_B);
             }
-            if (u_req & R_STOP) {
+            if (user_req & R_STOP) {
                 state = E_STOP;
                 indicator.setPassiveRGB(RGB_E_STOP_P);
                 indicator.setBlinkRGB(RGB_E_STOP_B);
@@ -307,8 +317,8 @@ void loop() {
                 indicator.setBlinkRGB(RGB_FALLEN_B);
                 indicator.setPulse(500, 1500);
             }
-            if (u_req & R_RESUME) {
-                u_req &= ~(R_RESUME | R_STOP);
+            if (user_req & R_RESUME) {
+                user_req &= ~(R_RESUME | R_STOP);
                 state = IDLE;
                 indicator.setPassiveRGB(RGB_IDLE_P);
                 indicator.setBlinkRGB(RGB_IDLE_B);

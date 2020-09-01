@@ -101,6 +101,7 @@ void Indicator::disablePulse() {
     this->pulse_on = false;
 }
 
+//TODO integrate led blinking into bitstring methods
 void Indicator::beepstring(uint8_t bitstring, int bitrate) {
     unsigned int duration = 4 * 1000 / bitrate / 5;
     unsigned int wait = 1000 / bitrate;
