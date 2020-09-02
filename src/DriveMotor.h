@@ -24,9 +24,8 @@ public:
 private:
     float delT1 = 0;
     float delT2;
-    float radius = .35; //dummy value in inches, need to measure
-    float circumference = 2.0f * 3.14f * radius;
-    int const interruptPin = 26;
+    const float radius = .35; //dummy value in inches, need to measure //const or preprocessor macros
+    const float circumference = 2.0f * 3.14f * radius;//const or preprocessor macros
     float currentSpeed = 0;
     float desiredSpeed;
     int driveMotorPin;
