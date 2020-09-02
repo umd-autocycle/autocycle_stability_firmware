@@ -11,15 +11,16 @@
 //receive input of digital beeps, convert to speed
 //send analog output back to motor
 
-class DriveMotor{
+class DriveMotor {
 public:
-    DriveMotor(int driveMotorPin,int speedSensorPin, float desiredSpeed);
+    DriveMotor(int driveMotorPin, int speedSensorPin, float desiredSpeed);
 
     void readSpeedSignal();
 
     void convertSignalToSpeed();
 
     void writeAnalog();
+
 private:
     float delT1 = 0;
     float delT2;
