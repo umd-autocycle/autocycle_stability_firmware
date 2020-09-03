@@ -15,11 +15,16 @@ class DriveMotor {
 public:
     DriveMotor(int driveMotorPin, int speedSensorPin, float desiredSpeed);
 
+    void start(void (*func)(void));
+
     void readSpeedSignal();
 
     void convertSignalToSpeed();
 
     void writeAnalog();
+
+    int maintainSpeed(float desiredSpeed, float currentSpeed);
+
 
 private:
     float delT1 = 0;
@@ -30,7 +35,8 @@ private:
     float desiredSpeed;
     int driveMotorPin;
     int speedSensorPin;
-
+    int maxThrottle = 7;    //in m/s, need to determine what max throttle actually corresponds to
+    int minThrottle = 0;
 };
 
 

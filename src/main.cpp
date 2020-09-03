@@ -13,6 +13,7 @@
 #include "controls.h"
 #include "CANOpen.h"
 #include "TorqueMotor.h"
+#include "DriveMotor.h"
 
 // States
 #define IDLE    0
@@ -62,6 +63,7 @@
 IMU imu(0x68);
 Indicator indicator(3, 4, 5, 11);
 TorqueMotor *torque_motor;
+DriveMotor *drive_motor;
 
 // State variables
 uint8_t user_req = 0;       // User request binary flags
@@ -72,17 +74,6 @@ double v = 0.0;
 
 float currentSpeed = 0; //in m/s
 float desiredSpeed; //in m/s
-
-int maxThrottle = 7;    //in m/s, need to determine what max throttle actually corresponds to
-int minThrottle = 0;
-int const throttlePin = 0;  //this is the pin that will control throttle/speed output, to be determined which one for sure
-
-//for speed
-//float delT1 = 0;
-//float delT2;
-//float radius = .35; //dummy value in inches, need to measure
-//float circumference = 2.0f * 3.14f * radius;
-//int const interruptPin = 26;
 
 //void maintainStability() {
 //    if (phi == NULL) {
@@ -97,37 +88,7 @@ int const throttlePin = 0;  //this is the pin that will control throttle/speed o
 //    Serial.print("Torque = "); Serial.println(torque);
 //}
 
- maintainSpeed(float desiredSpeed, float currentSpeed) {
-    float speedKp = .01;
-    float speedKd = .01;
-    float speedPreError = 0;
-    float dt = .01;
-    float outputMax = .5;
-    float outputMin = -.5;
 
-    //testing maintainSpeed
-    //assume starting units are already in m/s, and matching output units (also in m/s)
-
-    float speedError = desiredSpeed - currentSpeed;
-
-
-    float pOut = speedKp * speedError;
-    float speedDeriv = (speedError - speedPreError) / dt;
-    float dOut = speedKd * speedDeriv;
-    float output = dOut + pOut;
-
-    if (output > outputMax)
-        output = outputMax;
-    else if (output < outputMin)
-        output = outputMin;
-
-    //currentSpeed += output; // this is just for testing, output will eventually actually send a signal
-    speedPreError = speedError;
-    speedError = desiredSpeed - currentSpeed;
-    return int((currentSpeed += output)/(maxThrottle-minThrottle)*4096); //what is due analog res?
-//    analogWrite(throttlePin, newThrottle);
-//
-}
 //
 //void updateSpeed() {
 //    delT2 = millis();
@@ -157,6 +118,9 @@ void setup() {
 
     torque_motor = new TorqueMotor(&Can0, TM_NODE_ID, TM_CURRENT_MAX, TM_TORQUE_MAX, TM_TORQUE_SLOPE);
     torque_motor->start();                          // Initialize torque control motor
+
+    drive_motor = new DriveMotor(7, 8, 0);
+    drive_motor->start([] { drive_motor->convertSignalToSpeed(); });
 
     imu.start();                                    // Initialize IMU
     imu.configure(2, 2, 1);  // Set accelerometer and gyro resolution, on-chip low-pass filter
