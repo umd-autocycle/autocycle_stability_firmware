@@ -17,11 +17,14 @@ public:
 
     void start(void (*func)(void));
 
-    void readSpeedSignal();
+    void readMotorSignal(bool askRPM);
 
+    void queryRPM();
+
+    void DriveMotor::writeSpeedToMotor(int speed);
     void convertSignalToSpeed();
 
-    void writeAnalog();
+    //void writeAnalog();
 
     int maintainSpeed(float desiredSpeed, float currentSpeed);
 
@@ -33,10 +36,13 @@ private:
     const float circumference = 2.0f * 3.14f * radius;//const or preprocessor macros
     float currentSpeed = 0;
     float desiredSpeed;
-    int driveMotorPin;
-    int speedSensorPin;
+    const int Serial1TX = 18;
+    const int Serial1RX = 19;
+    const int Serial2TX = 16;
+    const int Serial2RX = 17;
     int maxThrottle = 7;    //in m/s, need to determine what max throttle actually corresponds to
     int minThrottle = 0;
+    byte controllerResponse[20];//array to hold responses from controller
 };
 
 

@@ -103,6 +103,8 @@ float desiredSpeed; //in m/s
 void setup() {
     Wire.begin();                              // Begin I2C interface
     Serial.begin(115200);           // Begin Serial (UART to USB) communication
+    Serial1.begin(1200);
+    Serial2.begin(1200);
     Can0.begin(CAN_BPS_1000K, 0xFF);     // 1M baud rate, no enable pin
 
     analogWriteResolution(12);        // Enable expanded PWM and ADC resolution
