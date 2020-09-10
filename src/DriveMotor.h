@@ -13,9 +13,9 @@
 
 class DriveMotor {
 public:
-    DriveMotor(int driveMotorPin, int speedSensorPin, float desiredSpeed);
+    DriveMotor(float desiredSpeed);
 
-    void start(void (*func)(void));
+    void start();
 
     void readMotorSignal(bool askRPM);
 
@@ -26,7 +26,7 @@ public:
 
     //void writeAnalog();
 
-    int maintainSpeed(float desiredSpeed, float currentSpeed);
+    float maintainSpeed(float desiredSpeed, float currentSpeed);
 
 
 private:
@@ -43,6 +43,8 @@ private:
     int maxThrottle = 7;    //in m/s, need to determine what max throttle actually corresponds to
     int minThrottle = 0;
     byte controllerResponse[20];//array to hold responses from controller
+    const byte DSpeed[] = {0x11, 0x20}; //command that display sends to get rpm data
+    const float maxSpeed=11.1; //40 km/h in m/s, may change
 };
 
 

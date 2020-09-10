@@ -10,12 +10,11 @@ DriveMotor::DriveMotor(float desiredSpeed) {
     pinMode(speedSensorPin, INPUT);*/
 }
 
-void DriveMotor::start(void (*func)(void)) {  //use [] {drivemotor.convertSignalToSpeed() in main}
+void DriveMotor::start() {  //use [] {drivemotor.convertSignalToSpeed() in main}
     /*attachInterrupt(digitalPinToInterrupt(speedSensorPin), func, RISING);*/
 }
 
 void DriveMotor::queryRPM(){
-    const byte DSpeed[] = {0x11, 0x20}; //command that display sends to get rpm data
     Serial1.write(DSpeed);
     readMotorSignal(true);
 }
@@ -88,7 +87,7 @@ void readDisplaySignal()
             }
         }
     }
-        if(controllerResponse[0] != 0x11 && controllerResponse[1] != 0x20) {
+        if(controllerResponse[0] != 0x11 && controllerResponse[1] != 0x20) { // we can alter this to police any type of messages
             Serial1.write(Serial2.read()); //send data along to display
         }
     }
@@ -98,6 +97,8 @@ void DriveMotor::convertSignalToSpeed(byte RPMdata[]) {
     float rpm = (RPMdata[1] + RPMdata[0] * 256);
     currentSpeed = (rpm/60)*3.14*radius*2;
     writeSpeedtoMotor(maintainSpeed(desiredSpeed,currentSpeed));//populate this function!
+    //maintainspeed currently returns a percentage from 0 to 1 of the "max speed" of the bike, since this is the value
+    //that we send to the drive motor.
     /*
     delT2 = millis();
     if (delT1 == 0) {
@@ -112,7 +113,7 @@ void DriveMotor::convertSignalToSpeed(byte RPMdata[]) {
      */
 }
 
-void DriveMotor::writeSpeedToMotor(int speed)
+void DriveMotor::writeSpeedToMotor(float percentMaxSpeed)
 {
     //Here we'll determine the bytes we need to send to the motor to change to desired speed, and send that data.
 }
@@ -122,7 +123,7 @@ void DriveMotor::writeAnalog() {
     analogWrite(driveMotorPin, maintainSpeed(desiredSpeed, currentSpeed));
 }
 */
-int DriveMotor::maintainSpeed(float desiredSpeed, float currentSpeed) {
+float DriveMotor::maintainSpeed(float desiredSpeed, float currentSpeed) {
     float speedKp = .01;
     float speedKd = .01;
     float speedPreError = 0;
@@ -149,6 +150,8 @@ int DriveMotor::maintainSpeed(float desiredSpeed, float currentSpeed) {
     //currentSpeed += output; // this is just for testing, output will eventually actually send a signal
     speedPreError = speedError;
     speedError = desiredSpeed - currentSpeed;
+
+return ((currentspeed +=output)/maxSpeed)
     /*
     return int((currentSpeed += output) / (maxThrottle - minThrottle) * 4096); //what is due analog res?
      */ //What kind of output does the motor need to change speed?
