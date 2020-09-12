@@ -22,7 +22,8 @@ public:
     void queryRPM();
 
     void writeSpeedToMotor(float percentMaxSpeed);
-    void convertSignalToSpeed(byte RPMdata[]);
+    float convertSignalToSpeed(byte RPMdata[]);
+    void readDisplaySignal();
 
     //void writeAnalog();
 

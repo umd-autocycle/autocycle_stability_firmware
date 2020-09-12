@@ -27,15 +27,14 @@ void DriveMotor::readMotorSignal(bool askingRPM) {
     }
     else if (Serial1.available() > 0 && askingRPM == true)
     {
-        int maxWaittime = 200; //If nothing is received after  200 miliseconds, controller finished sending response
-        bool exceeded_maxWaittime = false;
-        unsigned long waitUntil;
+
+
         int byteNo = 0;
 
-        waitUntil = millis() + maxWaittime;
+
 
         //monitor messages from controller until maxwaittime is exceeded
-        while (!exceeded_maxWaittime)  {
+        while (byteNo<2)  {
             if (Serial1.available() > 0) {
                 byte cByte = Serial1.read();
 
@@ -46,18 +45,17 @@ void DriveMotor::readMotorSignal(bool askingRPM) {
                     byteNo = byteNo + 1;
                 }
 
-                waitUntil = millis() + maxWaittime; //Adjust waitUntill
+
             }
 
-            if (millis() > waitUntil) {
-                exceeded_maxWaittime = true;
-            }
+
         }
-        convertSignalToSpeed(controllerResponse);
+        currentSpeed = convertSignalToSpeed(controllerResponse);
+        writeSpeedToMotor(maintainSpeed(desiredSpeed,currentSpeed));
     }
 }
 
-void readDisplaySignal()
+void DriveMotor::readDisplaySignal()
 {
     if (Serial2.available() > 0)
     {
@@ -92,12 +90,13 @@ void readDisplaySignal()
             Serial1.write(Serial2.read()); //send data along to display
         }
     }
-}
 
-void DriveMotor::convertSignalToSpeed(byte RPMdata[]) {
+
+float DriveMotor::convertSignalToSpeed(byte RPMdata[]) {
     float rpm = (RPMdata[1] + RPMdata[0] * 256);
     currentSpeed = (rpm/60)*3.14*radius*2;
-    writeSpeedToMotor(maintainSpeed(desiredSpeed,currentSpeed));//populate this function!
+    return currentSpeed;
+    //populate this function!
     //maintainspeed currently returns a percentage from 0 to 1 of the "max speed" of the bike, since this is the value
     //that we send to the drive motor.
     /*
