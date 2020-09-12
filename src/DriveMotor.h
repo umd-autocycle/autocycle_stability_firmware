@@ -4,7 +4,7 @@
 
 #ifndef AUTOCYCLE_STABILITY_FIRMWARE_NEW_DRIVEMOTOR_H
 #define AUTOCYCLE_STABILITY_FIRMWARE_NEW_DRIVEMOTOR_H
-
+#include <Arduino.h>
 //goals of class:
 //handle communication btwn due and drive motor
 //control set speed
@@ -21,8 +21,8 @@ public:
 
     void queryRPM();
 
-    void DriveMotor::writeSpeedToMotor(int speed);
-    void convertSignalToSpeed();
+    void writeSpeedToMotor(float percentMaxSpeed);
+    void convertSignalToSpeed(byte RPMdata[]);
 
     //void writeAnalog();
 
@@ -43,7 +43,7 @@ private:
     int maxThrottle = 7;    //in m/s, need to determine what max throttle actually corresponds to
     int minThrottle = 0;
     byte controllerResponse[20];//array to hold responses from controller
-    const byte DSpeed[] = {0x11, 0x20}; //command that display sends to get rpm data
+    const byte DSpeed[2] = {0x11, 0x20}; //command that display sends to get rpm data
     const float maxSpeed=11.1; //40 km/h in m/s, may change
 };
 

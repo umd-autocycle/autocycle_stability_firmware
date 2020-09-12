@@ -15,16 +15,17 @@ void DriveMotor::start() {  //use [] {drivemotor.convertSignalToSpeed() in main}
 }
 
 void DriveMotor::queryRPM(){
-    Serial1.write(DSpeed);
+    Serial1.write(DSpeed[0]);
+    Serial1.write(DSpeed[1]);
     readMotorSignal(true);
 }
 
 void DriveMotor::readMotorSignal(bool askingRPM) {
-    if (Serial1.available() > 0 && bool askingRPM == false)
+    if (Serial1.available() > 0 &&  askingRPM == false)
     {
         Serial2.write(Serial1.read()); //send data along to display
     }
-    else if (Serial1.available() > 0 && bool askingRPM == true)
+    else if (Serial1.available() > 0 && askingRPM == true)
     {
         int maxWaittime = 200; //If nothing is received after  200 miliseconds, controller finished sending response
         bool exceeded_maxWaittime = false;
@@ -52,7 +53,7 @@ void DriveMotor::readMotorSignal(bool askingRPM) {
                 exceeded_maxWaittime = true;
             }
         }
-        convertSignaltoSpeed(controllerResponse);
+        convertSignalToSpeed(controllerResponse);
     }
 }
 
@@ -96,7 +97,7 @@ void readDisplaySignal()
 void DriveMotor::convertSignalToSpeed(byte RPMdata[]) {
     float rpm = (RPMdata[1] + RPMdata[0] * 256);
     currentSpeed = (rpm/60)*3.14*radius*2;
-    writeSpeedtoMotor(maintainSpeed(desiredSpeed,currentSpeed));//populate this function!
+    writeSpeedToMotor(maintainSpeed(desiredSpeed,currentSpeed));//populate this function!
     //maintainspeed currently returns a percentage from 0 to 1 of the "max speed" of the bike, since this is the value
     //that we send to the drive motor.
     /*
@@ -151,7 +152,7 @@ float DriveMotor::maintainSpeed(float desiredSpeed, float currentSpeed) {
     speedPreError = speedError;
     speedError = desiredSpeed - currentSpeed;
 
-return ((currentspeed +=output)/maxSpeed)
+return ((currentSpeed +=output)/maxSpeed);
     /*
     return int((currentSpeed += output) / (maxThrottle - minThrottle) * 4096); //what is due analog res?
      */ //What kind of output does the motor need to change speed?
