@@ -21,16 +21,21 @@ public:
 
     void queryRPM();
 
-    void writeSpeedToMotor(float percentMaxSpeed);
+    void writeSpeedToMotor(int percentMaxSpeed);
     float convertSignalToSpeed(byte RPMdata[]);
     void readDisplaySignal();
+    void storePedalAssist();
+    void storeBasic();
+    void storeThrottle();
+    void startup();
 
     //void writeAnalog();
 
-    float maintainSpeed(float desiredSpeed, float currentSpeed);
+    int maintainSpeed(float desiredSpeed, float currentSpeed);
 
 
 private:
+
     float delT1 = 0;
     float delT2;
     const float radius = .35; //dummy value in inches, need to measure //const or preprocessor macros
@@ -44,6 +49,9 @@ private:
     int maxThrottle = 7;    //in m/s, need to determine what max throttle actually corresponds to
     int minThrottle = 0;
     byte controllerResponse[20];//array to hold responses from controller
+    byte basicResponse[26];
+    byte PASResponse[13];
+    byte throttleResponse[8];
     const byte DSpeed[2] = {0x11, 0x20}; //command that display sends to get rpm data
     const float maxSpeed=11.1; //40 km/h in m/s, may change
 };

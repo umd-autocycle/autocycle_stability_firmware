@@ -12,6 +12,81 @@ DriveMotor::DriveMotor(float desiredSpeed) {
 
 void DriveMotor::start() {  //use [] {drivemotor.convertSignalToSpeed() in main}
     /*attachInterrupt(digitalPinToInterrupt(speedSensorPin), func, RISING);*/
+    storeBasic();
+    storePedalAssist();
+    storeThrottle();
+    startup();
+}
+
+void DriveMotor::startup()
+{
+    byte startupArray[5] = {0x11,0x51,0x04,0xB0,0x05};
+    for (int i = 0; i < 5; i++)
+    {
+        Serial1.write(startupArray[i]);
+    }
+    //now, set pedal assist to 0
+    PASResponse[3] = 0x00;
+    Serial1.write(0x16);
+    Serial1.write(0x53);
+    Serial1.write(0x11); //these three commands begin the setting process
+    for (int i = 3; i < 14; i++)
+    {
+        Serial1.write(PASResponse[i]);
+    }
+    throttleResponse[5] = 0x00;
+    //cannot write to throttle without more info. Check this!
+}
+
+void DriveMotor::storeBasic() {
+    byte com1 = 0x11;
+    byte com2 = 0x52;
+
+    Serial1.write(com1);
+    Serial1.write(com2);
+    int byteNo = 0;
+    while (byteNo<26)  {
+        if (Serial1.available() > 0) {
+            byte cByte = Serial1.read();
+            //place received byte in array
+            basicResponse[byteNo] = cByte;
+            byteNo = byteNo + 1;
+       }
+    }
+}
+
+void DriveMotor::storePedalAssist() {
+    byte com1 = 0x11;
+    byte com2 = 0x53;
+
+    Serial1.write(com1);
+    Serial1.write(com2);
+    int byteNo = 0;
+    while (byteNo<13)  {
+        if (Serial1.available() > 0) {
+            byte cByte = Serial1.read();
+            //place received byte in array
+            PASResponse[byteNo] = cByte;
+            byteNo = byteNo + 1;
+        }
+    }
+}
+
+void DriveMotor::storeThrottle() {
+    byte com1 = 0x11;
+    byte com2 = 0x54;
+
+    Serial1.write(com1);
+    Serial1.write(com2);
+    int byteNo = 0;
+    while (byteNo<8)  {
+        if (Serial1.available() > 0) {
+            byte cByte = Serial1.read();
+            //place received byte in array
+            throttleResponse[byteNo] = cByte;
+            byteNo = byteNo + 1;
+        }
+    }
 }
 
 void DriveMotor::queryRPM(){
@@ -34,7 +109,7 @@ void DriveMotor::readMotorSignal(bool askingRPM) {
 
 
         //monitor messages from controller until maxwaittime is exceeded
-        while (byteNo<2)  {
+        while (byteNo<3)  {
             if (Serial1.available() > 0) {
                 byte cByte = Serial1.read();
 
@@ -95,7 +170,7 @@ void DriveMotor::readDisplaySignal()
 float DriveMotor::convertSignalToSpeed(byte RPMdata[]) {
     float rpm = (RPMdata[1] + RPMdata[0] * 256);
     currentSpeed = (rpm/60)*3.14*radius*2;
-    return currentSpeed;
+    return currentSpeed; //in m/s
     //populate this function!
     //maintainspeed currently returns a percentage from 0 to 1 of the "max speed" of the bike, since this is the value
     //that we send to the drive motor.
@@ -113,9 +188,18 @@ float DriveMotor::convertSignalToSpeed(byte RPMdata[]) {
      */
 }
 
-void DriveMotor::writeSpeedToMotor(float percentMaxSpeed)
+void DriveMotor::writeSpeedToMotor(int percentMaxSpeed)
 {
-    //Here we'll determine the bytes we need to send to the motor to change to desired speed, and send that data.
+    basicResponse[4] = percentMaxSpeed; //do i need to change this to hex?
+    //also, i'm setting the above as the current percent of max. I think some other calcs may need to be done to confirm this.
+    basicResponse[14] = percentMaxSpeed;
+    Serial1.write(0x16);
+    Serial1.write(0x52);
+    Serial1.write(0x24);
+    for(int i = 3; i < 27; i++)
+    {
+        Serial1.write(basicResponse[i]);
+    }
 }
 
 /*
@@ -123,7 +207,7 @@ void DriveMotor::writeAnalog() {
     analogWrite(driveMotorPin, maintainSpeed(desiredSpeed, currentSpeed));
 }
 */
-float DriveMotor::maintainSpeed(float desiredSpeed, float currentSpeed) {
+int DriveMotor::maintainSpeed(float desiredSpeed, float currentSpeed) {
     float speedKp = .01;
     float speedKd = .01;
     float speedPreError = 0;
@@ -151,7 +235,7 @@ float DriveMotor::maintainSpeed(float desiredSpeed, float currentSpeed) {
     speedPreError = speedError;
     speedError = desiredSpeed - currentSpeed;
 
-return ((currentSpeed +=output)/maxSpeed);
+return int((currentSpeed +=output)/maxSpeed);
     /*
     return int((currentSpeed += output) / (maxThrottle - minThrottle) * 4096); //what is due analog res?
      */ //What kind of output does the motor need to change speed?
