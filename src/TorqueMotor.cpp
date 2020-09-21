@@ -29,22 +29,36 @@ void TorqueMotor::start() {
 
     motor_dev->writeSDO(0x6060U, 0, SDO_WRITE_2B, 0x0006);
 
+
+
 }
 
 void TorqueMotor::commission() {
-    motor_dev->writeSDO(0x6060U, 0, SDO_WRITE_1B, OP_AUTO_SETUP);
-    motor_dev->writeSDO(0x6060U, 0, SDO_WRITE_2B, 0x0007);
-
-    motor_dev->writeSDO(0x6060U, 0, SDO_WRITE_2B, 0x000F);
-    motor_dev->writeSDO(0x6060U, 0, SDO_WRITE_2B, 0x001F);
+//    motor_dev->writeSDO(0x6060U, 0, SDO_WRITE_1B, OP_AUTO_SETUP);
+//    motor_dev->writeSDO(0x6060U, 0, SDO_WRITE_2B, 0x0007);
+//
+//    motor_dev->writeSDO(0x6060U, 0, SDO_WRITE_2B, 0x000F);
+//    motor_dev->writeSDO(0x6060U, 0, SDO_WRITE_2B, 0x001F);
 
 }
 
 void TorqueMotor::torqueMode() {
+    motor_dev->writeSDO(0x6060U, 0, SDO_WRITE_1B, OP_PROFILE_TORQUE);
+
+    // Set submode to "real torque" mode
+    uint32_t submode_select = 0;
+    motor_dev->readSDO(0x3202U, 0, submode_select);
+    submode_select |= (uint32_t) (1U << 5U);
+    motor_dev->writeSDO(0x3202U, 0, SDO_WRITE_4B, submode_select);
+
+    // Set up PDOs needed for torque mode
+
 
 }
 
-void TorqueMotor::setTorque() {
+void TorqueMotor::setTorque(double torque) {
+    uint16_t torque_thou = (uint16_t) (1000.0 * (torque / GEARING / EFFICIENCY / RATED_TORQUE_N));
+    motor_dev->writePDO();
 
 }
 

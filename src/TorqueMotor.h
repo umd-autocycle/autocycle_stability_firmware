@@ -15,9 +15,13 @@
 #define RATED_CURRENT_MA        5330
 #define MAX_CURRENT_DUR_MS      100
 #define BLDC_MOTOR              0x0000000041U
+#define RATED_TORQUE_N          0.5
+#define GEARING                 33.0
+#define EFFICIENCY              0.93
 
 // Operating modes
 #define OP_AUTO_SETUP           0xFEU
+#define OP_PROFILE_TORQUE       0x04U
 
 
 class TorqueMotor {
@@ -31,7 +35,7 @@ public:
 
     void torqueMode();
 
-    void setTorque();
+    void setTorque(double torque);
 
     void update();
 
