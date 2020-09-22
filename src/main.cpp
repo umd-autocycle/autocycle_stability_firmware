@@ -121,8 +121,8 @@ void setup() {
     torque_motor = new TorqueMotor(&Can0, TM_NODE_ID, TM_CURRENT_MAX, TM_TORQUE_MAX, TM_TORQUE_SLOPE);
     torque_motor->start();                          // Initialize torque control motor
 
-    drive_motor = new DriveMotor(7, 8, 0);
-    drive_motor->start([] { drive_motor->convertSignalToSpeed(); });
+    drive_motor = new DriveMotor(1); //1 = 1 m/s
+    drive_motor->start();
 
     imu.start();                                    // Initialize IMU
     imu.configure(2, 2, 1);  // Set accelerometer and gyro resolution, on-chip low-pass filter
@@ -166,6 +166,16 @@ void loop() {
 
     // Update indicator
     indicator.update();
+
+    //send info back and forth btwn display and motor
+    if(Serial1.available())
+    {
+        drive_motor->readMotorSignal(false);
+    }
+    if(Serial2.available())
+    {
+        drive_motor->readDisplaySignal();
+    }
 
 
     // Act based on machine state, transition if necessary
@@ -261,6 +271,7 @@ void loop() {
                 indicator.setPassiveRGB(RGB_E_STOP_P);
                 indicator.setBlinkRGB(RGB_E_STOP_B);
             }
+            drive_motor->queryRPM();
             break;
 
         case FALLEN:    // Fallen

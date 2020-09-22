@@ -18,11 +18,9 @@ void DriveMotor::start() {  //use [] {drivemotor.convertSignalToSpeed() in main}
     startup();
 }
 
-void DriveMotor::startup()
-{
-    byte startupArray[5] = {0x11,0x51,0x04,0xB0,0x05};
-    for (int i = 0; i < 5; i++)
-    {
+void DriveMotor::startup() {
+    byte startupArray[5] = {0x11, 0x51, 0x04, 0xB0, 0x05};
+    for (int i = 0; i < 5; i++) {
         Serial1.write(startupArray[i]);
     }
     //now, set pedal assist to 0
@@ -30,8 +28,7 @@ void DriveMotor::startup()
     Serial1.write(0x16);
     Serial1.write(0x53);
     Serial1.write(0x11); //these three commands begin the setting process
-    for (int i = 3; i < 14; i++)
-    {
+    for (int i = 3; i < 14; i++) {
         Serial1.write(PASResponse[i]);
     }
     throttleResponse[5] = 0x00;
@@ -45,13 +42,13 @@ void DriveMotor::storeBasic() {
     Serial1.write(com1);
     Serial1.write(com2);
     int byteNo = 0;
-    while (byteNo<26)  {
+    while (byteNo < 26) {
         if (Serial1.available() > 0) {
             byte cByte = Serial1.read();
             //place received byte in array
             basicResponse[byteNo] = cByte;
             byteNo = byteNo + 1;
-       }
+        }
     }
 }
 
@@ -62,7 +59,7 @@ void DriveMotor::storePedalAssist() {
     Serial1.write(com1);
     Serial1.write(com2);
     int byteNo = 0;
-    while (byteNo<13)  {
+    while (byteNo < 13) {
         if (Serial1.available() > 0) {
             byte cByte = Serial1.read();
             //place received byte in array
@@ -79,7 +76,7 @@ void DriveMotor::storeThrottle() {
     Serial1.write(com1);
     Serial1.write(com2);
     int byteNo = 0;
-    while (byteNo<8)  {
+    while (byteNo < 8) {
         if (Serial1.available() > 0) {
             byte cByte = Serial1.read();
             //place received byte in array
@@ -89,19 +86,16 @@ void DriveMotor::storeThrottle() {
     }
 }
 
-void DriveMotor::queryRPM(){
+void DriveMotor::queryRPM() {
     Serial1.write(DSpeed[0]);
     Serial1.write(DSpeed[1]);
     readMotorSignal(true);
 }
 
 void DriveMotor::readMotorSignal(bool askingRPM) {
-    if (Serial1.available() > 0 &&  askingRPM == false)
-    {
+    if (Serial1.available() > 0 && askingRPM == false) {
         Serial2.write(Serial1.read()); //send data along to display
-    }
-    else if (Serial1.available() > 0 && askingRPM == true)
-    {
+    } else if (Serial1.available() > 0 && askingRPM == true) {
 
 
         int byteNo = 0;
@@ -109,7 +103,7 @@ void DriveMotor::readMotorSignal(bool askingRPM) {
 
 
         //monitor messages from controller until maxwaittime is exceeded
-        while (byteNo<3)  {
+        while (byteNo < 3) {
             if (Serial1.available() > 0) {
                 byte cByte = Serial1.read();
 
@@ -126,14 +120,12 @@ void DriveMotor::readMotorSignal(bool askingRPM) {
 
         }
         currentSpeed = convertSignalToSpeed(controllerResponse);
-        writeSpeedToMotor(maintainSpeed(desiredSpeed,currentSpeed));
+        writeSpeedToMotor(maintainSpeed(desiredSpeed, currentSpeed));
     }
 }
 
-void DriveMotor::readDisplaySignal()
-{
-    if (Serial2.available() > 0)
-    {
+void DriveMotor::readDisplaySignal() {
+    if (Serial2.available() > 0) {
         int maxWaittime = 200; //If nothing is received after  200 miliseconds, controller finished sending response
         bool exceeded_maxWaittime = false;
         unsigned long waitUntil;
@@ -142,7 +134,7 @@ void DriveMotor::readDisplaySignal()
         waitUntil = millis() + maxWaittime;
 
         //monitor messages from controller until maxwaittime is exceeded
-        while (!exceeded_maxWaittime)  {
+        while (!exceeded_maxWaittime) {
             if (Serial2.available() > 0) {
                 byte cByte = Serial2.read();
 
@@ -161,15 +153,16 @@ void DriveMotor::readDisplaySignal()
             }
         }
     }
-        if(controllerResponse[0] != 0x11 && controllerResponse[1] != 0x20) { // we can alter this to police any type of messages
-            Serial1.write(Serial2.read()); //send data along to display
-        }
+    if (controllerResponse[0] != 0x11 &&
+        controllerResponse[1] != 0x20) { // we can alter this to police any type of messages
+        Serial1.write(Serial2.read()); //send data along to display
     }
+}
 
 
 float DriveMotor::convertSignalToSpeed(byte RPMdata[]) {
     float rpm = (RPMdata[1] + RPMdata[0] * 256);
-    currentSpeed = (rpm/60)*3.14*radius*2;
+    currentSpeed = (rpm / 60) * 3.14 * radius * 2;
     return currentSpeed; //in m/s
     //populate this function!
     //maintainspeed currently returns a percentage from 0 to 1 of the "max speed" of the bike, since this is the value
@@ -188,16 +181,14 @@ float DriveMotor::convertSignalToSpeed(byte RPMdata[]) {
      */
 }
 
-void DriveMotor::writeSpeedToMotor(int percentMaxSpeed)
-{
+void DriveMotor::writeSpeedToMotor(int percentMaxSpeed) {
     basicResponse[4] = percentMaxSpeed; //do i need to change this to hex?
     //also, i'm setting the above as the current percent of max. I think some other calcs may need to be done to confirm this.
     basicResponse[14] = percentMaxSpeed;
     Serial1.write(0x16);
     Serial1.write(0x52);
     Serial1.write(0x24);
-    for(int i = 3; i < 27; i++)
-    {
+    for (int i = 3; i < 27; i++) {
         Serial1.write(basicResponse[i]);
     }
 }
@@ -235,7 +226,7 @@ int DriveMotor::maintainSpeed(float desiredSpeed, float currentSpeed) {
     speedPreError = speedError;
     speedError = desiredSpeed - currentSpeed;
 
-return int((currentSpeed +=output)/maxSpeed);
+    return int((currentSpeed += output) / maxSpeed);
     /*
     return int((currentSpeed += output) / (maxThrottle - minThrottle) * 4096); //what is due analog res?
      */ //What kind of output does the motor need to change speed?
