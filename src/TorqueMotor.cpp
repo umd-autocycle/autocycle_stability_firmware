@@ -58,7 +58,7 @@ void TorqueMotor::torqueMode() {
 
 void TorqueMotor::setTorque(double torque) {
     uint16_t torque_thou = (uint16_t) (1000.0 * (torque / GEARING / EFFICIENCY / RATED_TORQUE_N));
-    motor_dev->writePDO();
+    //motor_dev->writePDO(); error thrown
 
 }
 

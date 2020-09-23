@@ -24,9 +24,9 @@ public:
     void writeSpeedToMotor(int percentMaxSpeed);
     float convertSignalToSpeed(byte RPMdata[]);
     void readDisplaySignal();
-    void storePedalAssist();
-    void storeBasic();
-    void storeThrottle();
+    bool storePedalAssist();
+    bool storeBasic();
+    bool storeThrottle();
     void startup();
 
     //void writeAnalog();

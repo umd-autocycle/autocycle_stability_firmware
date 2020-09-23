@@ -12,6 +12,32 @@ DriveMotor::DriveMotor(float desiredSpeed) {
 
 void DriveMotor::start() {  //use [] {drivemotor.convertSignalToSpeed() in main}
     /*attachInterrupt(digitalPinToInterrupt(speedSensorPin), func, RISING);*/
+    byte startupArray[5] = {0x11, 0x51, 0x04, 0xB0, 0x05};
+    for (int i = 0; i < 5; i++) {
+        Serial1.write(startupArray[i]);
+    }
+    int byteNo = 0;
+
+
+
+    //monitor messages from controller until maxwaittime is exceeded
+    while (byteNo < 18) {
+        if (Serial1.available() > 0) {
+            byte cByte = Serial1.read();
+
+            //place received byte in array
+            controllerResponse[byteNo] = cByte;
+
+            if (byteNo < 18) {
+                byteNo = byteNo + 1;
+            }
+            Serial.print(cByte, HEX);
+            Serial.println();
+
+        }
+
+
+    }
     storeBasic();
     storePedalAssist();
     storeThrottle();
@@ -19,10 +45,7 @@ void DriveMotor::start() {  //use [] {drivemotor.convertSignalToSpeed() in main}
 }
 
 void DriveMotor::startup() {
-    byte startupArray[5] = {0x11, 0x51, 0x04, 0xB0, 0x05};
-    for (int i = 0; i < 5; i++) {
-        Serial1.write(startupArray[i]);
-    }
+
     //now, set pedal assist to 0
     PASResponse[3] = 0x00;
     Serial1.write(0x16);
@@ -35,7 +58,7 @@ void DriveMotor::startup() {
     //cannot write to throttle without more info. Check this!
 }
 
-void DriveMotor::storeBasic() {
+bool DriveMotor::storeBasic() {
     byte com1 = 0x11;
     byte com2 = 0x52;
 
@@ -48,11 +71,19 @@ void DriveMotor::storeBasic() {
             //place received byte in array
             basicResponse[byteNo] = cByte;
             byteNo = byteNo + 1;
+            Serial.print(cByte, HEX);
+            Serial.println();
         }
+        /*else
+        {
+            Serial.print("Failed to store data");
+            return false;
+        }*/
     }
+
 }
 
-void DriveMotor::storePedalAssist() {
+bool DriveMotor::storePedalAssist() {
     byte com1 = 0x11;
     byte com2 = 0x53;
 
@@ -66,10 +97,14 @@ void DriveMotor::storePedalAssist() {
             PASResponse[byteNo] = cByte;
             byteNo = byteNo + 1;
         }
+        else
+        {
+            return false;
+        }
     }
 }
 
-void DriveMotor::storeThrottle() {
+bool DriveMotor::storeThrottle() {
     byte com1 = 0x11;
     byte com2 = 0x54;
 
@@ -83,7 +118,12 @@ void DriveMotor::storeThrottle() {
             throttleResponse[byteNo] = cByte;
             byteNo = byteNo + 1;
         }
+        else
+        {
+            return false;
+        }
     }
+
 }
 
 void DriveMotor::queryRPM() {
