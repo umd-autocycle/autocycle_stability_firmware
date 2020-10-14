@@ -119,8 +119,8 @@ void setup() {
     indicator.setBlinkRGB(RGB_STARTUP_B);
     indicator.silence();
 
-    //torque_motor = new TorqueMotor(&Can0, TM_NODE_ID, TM_CURRENT_MAX, TM_TORQUE_MAX, TM_TORQUE_SLOPE);
-   // torque_motor->start();                          // Initialize torque control motor
+    torque_motor = new TorqueMotor(&Can0, TM_NODE_ID, TM_CURRENT_MAX, TM_TORQUE_MAX, TM_TORQUE_SLOPE);
+    torque_motor->start();                          // Initialize torque control motor
 
     drive_motor = new DriveMotor(1); //1 = 1 m/s
     drive_motor->start();
@@ -142,16 +142,6 @@ void setup() {
     }
 
 
-    //speed stuff
-//    analogWriteResolution(12);
-//    //speedCounter = maxSpeedCounter;
-//    circumference = 2 * 3.14 * radius;
-//    pinMode(interruptPin, INPUT);
-//    pinMode(throttlePin, OUTPUT);
-//    attachInterrupt(digitalPinToInterrupt(interruptPin), updateSpeed, RISING);
-//    //anytime the speed pin goes from low to high, this interrupt should update speed accordingly
-//
-
     indicator.setPassiveRGB(RGB_IDLE_P);
     indicator.setBlinkRGB(RGB_IDLE_B);
 }
@@ -161,14 +151,14 @@ void loop() {
 
     // Update sensor information
     imu.update();
-
+    torque_motor->update();
 
     // Update state variables
 
     // Update indicator
     indicator.update();
 
-    //send info back and forth btwn display and motor
+    //send info back and forth between display and motor
     if(Serial1.available())
     {
         drive_motor->readMotorSignal(false);

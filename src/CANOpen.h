@@ -107,12 +107,14 @@ public:
 
     void writePDO(uint8_t pdo_map_num, const BytesUnion &data);
 
+    BytesUnion *tx_pdo_buffer;
+
 private:
     CANRaw *can_line;
     CAN_FRAME incoming, outgoing;
     uint16_t node_id;
     PDOMap *rx_pdo_table, *tx_pdo_table;
-    BytesUnion *tx_pdo_buffer;
+
 };
 
 

@@ -68,6 +68,7 @@ void CANOpenDevice::readSDO(uint16_t index, uint8_t sub_index, uint32_t &data) {
     can_line->sendFrame(outgoing);
 
     while (!can_line->available());
+
     can_line->read(incoming);
 
     if (incoming.data.byte[0] != 0x80U)
@@ -189,6 +190,8 @@ void CANOpenDevice::writePDO(uint8_t pdo_map_num, const BytesUnion &data) {
     outgoing.extended = false;
     outgoing.length = rx_pdo_table[pdo_map_num].len;
     outgoing.data.value = data.value;
+
+    can_line->sendFrame(outgoing);
 }
 
 

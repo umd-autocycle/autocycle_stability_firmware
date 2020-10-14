@@ -41,7 +41,9 @@ public:
 
 private:
     CANOpenDevice *motor_dev;
-    unsigned int torque_target, torque_max, current_max, torque_slope;
+    unsigned int torque_max, current_max, torque_slope;
+    double desired_torque, actual_torque;
+    BytesUnion outgoing;
 };
 
 
