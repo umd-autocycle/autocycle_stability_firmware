@@ -112,12 +112,12 @@ void setup() {
     analogWriteResolution(12);        // Enable expanded PWM and ADC resolution
     analogReadResolution(12);
 
-    // Initiate indicator
-//    indicator.start();
-//    indicator.beep(1);
+//     Initiate indicator
+    indicator.start();
+    indicator.beep(100);
 //    //indicator.cycle()
-//    indicator.setPassiveRGB(RGB_STARTUP_P);
-//    indicator.setBlinkRGB(RGB_STARTUP_B);
+    indicator.setPassiveRGB(RGB_STARTUP_P);
+    indicator.setBlinkRGB(RGB_STARTUP_B);
 //    indicator.silence();
 
     torque_motor = new TorqueMotor(&Can0, TM_NODE_ID, TM_CURRENT_MAX, TM_TORQUE_MAX, TM_TORQUE_SLOPE, 8 * PI, 16 * PI,
