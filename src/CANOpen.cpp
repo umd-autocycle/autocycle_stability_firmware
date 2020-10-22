@@ -55,21 +55,36 @@ void CANOpenDevice::writeSDO(uint16_t index, uint8_t sub_index, uint8_t data_len
 
     can_line->sendFrame(outgoing);
 
-    while (!can_line->available());
+    while (true) {
+        while (!can_line->available());
+        can_line->read(incoming);
 
-    can_line->read(incoming);
+        if (incoming.id == COB_SDO_WRITE_CONFIRM + node_id) {
+            if (incoming.data.byte[0] != 0x80U && (incoming.data.byte[2] << 8U | incoming.data.byte[1]) == index) {
+                break;
+            } else if (incoming.data.byte[0] == 0x80U &&
+                       (incoming.data.byte[2] << 8U | incoming.data.byte[1]) == index) {
 
-    uint32_t error;
-    if (incoming.data.byte[0] != 0x80U)
-        error = incoming.data.byte[4] | (incoming.data.byte[5] << 8U) | (incoming.data.byte[6] << 16U) |
-                (incoming.data.byte[7] << 24U);
-    else {
-        Serial.print("Error writing SDO ");
-        Serial.print(incoming.data.byte[2]<<8U | incoming.data.byte[1], HEX);
-        Serial.print(":");
-        Serial.print(incoming.data.byte[3]);
-        Serial.print(", error code: ");
-        Serial.println(incoming.data.high, HEX);
+                Serial.print("Error writing SDO ");
+                Serial.print(incoming.data.byte[2] << 8U | incoming.data.byte[1], HEX);
+                Serial.print(":");
+                Serial.print(incoming.data.byte[3]);
+                Serial.print(", error code: ");
+                Serial.println(incoming.data.high, HEX);
+                break;
+            } else {
+                Serial.print("Writing SDO mismatch ");
+                Serial.print(index, HEX);
+                Serial.print(":");
+                Serial.print(sub_index);
+                Serial.print(", actual ");
+                Serial.print(incoming.data.byte[2] << 8U | incoming.data.byte[1], HEX);
+                Serial.print(":");
+                Serial.print(incoming.data.byte[3]);
+                Serial.print(", with contents ");
+                Serial.println(incoming.data.high, HEX);
+            }
+        }
     }
 }
 
@@ -88,22 +103,41 @@ void CANOpenDevice::readSDO(uint16_t index, uint8_t sub_index, uint32_t &data) {
 
     can_line->sendFrame(outgoing);
 
-    while (!can_line->available());
 
-    can_line->read(incoming);
+    while (true) {
+        while (!can_line->available());
+        can_line->read(incoming);
 
-    if (incoming.data.byte[0] != 0x80U)
-        data = incoming.data.byte[4] | (incoming.data.byte[5] << 8U) | (incoming.data.byte[6] << 16U) |
-               (incoming.data.byte[7] << 24U);
-    else {
+        if (incoming.id == COB_SDO_READ_CONFIRM + node_id) {
+            if (incoming.data.byte[0] != 0x80U && (incoming.data.byte[2] << 8U | incoming.data.byte[1]) == index) {
+                data = incoming.data.high;
+                break;
+            } else if (incoming.data.byte[0] == 0x80U &&
+                       (incoming.data.byte[2] << 8U | incoming.data.byte[1]) == index) {
 
-        Serial.print("Error reading SDO ");
-        Serial.print(incoming.data.byte[2]<<8U | incoming.data.byte[1], HEX);
-        Serial.print(":");
-        Serial.print(incoming.data.byte[3]);
-        Serial.print(", error code: ");
-        Serial.println(incoming.data.high, HEX);
+                Serial.print("Error reading SDO ");
+                Serial.print(incoming.data.byte[2] << 8U | incoming.data.byte[1], HEX);
+                Serial.print(":");
+                Serial.print(incoming.data.byte[3]);
+                Serial.print(", error code: ");
+                Serial.println(incoming.data.high, HEX);
+                break;
+            } else {
+                Serial.print("Reading SDO mismatch ");
+                Serial.print(index, HEX);
+                Serial.print(":");
+                Serial.print(sub_index);
+                Serial.print(", actual ");
+                Serial.print(incoming.data.byte[2] << 8U | incoming.data.byte[1], HEX);
+                Serial.print(":");
+                Serial.print(incoming.data.byte[3]);
+                Serial.print(", with contents ");
+                Serial.println(incoming.data.high, HEX);
+            }
+        }
     }
+
+
 }
 
 void
@@ -138,7 +172,7 @@ CANOpenDevice::configureRxPDO(uint8_t pdo_map_num, uint8_t trans_type, uint8_t m
     rx_pdo_table[pdo_map_num].len = l / 8;
 
     // Deactivate mapping
-    writeSDO(PDO_RX_CONFIG_COMM + pdo_map_num, 1, SDO_WRITE_4B, (1U<<31U) | (cob_base + node_id));
+    writeSDO(PDO_RX_CONFIG_COMM + pdo_map_num, 1, SDO_WRITE_4B, (1U << 31U) | (cob_base + node_id));
     delay(100);
     writeSDO(PDO_RX_CONFIG_MAP + pdo_map_num, 0, SDO_WRITE_1B, 0);
     delay(100);
@@ -199,7 +233,7 @@ void CANOpenDevice::configureTxPDO(uint8_t pdo_map_num, uint8_t trans_type, uint
     tx_pdo_table[pdo_map_num].len = l / 8;
 
     // Deactivate mapping
-    writeSDO(PDO_TX_CONFIG_COMM + pdo_map_num, 1, SDO_WRITE_4B, (1U<<31U) | (cob_base + node_id));
+    writeSDO(PDO_TX_CONFIG_COMM + pdo_map_num, 1, SDO_WRITE_4B, (1U << 31U) | (cob_base + node_id));
     delay(100);
     writeSDO(PDO_TX_CONFIG_MAP + pdo_map_num, 0, SDO_WRITE_1B, 0);
     delay(100);
@@ -264,7 +298,7 @@ void CANOpenDevice::waitForBoot() {
         while (!can_line->available());
 
         can_line->read(incoming);
-        if(incoming.id == (0x700U + node_id)) {
+        if (incoming.id == (0x700U + node_id)) {
             Serial.println("Controller has booted.");
             break;
         }

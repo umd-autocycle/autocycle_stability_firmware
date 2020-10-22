@@ -53,7 +53,7 @@
 #define TM_NODE_ID          127
 #define TM_CURRENT_MAX      1000
 #define TM_TORQUE_MAX       1000
-#define TM_TORQUE_SLOPE     1000
+#define TM_TORQUE_SLOPE     10000   // Thousandths of max torque per second
 
 // Constants
 #define FTHRESH PI/4.0      // Threshold for being fallen over
@@ -120,19 +120,26 @@ void setup() {
 //    indicator.setBlinkRGB(RGB_STARTUP_B);
 //    indicator.silence();
 
-    torque_motor = new TorqueMotor(&Can0, TM_NODE_ID, TM_CURRENT_MAX, TM_TORQUE_MAX, TM_TORQUE_SLOPE);
+    torque_motor = new TorqueMotor(&Can0, TM_NODE_ID, TM_CURRENT_MAX, TM_TORQUE_MAX, TM_TORQUE_SLOPE, 2*PI, 4*PI);
     torque_motor->start();                          // Initialize torque control motor
 //    torque_motor->autoSetup();
-    torque_motor->setMode(OP_PROFILE_VELOCITY);
+//    while(true);
+    torque_motor->setMode(OP_PROFILE_TORQUE);
     while(!torque_motor->enableOperation());
-    torque_motor->setVelocity(0);
+//    torque_motor->setVelocity(0);
 
     while (true) {
         torque_motor->update();
         if(Serial.available())
-            torque_motor->setVelocity(Serial.parseFloat());
-        Serial.println(torque_motor->getVelocity());
-        delay(50);
+            torque_motor->setTorque(Serial.parseFloat());
+        Serial.print(torque_motor->getTorque());
+        Serial.print(", ");
+        Serial.print(torque_motor->getVelocity());
+        Serial.print(", ");
+        Serial.print(torque_motor->getPosition());
+        Serial.print(", ");
+        Serial.println(torque_motor->getStatus(), HEX);
+        delay(100);
     }
 
 //    drive_motor = new DriveMotor(1); //1 = 1 m/s

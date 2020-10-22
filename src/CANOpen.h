@@ -14,6 +14,8 @@
 #define COB_SYNC        0x080U
 #define COB_PDO_WRITE   0x200U
 #define COB_PDO_READ    0x180U
+#define COB_SDO_WRITE_CONFIRM   0x580U
+#define COB_SDO_READ_CONFIRM    0x580U
 #define COB_SDO_WRITE   0x600U
 #define COB_SDO_READ    0x600U
 #define COB_BOOTUP      0x700U

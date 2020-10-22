@@ -46,7 +46,7 @@
 #define CONTROL_TX_PDO_NUM 3
 
 TorqueMotor::TorqueMotor(CANRaw *can_line, uint16_t node_id, unsigned int current_max, unsigned int torque_max,
-                         unsigned int torque_slope) {
+                         unsigned int torque_slope, double prof_accel, double qs_decel) {
     motor_dev = new CANOpenDevice(can_line, node_id);
 
     this->current_max = current_max;
@@ -54,6 +54,8 @@ TorqueMotor::TorqueMotor(CANRaw *can_line, uint16_t node_id, unsigned int curren
     this->torque_slope = torque_slope;
 
     outgoing.value = 0;
+    profile_acceleration = prof_accel * 100 * GEARING;
+    quick_stop_deceleration = qs_decel * 100 * GEARING;
 }
 
 void TorqueMotor::start() {
@@ -71,7 +73,7 @@ void TorqueMotor::start() {
     motor_dev->writeSDO(0x2031U, 0, SDO_WRITE_4B, MAX_PERM_CURRENT_MA);
     motor_dev->writeSDO(0x203BU, 1, SDO_WRITE_4B, RATED_CURRENT_MA);    // Set rated current
     motor_dev->writeSDO(0x203BU, 2, SDO_WRITE_4B, MAX_CURRENT_DUR_MS);
-    motor_dev->writeSDO(0x3202U, 0, SDO_WRITE_4B, BLDC_MOTOR);          // Set motor type
+    motor_dev->writeSDO(0x3202U, 0, SDO_WRITE_4B, BLDC_MOTOR); // with closed loop operation         // Set motor type
 
     motor_dev->writeSDO(0x6060U, 0, SDO_WRITE_1B, OP_NONE);             // Set operation mode to none
     motor_dev->writeSDO(0x6073U, 0, SDO_WRITE_2B, current_max);         // Set tenth percents of rated current allowed
@@ -85,17 +87,15 @@ void TorqueMotor::start() {
     motor_dev->writeSDO(0x607FU, 0, SDO_WRITE_4B, 47124); // Max profile velocity
 
     // Set up RX PDOs needed for torque mode
-    PDOMapping rx_torque[3];
+    PDOMapping rx_torque[1];
     rx_torque[0] = {0x6071U, 0, 16}; // Target torque
-    rx_torque[1] = {0x6072U, 0, 16}; // Max torque
-    rx_torque[2] = {0x6087U, 0, 16}; // Torque slope
-    motor_dev->configureRxPDO(TORQUE_RX_PDO_NUM, PDO_RX_TRANS_ASYNC, 3, rx_torque);
+    motor_dev->configureRxPDO(TORQUE_RX_PDO_NUM, PDO_RX_TRANS_ASYNC, 1, rx_torque);
 
     // Set up TX PDOs needed for torque mode
-    PDOMapping tx_torque[2];
-    tx_torque[0] = {0x6074U, 0, 16}; // Current torque demand
-    tx_torque[1] = {0x6077U, 0, 16}; // Current actual torque
-    motor_dev->configureTxPDO(TORQUE_TX_PDO_NUM, PDO_TX_TRANS_ASYNC_TIME, 100, 20, 2, tx_torque);
+    PDOMapping tx_torque[1];
+//    tx_torque[0] = {0x6074U, 0, 16}; // Current torque demand
+    tx_torque[0] = {0x6077U, 0, 16}; // Current actual torque
+    motor_dev->configureTxPDO(TORQUE_TX_PDO_NUM, PDO_TX_TRANS_ASYNC_TIME, 100, 20, 1, tx_torque);
 
 
     // Set up RX PDOs needed for velocity mode
@@ -140,10 +140,10 @@ void TorqueMotor::start() {
 
 
     while (!shutdown());
-
 }
 
 void TorqueMotor::autoSetup() {
+    Serial.println("Beginning Auto Setup");
     uint32_t status = 0;
 
     shutdown();
@@ -155,20 +155,45 @@ void TorqueMotor::autoSetup() {
     enableOperation();
 
     // Begin auto setup
-    motor_dev->writeSDO(0x6040U, 0, SDO_WRITE_2B, 0x002F);
+    motor_dev->writeSDO(0x6040U, 0, SDO_WRITE_2B, 0x001F);
 
     // Wait until auto setup is complete
-    while (!(status & 0x1237U)) {
+    while ((status & 0x1237U) != 0x1237U) {
         motor_dev->readSDO(0x6041U, 0, status);
         delay(100);
     }
     status = 0;
 
-    shutdown();
+    while (!shutdown());
+    Serial.println("Finished Auto Setup");
+
+    Serial.println("Saving Drive and Tuning Parameters...");
+
+    // Start saving tuning parameters
+    motor_dev->writeSDO(0x1010U, 0x06U, SDO_WRITE_4B, 0x65766173U); // write "save"
+
+    // Wait until tuning parameters are saved
+    while (status != 1) {
+        motor_dev->readSDO(0x1010U, 0x06U, status);
+        delay(100);
+    }
+    status = 0;
+
+    // Start saving drive parameters
+    motor_dev->writeSDO(0x1010U, 0x05U, SDO_WRITE_4B, 0x65766173U); // write "save"
+
+    // Wait until drive parameters are saved
+    while (status != 1) {
+        motor_dev->readSDO(0x1010U, 0x05U, status);
+        delay(100);
+    }
+    status = 0;
+
+    Serial.println("Drive and Tuning Parameters Saved.");
 }
 
 void TorqueMotor::setMode(uint16_t mode) {
-    shutdown();
+    while (!shutdown());
     uint32_t submode_select = 0;
 
     switch (mode) {
@@ -177,9 +202,14 @@ void TorqueMotor::setMode(uint16_t mode) {
             motor_dev->writeSDO(0x6060U, 0, SDO_WRITE_1B, OP_PROFILE_TORQUE);
 
             // Set submode to "real torque" mode
-            motor_dev->readSDO(0x3202U, 0, submode_select);
-            submode_select |= (uint32_t) (1U << 5U);
+            submode_select = 0b00000000000000000000000001100001;
             motor_dev->writeSDO(0x3202U, 0, SDO_WRITE_4B, submode_select);
+            motor_dev->readSDO(0x3202U, 0, submode_select);
+            Serial.print("Submode select: ");
+            Serial.println(submode_select, HEX);
+
+            motor_dev->writeSDO(0x6072U, 0, SDO_WRITE_2B, torque_max); // Max torque
+            motor_dev->writeSDO(0x6087U, 0, SDO_WRITE_4B, torque_slope); // Torque slope
             break;
 
         case OP_PROFILE_VELOCITY:
@@ -187,9 +217,11 @@ void TorqueMotor::setMode(uint16_t mode) {
             motor_dev->writeSDO(0x6060U, 0, SDO_WRITE_1B, OP_PROFILE_VELOCITY);
 
             // Configure velocity curve parameters
-            motor_dev->writeSDO(0x6083U, 0, SDO_WRITE_4B, 87); // Set profile acceleration and deceleration
-            motor_dev->writeSDO(0x6084U, 0, SDO_WRITE_4B, 87);
-            motor_dev->writeSDO(0x6086U, 0, SDO_WRITE_2B, 0);
+            motor_dev->writeSDO(0x6083U, 0, SDO_WRITE_4B,
+                                profile_acceleration);  // Set profile acceleration and deceleration
+            motor_dev->writeSDO(0x6084U, 0, SDO_WRITE_4B, profile_acceleration);
+            motor_dev->writeSDO(0x6084U, 0, SDO_WRITE_4B, quick_stop_deceleration);
+            motor_dev->writeSDO(0x6086U, 0, SDO_WRITE_2B, 3);   // Set motion to jerk-limited ramp
 
 
             break;
@@ -208,8 +240,8 @@ void TorqueMotor::setMode(uint16_t mode) {
 void TorqueMotor::setTorque(double torque) {
     int16_t torque_thou = 1000.0 * torque / GEARING / EFFICIENCY / RATED_TORQUE_N;
     outgoing.s0 = torque_thou;
-    outgoing.s1 = torque_max;
-    outgoing.s2 = torque_slope;
+    outgoing.s1 = 0;
+    outgoing.s2 = 0;
     outgoing.s3 = 0;
     motor_dev->writePDO(TORQUE_RX_PDO_NUM, outgoing);
 }
@@ -236,7 +268,7 @@ void TorqueMotor::setPosition(double phi) {
 
 double TorqueMotor::getTorque() {
     motor_dev->readPDO(TORQUE_TX_PDO_NUM, incoming);
-    int16_t torque_thou = incoming.s1;
+    int16_t torque_thou = incoming.s0;
 
     return (1 / 1000.0) * GEARING * EFFICIENCY * RATED_TORQUE_N * torque_thou;
 }
@@ -253,18 +285,23 @@ double TorqueMotor::getPosition() {
     return ((int32_t) incoming.low) / 100.0 / GEARING;
 }
 
+uint16_t TorqueMotor::getStatus() {
+    motor_dev->readPDO(CONTROL_TX_PDO_NUM, incoming);
 
-double TorqueMotor::getTargetVelocity() {
-    motor_dev->readPDO(VELOCITY_TX_PDO_NUM, incoming);
-
-    return ((int32_t) incoming.low) / 100.0 / GEARING;
+    return incoming.s0;
 }
 
-double TorqueMotor::getTargetPosition() {
-    motor_dev->readPDO(POSITION_TX_PDO_NUM, incoming);
-
-    return ((int32_t) incoming.low) / 100.0 / GEARING;
-}
+//double TorqueMotor::getTargetVelocity() {
+//    motor_dev->readPDO(VELOCITY_TX_PDO_NUM, incoming);
+//
+//    return ((int32_t) incoming.low) / 100.0 / GEARING;
+//}
+//
+//double TorqueMotor::getTargetPosition() {
+//    motor_dev->readPDO(POSITION_TX_PDO_NUM, incoming);
+//
+//    return ((int32_t) incoming.low) / 100.0 / GEARING;
+//}
 
 void TorqueMotor::update() {
     motor_dev->update();
@@ -279,7 +316,7 @@ bool TorqueMotor::shutdown() {
     // Check if successful
     motor_dev->readSDO(0x6041U, 0, status);
 
-    return status & 0b00100001U;
+    return (status & 0b00100001U) == 0b00100001U;
 }
 
 bool TorqueMotor::switchOn() {
@@ -291,7 +328,7 @@ bool TorqueMotor::switchOn() {
     // Check if successful
     motor_dev->readSDO(0x6041U, 0, status);
 
-    return status & 0b00100011U;
+    return (status & 0b00100011U) == 0b00100011U;
 }
 
 bool TorqueMotor::disableVoltage() {
@@ -303,7 +340,7 @@ bool TorqueMotor::disableVoltage() {
     // Check if successful
     motor_dev->readSDO(0x6041U, 0, status);
 
-    return status & 0b01000000U;
+    return (status & 0b01000000U) == 0b01000000U;
 }
 
 bool TorqueMotor::quickStop() {
@@ -315,7 +352,7 @@ bool TorqueMotor::quickStop() {
     // Check if successful
     motor_dev->readSDO(0x6041U, 0, status);
 
-    return status & 0b00000111U;
+    return (status & 0b00000111U) == 0b00000111U;
 }
 
 bool TorqueMotor::disableOperation() {
@@ -327,7 +364,7 @@ bool TorqueMotor::disableOperation() {
     // Check if successful
     motor_dev->readSDO(0x6041U, 0, status);
 
-    return status & 0b00100011U;
+    return (status & 0b00100011U) == 0b00100011U;
 }
 
 bool TorqueMotor::enableOperation() {
@@ -338,8 +375,9 @@ bool TorqueMotor::enableOperation() {
 
     // Check if successful
     motor_dev->readSDO(0x6041U, 0, status);
+    Serial.println(status, HEX);
 
-    return status & 0b00100111U;
+    return (status & 0b00100111U) == 0b00100111U;
 }
 
 bool TorqueMotor::enableOperationAfterQuickStop() {
@@ -351,7 +389,7 @@ bool TorqueMotor::enableOperationAfterQuickStop() {
     // Check if successful
     motor_dev->readSDO(0x6041U, 0, status);
 
-    return status & 0b00100111U;
+    return (status & 0b00100111U) == 0b00100111U;
 }
 
 bool TorqueMotor::faultReset() {
@@ -363,10 +401,6 @@ bool TorqueMotor::faultReset() {
     // Check if successful
     motor_dev->readSDO(0x6041U, 0, status);
 
-    return status & 0b01000000U;
+    return (status & 0b01000000U) == 0b01000000U;
 }
-
-
-
-
 
