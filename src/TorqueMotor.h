@@ -18,7 +18,7 @@
 class TorqueMotor {
 public:
     TorqueMotor(CANRaw *can_line, uint16_t node_id, unsigned int current_max, unsigned int torque_max,
-                unsigned int torque_slope, double prof_accel, double qs_decel); // current and torque in thousandths of rated current and torque
+                unsigned int torque_slope, double prof_accel, double qs_decel, double prof_vel); // current and torque in thousandths of rated current and torque
 
     void start();
 
@@ -75,7 +75,7 @@ private:
     CANOpenDevice *motor_dev;
     uint32_t data;
     unsigned int torque_max, current_max, torque_slope;
-    uint32_t profile_acceleration, quick_stop_deceleration;
+    uint32_t profile_acceleration, quick_stop_deceleration, profile_velocity;
     BytesUnion outgoing{}, incoming{};
 };
 

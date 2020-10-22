@@ -46,7 +46,7 @@
 #define CONTROL_TX_PDO_NUM 3
 
 TorqueMotor::TorqueMotor(CANRaw *can_line, uint16_t node_id, unsigned int current_max, unsigned int torque_max,
-                         unsigned int torque_slope, double prof_accel, double qs_decel) {
+                         unsigned int torque_slope, double prof_accel, double qs_decel, double prof_vel) {
     motor_dev = new CANOpenDevice(can_line, node_id);
 
     this->current_max = current_max;
@@ -56,6 +56,7 @@ TorqueMotor::TorqueMotor(CANRaw *can_line, uint16_t node_id, unsigned int curren
     outgoing.value = 0;
     profile_acceleration = prof_accel * 100 * GEARING;
     quick_stop_deceleration = qs_decel * 100 * GEARING;
+    profile_velocity = prof_vel * 100 * GEARING;
 }
 
 void TorqueMotor::start() {
@@ -205,8 +206,6 @@ void TorqueMotor::setMode(uint16_t mode) {
             submode_select = 0b00000000000000000000000001100001;
             motor_dev->writeSDO(0x3202U, 0, SDO_WRITE_4B, submode_select);
             motor_dev->readSDO(0x3202U, 0, submode_select);
-            Serial.print("Submode select: ");
-            Serial.println(submode_select, HEX);
 
             motor_dev->writeSDO(0x6072U, 0, SDO_WRITE_2B, torque_max); // Max torque
             motor_dev->writeSDO(0x6087U, 0, SDO_WRITE_4B, torque_slope); // Torque slope
@@ -222,12 +221,30 @@ void TorqueMotor::setMode(uint16_t mode) {
             motor_dev->writeSDO(0x6084U, 0, SDO_WRITE_4B, profile_acceleration);
             motor_dev->writeSDO(0x6084U, 0, SDO_WRITE_4B, quick_stop_deceleration);
             motor_dev->writeSDO(0x6086U, 0, SDO_WRITE_2B, 3);   // Set motion to jerk-limited ramp
-
+            motor_dev->writeSDO(0x60C5U, 0, SDO_WRITE_4B, 2 * profile_acceleration);
+            motor_dev->writeSDO(0x60C6U, 0, SDO_WRITE_4B, 2 * quick_stop_deceleration);
 
             break;
 
         case OP_PROFILE_POSITION:
             motor_dev->writeSDO(0x6060U, 0, SDO_WRITE_1B, OP_PROFILE_POSITION);
+
+            // Configure velocity curve parameters
+            motor_dev->writeSDO(0x6083U, 0, SDO_WRITE_4B,
+                                profile_acceleration);  // Set profile acceleration and deceleration
+            motor_dev->writeSDO(0x6084U, 0, SDO_WRITE_4B, profile_acceleration);
+            motor_dev->writeSDO(0x6084U, 0, SDO_WRITE_4B, quick_stop_deceleration);
+            motor_dev->writeSDO(0x6086U, 0, SDO_WRITE_2B, 0);   // Set motion to not jerk-limited ramp
+            motor_dev->writeSDO(0x60C5U, 0, SDO_WRITE_4B, 2 * profile_acceleration);
+            motor_dev->writeSDO(0x60C6U, 0, SDO_WRITE_4B, 2 * quick_stop_deceleration);
+
+            // Configure position curve parameters
+            motor_dev->writeSDO(0x6081U, 0, SDO_WRITE_4B, profile_velocity);
+            motor_dev->writeSDO(0x6082U, 0, SDO_WRITE_4B, 0);
+
+            // Have controller immediately reset the new setpoint bit
+            motor_dev->writeSDO(0x60F2U, 0, SDO_WRITE_2B, 0x0021U);
+
             break;
 
         default:
@@ -259,7 +276,7 @@ void TorqueMotor::setPosition(double phi) {
     outgoing.high = 0;
     motor_dev->writePDO(POSITION_RX_PDO_NUM, outgoing);
 
-    outgoing.s0 = CTRW_POSITION_MOVE_COMMAND;
+    outgoing.s0 = CTRW_POSITION_IMMEDIATE | CTRW_POSITION_MOVE_COMMAND | 0b0000000000001111U;
     outgoing.s1 = 0;
     outgoing.s2 = 0;
     outgoing.s3 = 0;
@@ -375,7 +392,6 @@ bool TorqueMotor::enableOperation() {
 
     // Check if successful
     motor_dev->readSDO(0x6041U, 0, status);
-    Serial.println(status, HEX);
 
     return (status & 0b00100111U) == 0b00100111U;
 }

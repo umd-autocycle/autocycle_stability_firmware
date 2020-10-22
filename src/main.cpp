@@ -120,18 +120,19 @@ void setup() {
 //    indicator.setBlinkRGB(RGB_STARTUP_B);
 //    indicator.silence();
 
-    torque_motor = new TorqueMotor(&Can0, TM_NODE_ID, TM_CURRENT_MAX, TM_TORQUE_MAX, TM_TORQUE_SLOPE, 2*PI, 4*PI);
+    torque_motor = new TorqueMotor(&Can0, TM_NODE_ID, TM_CURRENT_MAX, TM_TORQUE_MAX, TM_TORQUE_SLOPE, 8 * PI, 16 * PI,
+                                   10);
     torque_motor->start();                          // Initialize torque control motor
 //    torque_motor->autoSetup();
 //    while(true);
-    torque_motor->setMode(OP_PROFILE_TORQUE);
-    while(!torque_motor->enableOperation());
+    torque_motor->setMode(OP_PROFILE_POSITION);
+    while (!torque_motor->enableOperation());
 //    torque_motor->setVelocity(0);
 
     while (true) {
         torque_motor->update();
-        if(Serial.available())
-            torque_motor->setTorque(Serial.parseFloat());
+        if (Serial.available())
+            torque_motor->setPosition(Serial.parseFloat());
         Serial.print(torque_motor->getTorque());
         Serial.print(", ");
         Serial.print(torque_motor->getVelocity());
