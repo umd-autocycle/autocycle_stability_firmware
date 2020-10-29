@@ -106,7 +106,7 @@ void setup() {
     Serial1.begin(1200);
     Serial2.begin(1200);
     delay(1000);
-    Can0.begin(CAN_BPS_1000K, 0xFF);     // 1M baud rate, no enable pin
+    //Can0.begin(CAN_BPS_1000K, 0xFF);     // 1M baud rate, no enable pin
 
     analogWriteResolution(12);        // Enable expanded PWM and ADC resolution
     analogReadResolution(12);
@@ -118,10 +118,8 @@ void setup() {
     indicator.setPassiveRGB(RGB_STARTUP_P);
     indicator.setBlinkRGB(RGB_STARTUP_B);
     indicator.silence();
-
     torque_motor = new TorqueMotor(&Can0, TM_NODE_ID, TM_CURRENT_MAX, TM_TORQUE_MAX, TM_TORQUE_SLOPE);
-    torque_motor->start();                          // Initialize torque control motor
-
+    //torque_motor->start();                          // Initialize torque control motor
     drive_motor = new DriveMotor(1); //1 = 1 m/s
     drive_motor->start();
 

@@ -19,7 +19,6 @@ void DriveMotor::start() {  //use [] {drivemotor.convertSignalToSpeed() in main}
     int byteNo = 0;
 
 
-
     //monitor messages from controller until maxwaittime is exceeded
     while (byteNo < 18) {
         if (Serial1.available() > 0) {
@@ -38,16 +37,83 @@ void DriveMotor::start() {  //use [] {drivemotor.convertSignalToSpeed() in main}
 
 
     }
+
     storeBasic();
     storePedalAssist();
     storeThrottle();
     startup();
 }
 
+void DriveMotor::resetMotor()
+{
+    //default settings according to python github
+    basicResponse[0] = 0x52;
+    basicResponse[1] = 0x18;
+    basicResponse[2] = 0x1F;
+    basicResponse[3] = 0x0F;
+    basicResponse[4] = 0x00;
+    basicResponse[5] = 0x1C;
+    basicResponse[6] = 0x25;
+    basicResponse[7] = 0x2E;
+    basicResponse[8] = 0x37;
+    basicResponse[9] = 0x40;
+    basicResponse[10] = 0x49;
+    basicResponse[11] = 0x52;
+    basicResponse[12] = 0x5B;
+    basicResponse[13] = 0x64;
+    basicResponse[14] = 0x64;
+    basicResponse[15] = 0x64;
+    basicResponse[16] = 0x64;
+    basicResponse[17] = 0x64;
+    basicResponse[18] = 0x64;
+    basicResponse[19] = 0x64;
+    basicResponse[20] = 0x64;
+    basicResponse[21] = 0x64;
+    basicResponse[22] = 0x64;
+    basicResponse[23] = 0x64;
+    //not setting 24-26 cause we shouldn't be messing with those settings anyways
+
+    PASResponse[0] = 0x53;
+    PASResponse[1] = 0x0B;
+    PASResponse[2] = 0x03;
+    PASResponse[3] = 0xFF;
+    PASResponse[4] = 0xFF;
+    //not setting anything past 4 cause we shouldn't be messing with those settings in the first place
+
+    throttleResponse[0] = 0x54;
+    throttleResponse[1] = 0x06;
+    throttleResponse[3] = 0x00;
+    throttleResponse[4] = 0x03;
+
+    Serial1.write(0x16);
+    Serial1.write(0x52);
+    Serial1.write(0x24);
+    for(int i = 3; i < 27; i++)
+    {
+        Serial1.write(basicResponse[i]);
+    }
+
+    Serial1.write(0x16);
+    Serial1.write(0x53);
+    Serial1.write(0x11);
+    for(int i = 3; i < 15; i++)
+    {
+        Serial1.write(PASResponse[i]);
+    }
+
+    Serial1.write(0x16);
+    Serial1.write(0x54);
+    Serial1.write(0x06);
+    for(int i = 3; i < 9; i++)
+    {
+        Serial1.write(throttleResponse[i]);
+    }
+}
+
 void DriveMotor::startup() {
 
     //now, set pedal assist to 0
-    PASResponse[3] = 0x00;
+    PASResponse[3] = 0x01;
     Serial1.write(0x16);
     Serial1.write(0x53);
     Serial1.write(0x11); //these three commands begin the setting process
@@ -55,7 +121,26 @@ void DriveMotor::startup() {
         Serial1.write(PASResponse[i]);
     }
     throttleResponse[5] = 0x00;
+    Serial1.write(0x16);
+    Serial1.write(0x54);
+    Serial1.write(0x06);
+    for(int i = 3; i < 9; i++)
+    {
+        Serial1.write(throttleResponse[i]);
+    }
     //cannot write to throttle without more info. Check this!
+
+
+    basicResponse[4] = 0x1C;
+    basicResponse[14] = 0x1C;
+    Serial1.write(0x16);
+    Serial1.write(0x52);
+    Serial1.write(0x24);
+    for(int i = 3; i < 27; i++)
+    {
+        Serial1.write(basicResponse[i]);
+    }
+
 }
 
 bool DriveMotor::storeBasic() {

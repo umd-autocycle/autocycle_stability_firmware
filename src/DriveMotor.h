@@ -20,7 +20,7 @@ public:
     void readMotorSignal(bool askRPM);
 
     void queryRPM();
-
+    void resetMotor();
     void writeSpeedToMotor(int percentMaxSpeed);
     float convertSignalToSpeed(byte RPMdata[]);
     void readDisplaySignal();
