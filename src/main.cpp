@@ -147,6 +147,15 @@ void setup() {
 void loop() {
     static uint8_t state = 0;
 
+    if(Serial.available())
+    {
+        int reset = Serial.read();
+        if(reset == 0x45)
+        {
+            drive_motor->resetMotor();
+        }
+    }
+
     // Update sensor information
     imu.update();
     torque_motor->update();

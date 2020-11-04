@@ -113,13 +113,14 @@ void DriveMotor::resetMotor()
 void DriveMotor::startup() {
 
     //now, set pedal assist to 0
-    PASResponse[3] = 0x01;
+    PASResponse[3] = 0x00;
     Serial1.write(0x16);
     Serial1.write(0x53);
     Serial1.write(0x11); //these three commands begin the setting process
     for (int i = 3; i < 14; i++) {
         Serial1.write(PASResponse[i]);
     }
+    //setting throttle pas to 0
     throttleResponse[5] = 0x00;
     Serial1.write(0x16);
     Serial1.write(0x54);
@@ -130,9 +131,10 @@ void DriveMotor::startup() {
     }
     //cannot write to throttle without more info. Check this!
 
-
+    //setting current limit at PAS 0 to be 28%
     basicResponse[4] = 0x1C;
-    basicResponse[14] = 0x1C;
+    //setting speed limit at PAS 0 to be 100%
+    basicResponse[14] = 0x64 ;
     Serial1.write(0x16);
     Serial1.write(0x52);
     Serial1.write(0x24);
