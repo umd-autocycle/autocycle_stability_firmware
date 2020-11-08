@@ -147,12 +147,18 @@ void setup() {
 void loop() {
     static uint8_t state = 0;
 
-    if(Serial.available())
-    {
-        int reset = Serial.read();
-        if(reset == 0x45)
-        {
+    if(Serial.available()) {
+        String command = Serial.readString();
+        if (command == "reset") {
             drive_motor->resetMotor();
+        }
+        else if (command == "setcurrent"){
+            int current = Serial.parseInt(); //value between 0 and 100- be careful not to set it too high!
+            drive_motor->setCurrent(current);
+        }
+        else if (command == "setspeed"){
+            int speed = Serial.parseInt(); //value between 0 and 100
+            drive_motor->setSpeed(speed);
         }
     }
 

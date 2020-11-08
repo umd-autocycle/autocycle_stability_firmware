@@ -213,6 +213,48 @@ bool DriveMotor::storeThrottle() {
 
 }
 
+void DriveMotor::setCurrent(int current)
+{
+    byte set;
+    if(current >= 0 && current < 101){
+        set = (byte) current;
+    }
+    else
+    {
+        Serial.write("Incorrect value for max current. Please choose a percentage between 0 and 100.");
+    }
+    basicResponse[4] = set;
+    Serial1.write(0x16);
+    Serial1.write(0x52);
+    Serial1.write(0x24);
+    for(int i = 3; i < 27; i++)
+    {
+        Serial1.write(basicResponse[i]);
+    }
+    return;
+}
+
+void DriveMotor::setSpeed(int speed)
+{
+    byte set;
+    if(speed >= 0 && speed < 101){
+        set = (byte) speed;
+    }
+    else
+    {
+        Serial.write("Incorrect value for max speed. Please choose a percentage between 0 and 100.");
+    }
+    basicResponse[14] = set;
+    Serial1.write(0x16);
+    Serial1.write(0x52);
+    Serial1.write(0x24);
+    for(int i = 3; i < 27; i++)
+    {
+        Serial1.write(basicResponse[i]);
+    }
+    return;
+}
+
 void DriveMotor::queryRPM() {
     Serial1.write(DSpeed[0]);
     Serial1.write(DSpeed[1]);
