@@ -123,42 +123,49 @@ void setup() {
     drive_motor = new DriveMotor(1); //1 = 1 m/s
     drive_motor->start();
 
-    imu.start();                                    // Initialize IMU
-    imu.configure(2, 2, 1);  // Set accelerometer and gyro resolution, on-chip low-pass filter
-    if (imu.calibrateGyros()) {
-        Serial.println("Gyroscopes Successfully Calibrated.");
-        indicator.beepstring((uint8_t) 0b01110111);
-    } else {
-        indicator.beepstring((uint16_t) 0b0000000100000001);
-    }
-
-    if (imu.calibrateAccel(0, 0, GRAV)) {
-        Serial.println("Accelerometers Successfully Calibrated.");
-        indicator.beepstring((uint8_t) 0b10101010);
-    } else {
-        indicator.beepstring((uint8_t) 0b10001000, 1);
-    }
-
-
-    indicator.setPassiveRGB(RGB_IDLE_P);
-    indicator.setBlinkRGB(RGB_IDLE_B);
+//    imu.start();                                    // Initialize IMU
+//    imu.configure(2, 2, 1);  // Set accelerometer and gyro resolution, on-chip low-pass filter
+//
+//    if (imu.calibrateGyros()) {
+//        Serial.println("Gyroscopes Successfully Calibrated.");
+//        indicator.beepstring((uint8_t) 0b01110111);
+//    } else {
+//        indicator.beepstring((uint16_t) 0b0000000100000001);
+//    }
+//
+//    if (imu.calibrateAccel(0, 0, GRAV)) {
+//        Serial.println("Accelerometers Successfully Calibrated.");
+//        indicator.beepstring((uint8_t) 0b10101010);
+//    } else {
+//        indicator.beepstring((uint8_t) 0b10001000, 1);
+//    }
+//
+//
+//    indicator.setPassiveRGB(RGB_IDLE_P);
+//    indicator.setBlinkRGB(RGB_IDLE_B);
 }
 
 void loop() {
     static uint8_t state = 0;
 
     if(Serial.available()) {
-        String command = Serial.readString();
-        if (command == "reset") {
+        char command = Serial.read();
+        if (command == 'r') {
             drive_motor->resetMotor();
         }
-        else if (command == "setcurrent"){
+        else if (command == 'c'){
             int current = Serial.parseInt(); //value between 0 and 100- be careful not to set it too high!
             drive_motor->setCurrent(current);
         }
-        else if (command == "setspeed"){
+        else if (command == 's'){
+            Serial.println("in setspeed");
             int speed = Serial.parseInt(); //value between 0 and 100
+            Serial.println(speed);
             drive_motor->setSpeed(speed);
+        }
+        else if (command == 'b')
+        {
+            drive_motor->storeBasic();
         }
     }
 

@@ -30,8 +30,7 @@ void DriveMotor::start() {  //use [] {drivemotor.convertSignalToSpeed() in main}
             if (byteNo < 18) {
                 byteNo = byteNo + 1;
             }
-            Serial.print(cByte, HEX);
-            Serial.println();
+
 
         }
 
@@ -152,23 +151,26 @@ bool DriveMotor::storeBasic() {
     Serial1.write(com1);
     Serial1.write(com2);
     int byteNo = 0;
-    while (byteNo < 26) {
+    while (byteNo < 27) {
         if (Serial1.available() > 0) {
             byte cByte = Serial1.read();
             //place received byte in array
             basicResponse[byteNo] = cByte;
             byteNo = byteNo + 1;
             Serial.print(cByte, HEX);
-            Serial.println();
+            Serial.print(" ");
         }
+
         /*else
         {
             Serial.print("Failed to store data");
             return false;
         }*/
     }
+    Serial.println();
 
 }
+
 
 bool DriveMotor::storePedalAssist() {
     byte com1 = 0x11;
@@ -245,13 +247,21 @@ void DriveMotor::setSpeed(int speed)
         Serial.write("Incorrect value for max speed. Please choose a percentage between 0 and 100.");
     }
     basicResponse[14] = set;
-    Serial1.write(0x16);
+    Serial1.write(0x10);
     Serial1.write(0x52);
-    Serial1.write(0x24);
+    Serial1.write(0x18);
     for(int i = 3; i < 27; i++)
     {
         Serial1.write(basicResponse[i]);
+        Serial.print(basicResponse[i],HEX);
+        Serial.print(" ");
     }
+    Serial.println();
+
+
+    Serial.print(Serial1.read(),HEX);
+    Serial.print(Serial1.read(),HEX);
+    Serial.println();
     return;
 }
 

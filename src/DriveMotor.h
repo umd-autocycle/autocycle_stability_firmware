@@ -29,6 +29,7 @@ public:
     bool storeThrottle();
     void startup();
     void setCurrent(int current);
+
     void setSpeed(int speed);
 
     //void writeAnalog();
