@@ -167,6 +167,16 @@ void loop() {
         {
             drive_motor->storeBasic();
         }
+        else if (command == 't')
+        {
+            drive_motor->storeThrottle();
+        }
+        else if (command == 'p'){
+            Serial.println("in setpas");
+            int speed = Serial.parseInt(); //value between 0 and 100
+            Serial.println(speed);
+            drive_motor->setPASNum(speed);
+        }
     }
 
     // Update sensor information

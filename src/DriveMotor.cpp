@@ -6,12 +6,10 @@
 #include <Arduino.h>
 
 DriveMotor::DriveMotor(float desiredSpeed) {
-    /*this->speedSensorPin = speedSensorPin;
-    pinMode(speedSensorPin, INPUT);*/
+
 }
 
 void DriveMotor::start() {  //use [] {drivemotor.convertSignalToSpeed() in main}
-    /*attachInterrupt(digitalPinToInterrupt(speedSensorPin), func, RISING);*/
     byte startupArray[5] = {0x11, 0x51, 0x04, 0xB0, 0x05};
     for (int i = 0; i < 5; i++) {
         Serial1.write(startupArray[i]);
@@ -30,11 +28,7 @@ void DriveMotor::start() {  //use [] {drivemotor.convertSignalToSpeed() in main}
             if (byteNo < 18) {
                 byteNo = byteNo + 1;
             }
-
-
         }
-
-
     }
 
     storeBasic();
@@ -43,8 +37,7 @@ void DriveMotor::start() {  //use [] {drivemotor.convertSignalToSpeed() in main}
     startup();
 }
 
-void DriveMotor::resetMotor()
-{
+void DriveMotor::resetMotor() {
     //default settings according to python github
     basicResponse[0] = 0x52;
     basicResponse[1] = 0x18;
@@ -87,24 +80,21 @@ void DriveMotor::resetMotor()
     Serial1.write(0x16);
     Serial1.write(0x52);
     Serial1.write(0x24);
-    for(int i = 3; i < 27; i++)
-    {
+    for (int i = 3; i < 27; i++) {
         Serial1.write(basicResponse[i]);
     }
 
     Serial1.write(0x16);
     Serial1.write(0x53);
     Serial1.write(0x11);
-    for(int i = 3; i < 15; i++)
-    {
+    for (int i = 3; i < 15; i++) {
         Serial1.write(PASResponse[i]);
     }
 
     Serial1.write(0x16);
     Serial1.write(0x54);
     Serial1.write(0x06);
-    for(int i = 3; i < 9; i++)
-    {
+    for (int i = 3; i < 9; i++) {
         Serial1.write(throttleResponse[i]);
     }
 }
@@ -124,8 +114,7 @@ void DriveMotor::startup() {
     Serial1.write(0x16);
     Serial1.write(0x54);
     Serial1.write(0x06);
-    for(int i = 3; i < 9; i++)
-    {
+    for (int i = 3; i < 9; i++) {
         Serial1.write(throttleResponse[i]);
     }
     //cannot write to throttle without more info. Check this!
@@ -133,12 +122,11 @@ void DriveMotor::startup() {
     //setting current limit at PAS 0 to be 28%
     basicResponse[4] = 0x1C;
     //setting speed limit at PAS 0 to be 100%
-    basicResponse[14] = 0x64 ;
+    basicResponse[14] = 0x64;
     Serial1.write(0x16);
     Serial1.write(0x52);
     Serial1.write(0x24);
-    for(int i = 3; i < 27; i++)
-    {
+    for (int i = 3; i < 27; i++) {
         Serial1.write(basicResponse[i]);
     }
 
@@ -186,10 +174,6 @@ bool DriveMotor::storePedalAssist() {
             PASResponse[byteNo] = cByte;
             byteNo = byteNo + 1;
         }
-        else
-        {
-            return false;
-        }
     }
 }
 
@@ -200,67 +184,110 @@ bool DriveMotor::storeThrottle() {
     Serial1.write(com1);
     Serial1.write(com2);
     int byteNo = 0;
-    while (byteNo < 8) {
+    while (byteNo < 9) {
         if (Serial1.available() > 0) {
             byte cByte = Serial1.read();
             //place received byte in array
+            Serial.print(cByte, HEX);
+            Serial.print(" ");
             throttleResponse[byteNo] = cByte;
             byteNo = byteNo + 1;
         }
-        else
-        {
-            return false;
-        }
     }
+    Serial.println();
 
 }
 
-void DriveMotor::setCurrent(int current)
-{
+void DriveMotor::setCurrent(int current) {
     byte set;
-    if(current >= 0 && current < 101){
+    if (current >= 0 && current < 101) {
         set = (byte) current;
-    }
-    else
-    {
+    } else {
         Serial.write("Incorrect value for max current. Please choose a percentage between 0 and 100.");
     }
     basicResponse[4] = set;
     Serial1.write(0x16);
     Serial1.write(0x52);
     Serial1.write(0x24);
-    for(int i = 3; i < 27; i++)
-    {
+    for (int i = 3; i < 27; i++) {
         Serial1.write(basicResponse[i]);
     }
     return;
 }
 
-void DriveMotor::setSpeed(int speed)
-{
+void DriveMotor::setSpeed(int speed) {
     byte set;
-    if(speed >= 0 && speed < 101){
+    if (speed >= 0 && speed < 101) {
         set = (byte) speed;
-    }
-    else
-    {
+    } else {
         Serial.write("Incorrect value for max speed. Please choose a percentage between 0 and 100.");
+        return;
     }
     basicResponse[14] = set;
-    Serial1.write(0x10);
+
+    long checksum = 0x52 + 0x18;
+    for(int i = 2; i < 26; i++)
+        checksum += basicResponse[i];
+    checksum = checksum % 256;
+    basicResponse[26] = (byte) checksum;
+
+    Serial1.write(0x16);
+    Serial.print(0x16, HEX);
+    Serial.print(" ");
     Serial1.write(0x52);
+    Serial.print(0x52, HEX);
+    Serial.print(" ");
     Serial1.write(0x18);
-    for(int i = 3; i < 27; i++)
-    {
+    Serial.print(0x18, HEX);
+    Serial.print(" ");
+
+    for (int i = 2; i < 27; i++) {
         Serial1.write(basicResponse[i]);
-        Serial.print(basicResponse[i],HEX);
+        Serial.print(basicResponse[i], HEX);
         Serial.print(" ");
     }
     Serial.println();
 
 
-    Serial.print(Serial1.read(),HEX);
-    Serial.print(Serial1.read(),HEX);
+
+    Serial.print(Serial1.read(), HEX);
+    Serial.print(Serial1.read(), HEX);
+    Serial.println();
+    return;
+}
+
+void DriveMotor::setPASNum(int num) {
+    byte set = num;
+
+    throttleResponse[5] = set;
+
+    long checksum = 0x54 + 0x06;
+    for(int i = 2; i < 8; i++)
+        checksum += throttleResponse[i];
+    checksum = checksum % 256;
+    throttleResponse[8] = (byte) checksum;
+
+    Serial1.write(0x16);
+    Serial.print(0x16, HEX);
+    Serial.print(" ");
+    Serial1.write(0x54);
+    Serial.print(0x54, HEX);
+    Serial.print(" ");
+    Serial1.write(0x06);
+    Serial.print(0x06, HEX);
+    Serial.print(" ");
+
+    for (int i = 2; i < 9; i++) {
+        Serial1.write(throttleResponse[i]);
+        Serial.print(throttleResponse[i], HEX);
+        Serial.print(" ");
+    }
+    Serial.println();
+
+
+
+    Serial.print(Serial1.read(), HEX);
+    Serial.print(Serial1.read(), HEX);
     Serial.println();
     return;
 }
