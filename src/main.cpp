@@ -155,13 +155,13 @@ void loop() {
         }
         else if (command == 'c'){
             int current = Serial.parseInt(); //value between 0 and 100- be careful not to set it too high!
-            drive_motor->setCurrent(current);
+            drive_motor->programCurrent(current, 0);
         }
         else if (command == 's'){
             Serial.println("in setspeed");
             int speed = Serial.parseInt(); //value between 0 and 100
             Serial.println(speed);
-            drive_motor->setSpeed(speed);
+            drive_motor->programSpeed(speed, 0);
         }
         else if (command == 'b')
         {
@@ -175,7 +175,7 @@ void loop() {
             Serial.println("in setpas");
             int speed = Serial.parseInt(); //value between 0 and 100
             Serial.println(speed);
-            drive_motor->setPASNum(speed);
+            drive_motor->programPAS(speed);
         }
     }
 

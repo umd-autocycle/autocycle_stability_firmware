@@ -5,6 +5,21 @@
 #ifndef AUTOCYCLE_STABILITY_FIRMWARE_NEW_DRIVEMOTOR_H
 #define AUTOCYCLE_STABILITY_FIRMWARE_NEW_DRIVEMOTOR_H
 #include <Arduino.h>
+
+// Communication constants
+#define TAG_READ        0x11
+#define TAG_WRITE       0x16
+
+#define TAG_START       0x51
+#define TAG_BASIC       0x52
+#define TAG_PEDAL       0x53
+#define TAG_THROTTLE    0x54
+
+#define LEN_START       18
+#define LEN_BASIC       24
+#define LEN_PEDAL       11
+#define LEN_THROTTLE    6
+
 //goals of class:
 //handle communication btwn due and drive motor
 //control set speed
@@ -21,24 +36,21 @@ public:
 
     void queryRPM();
     void resetMotor();
-    void writeSpeedToMotor(int percentMaxSpeed);
+
     float convertSignalToSpeed(byte RPMdata[]);
     void readDisplaySignal();
-    bool storePedalAssist();
+
     bool storeBasic();
+    bool storePedal();
     bool storeThrottle();
-    void startup();
-    void setCurrent(int current);
-   void setPASNum(int num);
 
-    void setSpeed(int speed);
-
-    //void writeAnalog();
-
-    int maintainSpeed(float desiredSpeed, float currentSpeed);
+    void programCurrent(int current, int pas);
+    void programSpeed(int speed, int pas);
+    void programPAS(int num);
 
 
 private:
+    static byte checksum(long prefactor, int from, int to, const byte *arr);
 
     float delT1 = 0;
     float delT2;
@@ -48,10 +60,13 @@ private:
     float desiredSpeed;
     int maxThrottle = 7;    //in m/s, need to determine what max throttle actually corresponds to
     int minThrottle = 0;
-    byte controllerResponse[20];//array to hold responses from controller
-    byte basicResponse[27];
-    byte PASResponse[13];
-    byte throttleResponse[9];
+
+    byte startBuffer[LEN_START];//array to hold responses from controller
+    byte basicBuffer[LEN_BASIC + 3];
+    byte pedalBuffer[LEN_PEDAL + 3];
+    byte throttleBuffer[LEN_THROTTLE + 3];
+
+
     const byte DSpeed[2] = {0x11, 0x20}; //command that display sends to get rpm data
     const float maxSpeed=11.1; //40 km/h in m/s, may change
 };
