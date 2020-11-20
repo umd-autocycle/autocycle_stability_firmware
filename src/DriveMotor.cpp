@@ -96,6 +96,7 @@ void DriveMotor::resetMotor() {
 
 
 bool DriveMotor::storeBasic() {
+    delay(1000);
     while (Serial1.available()) Serial1.read();
     Serial1.write(TAG_READ);
     Serial1.write(TAG_BASIC);
@@ -103,32 +104,41 @@ bool DriveMotor::storeBasic() {
     int c = 0;
     while (c < LEN_BASIC + 3) {
         if (Serial1.available() > 0) {
-            pedalBuffer[c] = Serial1.read();
+            basicBuffer[c] = Serial1.read();
+            Serial.print(basicBuffer[c], HEX);
+            Serial.print(" ");
             c++;
         }
     }
+    Serial.println();
 
     return true;
 }
 
 
 bool DriveMotor::storePedal() {
+    delay(1000);
     while (Serial1.available()) Serial1.read();
     Serial1.write(TAG_READ);
     Serial1.write(TAG_PEDAL);
-
+    Serial.println("hi");
     int c = 0;
     while (c < LEN_PEDAL + 3) {
         if (Serial1.available() > 0) {
             pedalBuffer[c] = Serial1.read();
+            Serial.print(pedalBuffer[c], HEX);
+            Serial.print(" ");
             c++;
         }
     }
+    Serial.println();
+    Serial.println("l8ter sk8ter");
 
     return true;
 }
 
 bool DriveMotor::storeThrottle() {
+    delay(1000);
     while (Serial1.available()) Serial1.read();
     Serial1.write(TAG_READ);
     Serial1.write(TAG_THROTTLE);
@@ -137,10 +147,13 @@ bool DriveMotor::storeThrottle() {
     while (c < LEN_THROTTLE + 3) {
         if (Serial1.available() > 0) {
             throttleBuffer[c] = Serial1.read();
+            Serial.print(throttleBuffer[c], HEX);
+            Serial.print(" ");
             c++;
         }
     }
-
+    Serial.println();
+    Serial.println("hello");
     return true;
 }
 
@@ -163,7 +176,7 @@ void DriveMotor::programCurrent(int current, int pas) {
     for (int i = 2; i < 3 + LEN_BASIC; i++) {
         Serial1.write(basicBuffer[i]);
     }
-
+    delay(1000);
     while (Serial1.available()) Serial1.read();
 }
 
@@ -186,12 +199,13 @@ void DriveMotor::programSpeed(int speed, int pas) {
     for (int i = 2; i < 3 + LEN_BASIC; i++) {
         Serial1.write(basicBuffer[i]);
     }
-
+    delay(1000);
     while (Serial1.available()) Serial1.read();
 }
 
 void DriveMotor::programPAS(int num) {
     storeThrottle();
+
     throttleBuffer[5] = num;
     throttleBuffer[2 + LEN_THROTTLE] = checksum(0, 0, 2 + LEN_THROTTLE, throttleBuffer);
 
@@ -202,6 +216,7 @@ void DriveMotor::programPAS(int num) {
     for (int i = 2; i < 3 + LEN_THROTTLE; i++) {
         Serial1.write(throttleBuffer[i]);
     }
+    delay(1000);
     while (Serial1.available()) Serial1.read();
 
     storePedal();
@@ -215,6 +230,7 @@ void DriveMotor::programPAS(int num) {
     for (int i = 2; i < 3 + LEN_PEDAL; i++) {
         Serial1.write(pedalBuffer[i]);
     }
+    delay(1000);
     while (Serial1.available()) Serial1.read();
 }
 
@@ -323,6 +339,28 @@ byte DriveMotor::checksum(long prefactor, int from, int to, const byte *arr) {
     return checksum;
 }
 
+void DriveMotor::setPAS(int num) {
+    Serial1.write(TAG_WRITE);
+    Serial1.write(TAG_PAS_NUM);
 
+    Serial1.write((byte)num);
+    Serial1.write(0x21);
+}
+
+void DriveMotor::setSpeed(int num) {
+    storePedal();
+    pedalBuffer[4] = num;
+    pedalBuffer[2 + LEN_PEDAL] = checksum(0, 0, 2 + LEN_PEDAL, pedalBuffer);
+
+    Serial1.write(TAG_WRITE);
+    Serial1.write(TAG_PEDAL);
+    Serial1.write(LEN_PEDAL);
+
+    for (int i = 2; i < 3 + LEN_PEDAL; i++) {
+        Serial1.write(pedalBuffer[i]);
+    }
+    delay(1000);
+    while (Serial1.available()) Serial1.read();
+}
 
 

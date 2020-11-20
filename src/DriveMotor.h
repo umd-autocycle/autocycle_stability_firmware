@@ -14,6 +14,7 @@
 #define TAG_BASIC       0x52
 #define TAG_PEDAL       0x53
 #define TAG_THROTTLE    0x54
+#define TAG_PAS_NUM     0x0B
 
 #define LEN_START       18
 #define LEN_BASIC       24
@@ -48,6 +49,9 @@ public:
     void programSpeed(int speed, int pas);
     void programPAS(int num);
 
+    void setPAS(int num);
+
+    void setSpeed(int num);
 
 private:
     static byte checksum(long prefactor, int from, int to, const byte *arr);

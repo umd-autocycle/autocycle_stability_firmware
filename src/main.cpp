@@ -158,14 +158,24 @@ void loop() {
             drive_motor->programCurrent(current, 0);
         }
         else if (command == 's'){
-            Serial.println("in setspeed");
+            Serial.println("in programspeed");
             int speed = Serial.parseInt(); //value between 0 and 100
             Serial.println(speed);
             drive_motor->programSpeed(speed, 0);
         }
+        else if (command == 'g'){
+            Serial.println("in setspeed");
+            int speed = Serial.parseInt(); //value between 0 and 100
+            Serial.println(speed);
+            drive_motor->setSpeed(speed);
+        }
         else if (command == 'b')
         {
             drive_motor->storeBasic();
+        }
+        else if (command == 'q')
+        {
+            drive_motor->storePedal();
         }
         else if (command == 't')
         {
@@ -175,7 +185,7 @@ void loop() {
             Serial.println("in setpas");
             int speed = Serial.parseInt(); //value between 0 and 100
             Serial.println(speed);
-            drive_motor->programPAS(speed);
+            drive_motor->setPAS(speed);
         }
     }
 
