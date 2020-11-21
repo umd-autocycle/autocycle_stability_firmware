@@ -5,11 +5,13 @@
 #include "DriveMotor.h"
 #include <Arduino.h>
 
-DriveMotor::DriveMotor(float desiredSpeed) {
-
+DriveMotor::DriveMotor(int throttle_pin) {
+    throttlePin = throttle_pin;
 }
 
 void DriveMotor::start() {
+    pinMode(throttlePin, OUTPUT);
+
     while (Serial1.available()) Serial1.read();
 
     Serial1.write(TAG_READ);
@@ -30,6 +32,7 @@ void DriveMotor::start() {
     storeBasic();
     storePedal();
     storeThrottle();
+    setPAS(DEFAULT_PAS);
 }
 
 void DriveMotor::resetMotor() {
@@ -96,7 +99,6 @@ void DriveMotor::resetMotor() {
 
 
 bool DriveMotor::storeBasic() {
-    delay(1000);
     while (Serial1.available()) Serial1.read();
     Serial1.write(TAG_READ);
     Serial1.write(TAG_BASIC);
@@ -105,40 +107,31 @@ bool DriveMotor::storeBasic() {
     while (c < LEN_BASIC + 3) {
         if (Serial1.available() > 0) {
             basicBuffer[c] = Serial1.read();
-            Serial.print(basicBuffer[c], HEX);
-            Serial.print(" ");
             c++;
         }
     }
-    Serial.println();
 
     return true;
 }
 
 
 bool DriveMotor::storePedal() {
-    delay(1000);
     while (Serial1.available()) Serial1.read();
     Serial1.write(TAG_READ);
     Serial1.write(TAG_PEDAL);
-    Serial.println("hi");
+
     int c = 0;
     while (c < LEN_PEDAL + 3) {
         if (Serial1.available() > 0) {
             pedalBuffer[c] = Serial1.read();
-            Serial.print(pedalBuffer[c], HEX);
-            Serial.print(" ");
             c++;
         }
     }
-    Serial.println();
-    Serial.println("l8ter sk8ter");
 
     return true;
 }
 
 bool DriveMotor::storeThrottle() {
-    delay(1000);
     while (Serial1.available()) Serial1.read();
     Serial1.write(TAG_READ);
     Serial1.write(TAG_THROTTLE);
@@ -147,13 +140,10 @@ bool DriveMotor::storeThrottle() {
     while (c < LEN_THROTTLE + 3) {
         if (Serial1.available() > 0) {
             throttleBuffer[c] = Serial1.read();
-            Serial.print(throttleBuffer[c], HEX);
-            Serial.print(" ");
             c++;
         }
     }
-    Serial.println();
-    Serial.println("hello");
+
     return true;
 }
 
@@ -176,7 +166,7 @@ void DriveMotor::programCurrent(int current, int pas) {
     for (int i = 2; i < 3 + LEN_BASIC; i++) {
         Serial1.write(basicBuffer[i]);
     }
-    delay(1000);
+    while (!Serial1.available());
     while (Serial1.available()) Serial1.read();
 }
 
@@ -199,7 +189,7 @@ void DriveMotor::programSpeed(int speed, int pas) {
     for (int i = 2; i < 3 + LEN_BASIC; i++) {
         Serial1.write(basicBuffer[i]);
     }
-    delay(1000);
+    while (!Serial1.available());
     while (Serial1.available()) Serial1.read();
 }
 
@@ -230,103 +220,8 @@ void DriveMotor::programPAS(int num) {
     for (int i = 2; i < 3 + LEN_PEDAL; i++) {
         Serial1.write(pedalBuffer[i]);
     }
-    delay(1000);
+    while (!Serial1.available());
     while (Serial1.available()) Serial1.read();
-}
-
-void DriveMotor::queryRPM() {
-    Serial1.write(DSpeed[0]);
-    Serial1.write(DSpeed[1]);
-    readMotorSignal(true);
-}
-
-void DriveMotor::readMotorSignal(bool askingRPM) {
-    if (Serial1.available() > 0 && askingRPM == false) {
-        Serial2.write(Serial1.read()); //send data along to display
-    } else if (Serial1.available() > 0 && askingRPM == true) {
-
-
-        int byteNo = 0;
-
-
-
-        //monitor messages from controller until maxwaittime is exceeded
-        while (byteNo < 3) {
-            if (Serial1.available() > 0) {
-                byte cByte = Serial1.read();
-
-                //place received byte in array
-                startBuffer[byteNo] = cByte;
-
-                if (byteNo < 18) {
-                    byteNo = byteNo + 1;
-                }
-
-
-            }
-
-
-        }
-        currentSpeed = convertSignalToSpeed(startBuffer);
-//        writeSpeedToMotor(maintainSpeed(desiredSpeed, currentSpeed));
-    }
-}
-
-void DriveMotor::readDisplaySignal() {
-    if (Serial2.available() > 0) {
-        int maxWaittime = 200; //If nothing is received after  200 miliseconds, controller finished sending response
-        bool exceeded_maxWaittime = false;
-        unsigned long waitUntil;
-        int byteNo = 0;
-
-        waitUntil = millis() + maxWaittime;
-
-        //monitor messages from controller until maxwaittime is exceeded
-        while (!exceeded_maxWaittime) {
-            if (Serial2.available() > 0) {
-                byte cByte = Serial2.read();
-
-                //place received byte in array
-                startBuffer[byteNo] = cByte;
-
-                if (byteNo < 18) {
-                    byteNo = byteNo + 1;
-                }
-
-                waitUntil = millis() + maxWaittime; //Adjust waitUntill
-            }
-
-            if (millis() > waitUntil) {
-                exceeded_maxWaittime = true;
-            }
-        }
-    }
-    if (startBuffer[0] != 0x11 &&
-        startBuffer[1] != 0x20) { // we can alter this to police any type of messages
-        Serial1.write(Serial2.read()); //send data along to display
-    }
-}
-
-
-float DriveMotor::convertSignalToSpeed(byte RPMdata[]) {
-    float rpm = (RPMdata[1] + RPMdata[0] * 256);
-    currentSpeed = (rpm / 60) * 3.14 * radius * 2;
-    return currentSpeed; //in m/s
-    //populate this function!
-    //maintainspeed currently returns a percentage from 0 to 1 of the "max speed" of the bike, since this is the value
-    //that we send to the drive motor.
-    /*
-    delT2 = millis();
-    if (delT1 == 0) {
-        currentSpeed = 0;
-    } else if ((delT2 - delT1) < 100) {
-        return;
-    } else {
-        currentSpeed = circumference / ((delT2 - delT1) / 1000);
-    }
-    delT1 = delT2;
-    writeAnalog();
-     */
 }
 
 
@@ -343,13 +238,51 @@ void DriveMotor::setPAS(int num) {
     Serial1.write(TAG_WRITE);
     Serial1.write(TAG_PAS_NUM);
 
-    Serial1.write((byte)num);
-    Serial1.write(0x21);
+    byte b1 = 0;
+    byte b2 = 0;
+
+    switch (num) {
+        case 0:
+            b1 = 0x00;
+            b2 = 0x21;
+            break;
+        case 1:
+            b1 = 0x0B;
+            b2 = 0x2C;
+            break;
+        case 2:
+            b1 = 0x0D;
+            b2 = 0x2E;
+            break;
+        case 3:
+            b1 = 0x15;
+            b2 = 0x36;
+            break;
+        case 4:
+            b1 = 0x17;
+            b2 = 0x38;
+            break;
+        case 5:
+            b1 = 0x03;
+            b2 = 0x24;
+            break;
+        default:
+            break;
+    }
+
+    Serial1.write(b1);
+    Serial1.write(b2);
 }
 
-void DriveMotor::setSpeed(int num) {
+void DriveMotor::setSpeed(double speed) {
+    if (speed == 0) {
+        analogWrite(throttlePin, 0);
+    } else {
+        analogWrite(throttlePin, 4095);
+    }
+
     storePedal();
-    pedalBuffer[4] = num;
+    pedalBuffer[4] = speed * 60 * 60 / 1000; // Convert speed from m/s to km/hr
     pedalBuffer[2 + LEN_PEDAL] = checksum(0, 0, 2 + LEN_PEDAL, pedalBuffer);
 
     Serial1.write(TAG_WRITE);
@@ -359,8 +292,28 @@ void DriveMotor::setSpeed(int num) {
     for (int i = 2; i < 3 + LEN_PEDAL; i++) {
         Serial1.write(pedalBuffer[i]);
     }
-    delay(1000);
+    while (!Serial1.available());
     while (Serial1.available()) Serial1.read();
+
+    setPAS(0);
+    delay(20);
+    setPAS(DEFAULT_PAS);
 }
 
+double DriveMotor::getSpeed() {
+    while (Serial1.available()) Serial1.read();
+    Serial1.write(TAG_READ);
+    Serial1.write(TAG_RPM);
 
+    int c = 0;
+    while (c < 3) {
+        if (Serial1.available() > 0) {
+            startBuffer[c] = Serial1.read();
+            c++;
+        }
+    }
+
+    int rpm = startBuffer[0] * 256 + startBuffer[1];
+
+    return WHEEL_CIRCUMFERENCE * rpm * 60.0;
+}
