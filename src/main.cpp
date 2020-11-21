@@ -67,46 +67,18 @@ DriveMotor *drive_motor;
 
 // State variables
 uint8_t user_req = 0;       // User request binary flags
-double phi = 0.0;
-double del = 0.0;
-double v = 0.0;
+double phi = 0.0;           // Roll angle (rad)
+double del = 0.0;           // Steering angle (rad)
+double v = 0.0;             // Velocity (m/s)
 
-
-float currentSpeed = 0; //in m/s
-float desiredSpeed; //in m/s
-
-//void maintainStability() {
-//    if (phi == NULL) {
-//        phi = atan2(ay, az);  //initial conditions
-//    }
-//    delay(1);
-//    phi = (0.98 * (phi * 180 / PI + gx * 0.001) + 0.02 * atan2(ay, az) * 180 / PI) * PI /
-//          180;    //complementary filter to determine roll (in radians/s)
-//
-//    double e[] = {phi, 0, gx * PI / 180, 0};
-//    double torque = get_torque(0.001, e, 5, 20.0);
-//    Serial.print("Torque = "); Serial.println(torque);
-//}
-
-
-//
-//void updateSpeed() {
-//    delT2 = millis();
-//    if (delT1 == 0) {
-//        currentSpeed = 0;
-//    } else {
-//        currentSpeed = circumference/((delT2-delT1)/1000);
-//    }
-//    delT1 = delT2;
-//}
 
 void setup() {
-    Wire.begin();                              // Begin I2C interface
-    Serial.begin(115200);           // Begin Serial (UART to USB) communication
-    Serial1.begin(1200);
+    Wire.begin();                               // Begin I2C interface
+    Serial.begin(115200);           // Begin Main Serial (UART to USB) communication
+    Serial1.begin(1200);            // Begin Bafang Serial (UART) communication
     Serial2.begin(1200);
-    delay(1000);
-    Can0.begin(CAN_BPS_1000K);     // 1M baud rate, no enable pin
+    delay(1000);                        // Wait for Serial interfaces to initialize
+    Can0.begin(CAN_BPS_1000K);                  // Begin 1M baud rate CAN interface, no enable pin
     Can0.watchFor();
 
     analogWriteResolution(12);        // Enable expanded PWM and ADC resolution
@@ -115,38 +87,34 @@ void setup() {
     // Initiate indicator
     indicator.start();
     indicator.beep(100);
-//    //indicator.cycle()
     indicator.setPassiveRGB(RGB_STARTUP_P);
     indicator.setBlinkRGB(RGB_STARTUP_B);
-//    indicator.silence();
 
-    torque_motor = new TorqueMotor(&Can0, TM_NODE_ID, TM_CURRENT_MAX, TM_TORQUE_MAX, TM_TORQUE_SLOPE, 8 * PI, 16 * PI,
-                                   10);
+    torque_motor = new TorqueMotor(&Can0, TM_NODE_ID, TM_CURRENT_MAX, TM_TORQUE_MAX, TM_TORQUE_SLOPE,
+                                   8 * PI, 16 * PI, 10);
     torque_motor->start();                          // Initialize torque control motor
-//    torque_motor->autoSetup();
-//    while(true);
+
     torque_motor->setMode(OP_PROFILE_POSITION);
     while (!torque_motor->enableOperation());
-//    torque_motor->setVelocity(0);
 
-    while (true) {
-        torque_motor->update();
-        if (Serial.available())
-            torque_motor->setPosition(Serial.parseFloat());
-        Serial.print(torque_motor->getTorque());
-        Serial.print(", ");
-        Serial.print(torque_motor->getVelocity());
-        Serial.print(", ");
-        Serial.print(torque_motor->getPosition());
-        Serial.print(", ");
-        Serial.println(torque_motor->getStatus(), HEX);
-        delay(100);
-    }
+//    while (true) {
+//        torque_motor->update();
+//        if (Serial.available())
+//            torque_motor->setPosition(Serial.parseFloat());
+//        Serial.print(torque_motor->getTorque());
+//        Serial.print(", ");
+//        Serial.print(torque_motor->getVelocity());
+//        Serial.print(", ");
+//        Serial.print(torque_motor->getPosition());
+//        Serial.print(", ");
+//        Serial.println(torque_motor->getStatus(), HEX);
+//        delay(100);
+//    }
 
-//    drive_motor = new DriveMotor(1); //1 = 1 m/s
-//    drive_motor->start();
+    drive_motor = new DriveMotor(1); //1 = 1 m/s // Initialize Bafang drive motor
+    drive_motor->start();
 
-//    imu.start();                                    // Initialize IMU
+    imu.start();                                    // Initialize IMU
 //    imu.configure(2, 2, 1);  // Set accelerometer and gyro resolution, on-chip low-pass filter
 //    if (imu.calibrateGyros()) {
 //        Serial.println("Gyroscopes Successfully Calibrated.");
@@ -170,40 +138,30 @@ void setup() {
 void loop() {
     static uint8_t state = IDLE;
 
-    if(Serial.available()) {
+    if (Serial.available()) {
         char command = Serial.read();
         if (command == 'r') {
             drive_motor->resetMotor();
-        }
-        else if (command == 'c'){
+        } else if (command == 'c') {
             int current = Serial.parseInt(); //value between 0 and 100- be careful not to set it too high!
             drive_motor->programCurrent(current, 0);
-        }
-        else if (command == 's'){
+        } else if (command == 's') {
             Serial.println("in programspeed");
             int speed = Serial.parseInt(); //value between 0 and 100
             Serial.println(speed);
             drive_motor->programSpeed(speed, 0);
-        }
-        else if (command == 'g'){
+        } else if (command == 'g') {
             Serial.println("in setspeed");
             int speed = Serial.parseInt(); //value between 0 and 100
             Serial.println(speed);
             drive_motor->setSpeed(speed);
-        }
-        else if (command == 'b')
-        {
+        } else if (command == 'b') {
             drive_motor->storeBasic();
-        }
-        else if (command == 'q')
-        {
+        } else if (command == 'q') {
             drive_motor->storePedal();
-        }
-        else if (command == 't')
-        {
+        } else if (command == 't') {
             drive_motor->storeThrottle();
-        }
-        else if (command == 'p'){
+        } else if (command == 'p') {
             Serial.println("in setpas");
             int speed = Serial.parseInt(); //value between 0 and 100
             Serial.println(speed);
@@ -219,16 +177,6 @@ void loop() {
 
     // Update indicator
     indicator.update();
-
-    //send info back and forth between display and motor
-//    if(Serial1.available())
-//    {
-//        drive_motor->readMotorSignal(false);
-//    }
-//    if(Serial2.available())
-//    {
-//        drive_motor->readDisplaySignal();
-//    }
 
 
     // Act based on machine state, transition if necessary
@@ -356,6 +304,7 @@ void loop() {
             break;
 
         default:        // Invalid state, fatal error
+            indicator.setPassiveRGB(0, 0, 0);
             break;
     }
 }
