@@ -27,7 +27,7 @@ void CANOpenDevice::networkCommand(uint8_t cmd) {
     outgoing.extended = false;
     outgoing.length = 2;
     outgoing.data.byte[0] = cmd;
-    outgoing.data.byte[1] = node_id;
+    outgoing.data.byte[1] = 0;
 
     can_line->sendFrame(outgoing);
 }
@@ -48,11 +48,44 @@ void CANOpenDevice::writeSDO(uint16_t index, uint8_t sub_index, uint8_t data_len
     outgoing.data.byte[1] = (uint8_t) (index & 0x00FFU);
     outgoing.data.byte[2] = (uint8_t) ((index & 0xFF00U) >> 8U);
     outgoing.data.byte[3] = sub_index;
-    outgoing.data.high = data;
+    outgoing.data.byte[4] = (uint8_t) ((data & 0x000000FFU) >> 0U);
+    outgoing.data.byte[5] = (uint8_t) ((data & 0x0000FF00U) >> 8U);
+    outgoing.data.byte[6] = (uint8_t) ((data & 0x00FF0000U) >> 16U);
+    outgoing.data.byte[7] = (uint8_t) ((data & 0xFF000000U) >> 24U);
 
     can_line->sendFrame(outgoing);
 
-    //TODO wait for response
+    while (true) {
+        while (!can_line->available());
+        can_line->read(incoming);
+
+        if (incoming.id == COB_SDO_WRITE_CONFIRM + node_id) {
+            if (incoming.data.byte[0] != 0x80U && (incoming.data.byte[2] << 8U | incoming.data.byte[1]) == index) {
+                break;
+            } else if (incoming.data.byte[0] == 0x80U &&
+                       (incoming.data.byte[2] << 8U | incoming.data.byte[1]) == index) {
+
+                Serial.print("Error writing SDO ");
+                Serial.print(incoming.data.byte[2] << 8U | incoming.data.byte[1], HEX);
+                Serial.print(":");
+                Serial.print(incoming.data.byte[3]);
+                Serial.print(", error code: ");
+                Serial.println(incoming.data.high, HEX);
+                break;
+            } else {
+                Serial.print("Writing SDO mismatch ");
+                Serial.print(index, HEX);
+                Serial.print(":");
+                Serial.print(sub_index);
+                Serial.print(", actual ");
+                Serial.print(incoming.data.byte[2] << 8U | incoming.data.byte[1], HEX);
+                Serial.print(":");
+                Serial.print(incoming.data.byte[3]);
+                Serial.print(", with contents ");
+                Serial.println(incoming.data.high, HEX);
+            }
+        }
+    }
 }
 
 void CANOpenDevice::readSDO(uint16_t index, uint8_t sub_index, uint32_t &data) {
@@ -63,16 +96,48 @@ void CANOpenDevice::readSDO(uint16_t index, uint8_t sub_index, uint32_t &data) {
     outgoing.data.byte[1] = (uint8_t) (index & 0x00FFU);
     outgoing.data.byte[2] = (uint8_t) ((index & 0xFF00U) >> 8U);
     outgoing.data.byte[3] = sub_index;
-    outgoing.data.high = 0x00;
+    outgoing.data.byte[4] = 0;
+    outgoing.data.byte[5] = 0;
+    outgoing.data.byte[6] = 0;
+    outgoing.data.byte[7] = 0;
 
     can_line->sendFrame(outgoing);
 
-    while (!can_line->available());
 
-    can_line->read(incoming);
+    while (true) {
+        while (!can_line->available());
+        can_line->read(incoming);
 
-    if (incoming.data.byte[0] != 0x80U)
-        data = incoming.data.high;
+        if (incoming.id == COB_SDO_READ_CONFIRM + node_id) {
+            if (incoming.data.byte[0] != 0x80U && (incoming.data.byte[2] << 8U | incoming.data.byte[1]) == index) {
+                data = incoming.data.high;
+                break;
+            } else if (incoming.data.byte[0] == 0x80U &&
+                       (incoming.data.byte[2] << 8U | incoming.data.byte[1]) == index) {
+
+                Serial.print("Error reading SDO ");
+                Serial.print(incoming.data.byte[2] << 8U | incoming.data.byte[1], HEX);
+                Serial.print(":");
+                Serial.print(incoming.data.byte[3]);
+                Serial.print(", error code: ");
+                Serial.println(incoming.data.high, HEX);
+                break;
+            } else {
+                Serial.print("Reading SDO mismatch ");
+                Serial.print(index, HEX);
+                Serial.print(":");
+                Serial.print(sub_index);
+                Serial.print(", actual ");
+                Serial.print(incoming.data.byte[2] << 8U | incoming.data.byte[1], HEX);
+                Serial.print(":");
+                Serial.print(incoming.data.byte[3]);
+                Serial.print(", with contents ");
+                Serial.println(incoming.data.high, HEX);
+            }
+        }
+    }
+
+
 }
 
 void
@@ -106,19 +171,34 @@ CANOpenDevice::configureRxPDO(uint8_t pdo_map_num, uint8_t trans_type, uint8_t m
     }
     rx_pdo_table[pdo_map_num].len = l / 8;
 
+    // Deactivate mapping
+    writeSDO(PDO_RX_CONFIG_COMM + pdo_map_num, 1, SDO_WRITE_4B, (1U << 31U) | (cob_base + node_id));
+    delay(100);
+    writeSDO(PDO_RX_CONFIG_MAP + pdo_map_num, 0, SDO_WRITE_1B, 0);
+    delay(100);
+
 
     // Configure communication parameters for PDO on controller
-    writeSDO(PDO_RX_CONFIG_COMM + pdo_map_num, 1, SDO_WRITE_4B, cob_base + node_id);
     writeSDO(PDO_RX_CONFIG_COMM + pdo_map_num, 2, SDO_WRITE_1B, trans_type);
 
+
     // Configure content of PDO and map to object dictionary on controller
-    writeSDO(PDO_RX_CONFIG_MAP + pdo_map_num, 0, SDO_WRITE_1B, map_count);
     for (int i = 0; i < map_count; i++) {
         uint32_t map = (((uint32_t) mappings[i].index) << 16U) |
                        (((uint32_t) mappings[i].sub_index) << 8U) |
                        ((uint32_t) mappings[i].bit_length);
+        Serial.print("Configuring 0x");
+        Serial.print(PDO_RX_CONFIG_MAP + pdo_map_num, HEX);
+        Serial.print(":");
+        Serial.print(i + 1);
+        Serial.print(" with ");
+        Serial.println(map, HEX);
         writeSDO(PDO_RX_CONFIG_MAP + pdo_map_num, i + 1, SDO_WRITE_4B, map);
     }
+
+    // Re-enable mappings
+    writeSDO(PDO_RX_CONFIG_MAP + pdo_map_num, 0, SDO_WRITE_1B, map_count);
+    writeSDO(PDO_RX_CONFIG_COMM + pdo_map_num, 1, SDO_WRITE_4B, cob_base + node_id);
 }
 
 void CANOpenDevice::configureTxPDO(uint8_t pdo_map_num, uint8_t trans_type, uint16_t inhibit_time, uint16_t event_timer,
@@ -152,32 +232,51 @@ void CANOpenDevice::configureTxPDO(uint8_t pdo_map_num, uint8_t trans_type, uint
     }
     tx_pdo_table[pdo_map_num].len = l / 8;
 
+    // Deactivate mapping
+    writeSDO(PDO_TX_CONFIG_COMM + pdo_map_num, 1, SDO_WRITE_4B, (1U << 31U) | (cob_base + node_id));
+    delay(100);
+    writeSDO(PDO_TX_CONFIG_MAP + pdo_map_num, 0, SDO_WRITE_1B, 0);
+    delay(100);
+
 
     // Configure communication parameters for PDO
-    writeSDO(PDO_TX_CONFIG_COMM + pdo_map_num, 1, SDO_WRITE_4B, cob_base + node_id);
     writeSDO(PDO_TX_CONFIG_COMM + pdo_map_num, 2, SDO_WRITE_1B, trans_type);
     writeSDO(PDO_TX_CONFIG_COMM + pdo_map_num, 3, SDO_WRITE_2B, inhibit_time);
     writeSDO(PDO_TX_CONFIG_COMM + pdo_map_num, 5, SDO_WRITE_2B, event_timer);
 
     // Configure content of PDO and map to object dictionary
-    writeSDO(PDO_TX_CONFIG_MAP + pdo_map_num, 0, SDO_WRITE_1B, map_count);
     for (int i = 0; i < map_count; i++) {
         uint32_t map = (((uint32_t) mappings[i].index) << 16U) |
                        (((uint32_t) mappings[i].sub_index) << 8U) |
                        ((uint32_t) mappings[i].bit_length);
+
+        Serial.print("Configuring 0x");
+        Serial.print(PDO_TX_CONFIG_MAP + pdo_map_num, HEX);
+        Serial.print(":");
+        Serial.print(i + 1);
+        Serial.print(" with ");
+        Serial.println(map, HEX);
+
         writeSDO(PDO_TX_CONFIG_MAP + pdo_map_num, i + 1, SDO_WRITE_4B, map);
     }
+
+    // Re-enable mappings
+    writeSDO(PDO_TX_CONFIG_MAP + pdo_map_num, 0, SDO_WRITE_1B, map_count);
+    writeSDO(PDO_TX_CONFIG_COMM + pdo_map_num, 1, SDO_WRITE_4B, cob_base + node_id);
 }
 
 void CANOpenDevice::update() {
-    while (can_line->available() > 0) {
-        can_line->read(incoming);
+    int c = 0;
+    while (can_line->available() > 0 && c < 16) {
 
+        can_line->read(incoming);
         for (int i = 0; i < PDO_TX_NUM; i++)
             if (incoming.id == tx_pdo_table[i].cob_id) {
                 tx_pdo_buffer[i].value = incoming.data.value;
                 break;
             }
+
+        c++;
     }
 }
 
@@ -192,6 +291,18 @@ void CANOpenDevice::writePDO(uint8_t pdo_map_num, const BytesUnion &data) {
     outgoing.data.value = data.value;
 
     can_line->sendFrame(outgoing);
+}
+
+void CANOpenDevice::waitForBoot() {
+    while (true) {
+        while (!can_line->available());
+
+        can_line->read(incoming);
+        if (incoming.id == (0x700U + node_id)) {
+            Serial.println("Controller has booted.");
+            break;
+        }
+    }
 }
 
 

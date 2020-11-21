@@ -8,42 +8,75 @@
 #include "CANOpen.h"
 #include <due_can.h>
 
-
-// Motor data
-#define POLE_PAIR_COUNT         6
-#define MAX_PERM_CURRENT_MA     16000
-#define RATED_CURRENT_MA        5330
-#define MAX_CURRENT_DUR_MS      100
-#define BLDC_MOTOR              0x0000000041U
-#define RATED_TORQUE_N          0.5
-#define GEARING                 33.0
-#define EFFICIENCY              0.93
-
 // Operating modes
+#define OP_NONE                 0x00U
 #define OP_AUTO_SETUP           0xFEU
 #define OP_PROFILE_TORQUE       0x04U
-
+#define OP_PROFILE_VELOCITY     0x03U
+#define OP_PROFILE_POSITION     0x01U
 
 class TorqueMotor {
 public:
     TorqueMotor(CANRaw *can_line, uint16_t node_id, unsigned int current_max, unsigned int torque_max,
-                unsigned int torque_slope); // current and torque in thousandths of rated current and torque
+                unsigned int torque_slope, double prof_accel, double qs_decel, double prof_vel); // current and torque in thousandths of rated current and torque
 
     void start();
 
-    void commission(); // Motor must be unloaded, not touched, and free to rotate in any direction.
+    void autoSetup(); // Motor must be unloaded, not touched, and free to rotate in any direction.
 
-    void torqueMode();
+    void setMode(uint16_t mode);
 
+    // Torque in Nm
     void setTorque(double torque);
+
+    // Speed in rad/s
+    void setVelocity(double velocity);
+
+    // position in rad
+    void setPosition(double phi);
+
+    // Torque in Nm
+    double getTorque();
+
+    // Speed in rad/s
+    double getVelocity();
+
+    // position in rad
+    double getPosition();
+
+    uint16_t getStatus();
+
+//    // Speed in rad/s
+//    double getTargetVelocity();
+//
+//    // position in rad
+//    double getTargetPosition();
 
     void update();
 
+    // State machine transitions
+    bool shutdown();
+
+    bool switchOn();
+
+    bool disableVoltage();
+
+    bool quickStop();
+
+    bool disableOperation();
+
+    bool enableOperation();
+
+    bool enableOperationAfterQuickStop();
+
+    bool faultReset();
+
 private:
     CANOpenDevice *motor_dev;
+    uint32_t data;
     unsigned int torque_max, current_max, torque_slope;
-    double desired_torque, actual_torque;
-    BytesUnion outgoing;
+    uint32_t profile_acceleration, quick_stop_deceleration, profile_velocity;
+    BytesUnion outgoing{}, incoming{};
 };
 
 

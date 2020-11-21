@@ -53,7 +53,7 @@
 #define TM_NODE_ID          127
 #define TM_CURRENT_MAX      1000
 #define TM_TORQUE_MAX       1000
-#define TM_TORQUE_SLOPE     1000
+#define TM_TORQUE_SLOPE     10000   // Thousandths of max torque per second
 
 // Constants
 #define FTHRESH PI/4.0      // Threshold for being fallen over
@@ -106,26 +106,48 @@ void setup() {
     Serial1.begin(1200);
     Serial2.begin(1200);
     delay(1000);
-    //Can0.begin(CAN_BPS_1000K, 0xFF);     // 1M baud rate, no enable pin
+    Can0.begin(CAN_BPS_1000K);     // 1M baud rate, no enable pin
+    Can0.watchFor();
 
     analogWriteResolution(12);        // Enable expanded PWM and ADC resolution
     analogReadResolution(12);
 
     // Initiate indicator
     indicator.start();
-    indicator.beep(1);
-    //indicator.cycle()
+    indicator.beep(100);
+//    //indicator.cycle()
     indicator.setPassiveRGB(RGB_STARTUP_P);
     indicator.setBlinkRGB(RGB_STARTUP_B);
-    indicator.silence();
-    torque_motor = new TorqueMotor(&Can0, TM_NODE_ID, TM_CURRENT_MAX, TM_TORQUE_MAX, TM_TORQUE_SLOPE);
-    //torque_motor->start();                          // Initialize torque control motor
-    drive_motor = new DriveMotor(1); //1 = 1 m/s
-    drive_motor->start();
+//    indicator.silence();
+
+    torque_motor = new TorqueMotor(&Can0, TM_NODE_ID, TM_CURRENT_MAX, TM_TORQUE_MAX, TM_TORQUE_SLOPE, 8 * PI, 16 * PI,
+                                   10);
+    torque_motor->start();                          // Initialize torque control motor
+//    torque_motor->autoSetup();
+//    while(true);
+    torque_motor->setMode(OP_PROFILE_POSITION);
+    while (!torque_motor->enableOperation());
+//    torque_motor->setVelocity(0);
+
+    while (true) {
+        torque_motor->update();
+        if (Serial.available())
+            torque_motor->setPosition(Serial.parseFloat());
+        Serial.print(torque_motor->getTorque());
+        Serial.print(", ");
+        Serial.print(torque_motor->getVelocity());
+        Serial.print(", ");
+        Serial.print(torque_motor->getPosition());
+        Serial.print(", ");
+        Serial.println(torque_motor->getStatus(), HEX);
+        delay(100);
+    }
+
+//    drive_motor = new DriveMotor(1); //1 = 1 m/s
+//    drive_motor->start();
 
 //    imu.start();                                    // Initialize IMU
 //    imu.configure(2, 2, 1);  // Set accelerometer and gyro resolution, on-chip low-pass filter
-//
 //    if (imu.calibrateGyros()) {
 //        Serial.println("Gyroscopes Successfully Calibrated.");
 //        indicator.beepstring((uint8_t) 0b01110111);
@@ -139,14 +161,14 @@ void setup() {
 //    } else {
 //        indicator.beepstring((uint8_t) 0b10001000, 1);
 //    }
-//
-//
-//    indicator.setPassiveRGB(RGB_IDLE_P);
-//    indicator.setBlinkRGB(RGB_IDLE_B);
+
+
+    indicator.setPassiveRGB(RGB_IDLE_P);
+    indicator.setBlinkRGB(RGB_IDLE_B);
 }
 
 void loop() {
-    static uint8_t state = 0;
+    static uint8_t state = IDLE;
 
     if(Serial.available()) {
         char command = Serial.read();
@@ -199,14 +221,14 @@ void loop() {
     indicator.update();
 
     //send info back and forth between display and motor
-    if(Serial1.available())
-    {
-        drive_motor->readMotorSignal(false);
-    }
-    if(Serial2.available())
-    {
-        drive_motor->readDisplaySignal();
-    }
+//    if(Serial1.available())
+//    {
+//        drive_motor->readMotorSignal(false);
+//    }
+//    if(Serial2.available())
+//    {
+//        drive_motor->readDisplaySignal();
+//    }
 
 
     // Act based on machine state, transition if necessary

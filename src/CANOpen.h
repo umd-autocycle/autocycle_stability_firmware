@@ -14,8 +14,10 @@
 #define COB_SYNC        0x080U
 #define COB_PDO_WRITE   0x200U
 #define COB_PDO_READ    0x180U
+#define COB_SDO_WRITE_CONFIRM   0x580U
+#define COB_SDO_READ_CONFIRM    0x580U
 #define COB_SDO_WRITE   0x600U
-#define COB_SDO_READ    0x580U
+#define COB_SDO_READ    0x600U
 #define COB_BOOTUP      0x700U
 #define COB_HEART       0x700U
 
@@ -63,7 +65,7 @@
 #define PDO_TX_TRANS_SYNC_CYC   0x01U
 #define PDO_TX_TRANS_SYNC_RTR   0xFCU
 #define PDO_TX_TRANS_ASYNC_RTR  0xFDU
-#define PDO_TX_TRANS_ASYNC      0xFEU
+#define PDO_TX_TRANS_ASYNC_TIME 0xFEU
 
 
 // CANOpen RX/TX PDO counts
@@ -106,6 +108,8 @@ public:
     void readPDO(uint8_t pdo_map_num, BytesUnion &data);
 
     void writePDO(uint8_t pdo_map_num, const BytesUnion &data);
+
+    void waitForBoot();
 
     BytesUnion *tx_pdo_buffer;
 
