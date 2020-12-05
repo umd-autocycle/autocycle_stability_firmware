@@ -317,6 +317,17 @@ void loop() {
 
     // Report state, reference, and control values
     report(state);
+
+    if (Serial.available()) {
+        char c = Serial.read();
+        switch (c) {
+            case 's':
+                drive_motor->setSpeed(Serial.parseFloat());
+                break;
+            default:
+                break;
+        }
+    }
 }
 
 void idle() {
