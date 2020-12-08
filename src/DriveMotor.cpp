@@ -121,12 +121,17 @@ bool DriveMotor::storePedal() {
     Serial1.write(TAG_PEDAL);
 
     int c = 0;
+    Serial.println("Read:");
     while (c < LEN_PEDAL + 3) {
         if (Serial1.available() > 0) {
             pedalBuffer[c] = Serial1.read();
+            Serial.print(pedalBuffer[c], HEX);
+            Serial.print(" ");
             c++;
         }
     }
+    Serial.println();
+
 
     return true;
 }
@@ -280,23 +285,57 @@ void DriveMotor::setSpeed(double speed) {
     } else {
         analogWrite(throttlePin, 4095);
     }
+    byte speedCode = min(0x28, max(0x0F, speed * 60 * 60 / 1000));
 
-    storePedal();
-    pedalBuffer[4] = speed * 60 * 60 / 1000; // Convert speed from m/s to km/hr
-    pedalBuffer[2 + LEN_PEDAL] = checksum(0, 0, 2 + LEN_PEDAL, pedalBuffer);
+//    storePedal();
+//    pedalBuffer[4] = speedCode; // Convert speed from m/s to km/hr
+//    pedalBuffer[2 + LEN_PEDAL] = checksum(0, 0, 2 + LEN_PEDAL, pedalBuffer);
+//
+//    Serial1.write(TAG_WRITE);
+//    Serial1.write(TAG_PEDAL);
+//    Serial1.write(LEN_PEDAL);
+//    Serial.println("writing:");
+//    Serial.print(TAG_WRITE, HEX);
+//    Serial.print(" ");
+//    Serial.print(TAG_PEDAL, HEX);
+//    Serial.print(" ");
+//    Serial.print(LEN_PEDAL, HEX);
+//    Serial.print(" ");
+//    for (int i = 2; i < 3 + LEN_PEDAL; i++) {
+//        Serial.print(pedalBuffer[i], HEX);
+//        Serial.print(" ");
+//        Serial1.write(pedalBuffer[i]);
+//    }
+//    Serial.println();
+//    while (!Serial1.available());
+//    int c = 0;
+//    while (Serial1.available()) {
+//        delay(20);
+//        resp[c] = Serial1.read();
+//        Serial.println(resp[c], HEX);
+//        c++;
+//    }
+
+
+    storeThrottle();
+    throttleBuffer[6] = speedCode; // Convert speed from m/s to km/hr
+    throttleBuffer[2 + LEN_THROTTLE] = checksum(0, 0, 2 + LEN_THROTTLE, throttleBuffer);
 
     Serial1.write(TAG_WRITE);
-    Serial1.write(TAG_PEDAL);
-    Serial1.write(LEN_PEDAL);
+    Serial1.write(TAG_THROTTLE);
+    Serial1.write(LEN_THROTTLE);
 
-    for (int i = 2; i < 3 + LEN_PEDAL; i++) {
-        Serial1.write(pedalBuffer[i]);
+    for (int i = 2; i < 3 + LEN_THROTTLE; i++) {
+        Serial1.write(throttleBuffer[i]);
     }
     while (!Serial1.available());
-    while (Serial1.available()) Serial1.read();
+    while (Serial1.available()) {
+        delay(20);
+        Serial.println(Serial1.read(), HEX);
+    }
 
     setPAS(0);
-    delay(20);
+    delay(100);
     setPAS(DEFAULT_PAS);
 }
 
@@ -315,5 +354,5 @@ double DriveMotor::getSpeed() {
 
     int rpm = startBuffer[0] * 256 + startBuffer[1];
 
-    return WHEEL_CIRCUMFERENCE * rpm * 60.0;
+    return WHEEL_CIRCUMFERENCE * rpm / 60.0;
 }

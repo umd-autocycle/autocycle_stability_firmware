@@ -171,6 +171,8 @@ void loop() {
             }
             if (v > 1.0) {
                 state = ASSIST;
+                torque_motor->setMode(OP_PROFILE_POSITION);
+                while(!torque_motor->enableOperation());
                 indicator.setPassiveRGB(RGB_ASSIST_P);
                 indicator.setBlinkRGB(RGB_ASSIST_B);
             }
@@ -319,10 +321,12 @@ void loop() {
     report(state);
 
     if (Serial.available()) {
+        delay(50);
         char c = Serial.read();
         switch (c) {
             case 's':
-                drive_motor->setSpeed(Serial.parseFloat());
+                v_r = Serial.parseFloat();
+                drive_motor->setSpeed(v_r);
                 break;
             default:
                 break;
@@ -351,17 +355,23 @@ void calibrate() {
 }
 
 void manual() {
-    torque_motor->setPosition(del_r);
-    drive_motor->setSpeed(v_r);
+    double er = phi - phi_r;
+
+    torque_motor->setPosition(er);
+
+//    torque_motor->setPosition(del_r);
+//    drive_motor->setSpeed(v_r);
 }
 
 void assist() {
-    torque_motor->setPosition(del_r);
-    drive_motor->setSpeed(v_r);
+    double er = phi - phi_r;
+
+    torque_motor->setPosition(er);
+//    drive_motor->setSpeed(v_r);
 }
 
 void automatic() {
-    // TODO calculate control signal, apply to torque and drive
+
 }
 
 void fallen() {
