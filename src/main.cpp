@@ -7,6 +7,9 @@
 #include <Wire.h>
 #include <SPI.h>
 #include <due_can.h>
+#include <SPI.h>
+#include <nRF24L01.h>
+#include <RF24.h>
 
 // Internal libraries
 #include "IMU.h"
@@ -66,6 +69,7 @@ IMU imu(0x68);
 Indicator indicator(3, 4, 5, 11);
 TorqueMotor *torque_motor;
 DriveMotor *drive_motor;
+RF24 radio(7, 8);           // pins for CE, CSN
 
 
 // State variables
@@ -84,6 +88,9 @@ double v_r = 0.0;           // Required velocity (m/s)
 // Control variables
 double torque = 0.0;        // Current torque (Nm)
 
+// Radio Variables
+const byte address[6] = "00001";
+char str[80];
 
 // State actions
 void idle();
@@ -138,6 +145,11 @@ void setup() {
 
     indicator.setPassiveRGB(RGB_IDLE_P);
     indicator.setBlinkRGB(RGB_IDLE_B);
+
+    radio.begin();                                  // Start radio
+    radio.openWritingPipe(address);                 // Open reading side of pipe to transmitter
+    radio.setPALevel(RF24_PA_MIN);                  // Set listening strength, we can increase this if they dont connect but then a bypass diode is needed
+    radio.stopListening();                          // Sets module to be a transmitter
 }
 
 void loop() {
@@ -404,4 +416,6 @@ void report(uint8_t state) {
     Serial.print(v_r);
     Serial.println();
     Serial.flush();
+    sprintf(str,"%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\n",state,phi,del,dphi,ddel,v,torque,phi_r,del_r,v_r);
+    radio.write(&str, sizeof(str));
 }
