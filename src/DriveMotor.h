@@ -45,15 +45,15 @@ public:
     void programPAS(int num);
 
     void setPAS(int num);
-    void setSpeed(double speed);
+    void setSpeed(float speed);
 
-    double getSpeed();
+    float getSpeed();
 
 private:
     static byte checksum(long prefactor, int from, int to, const byte *arr);
 
-    double currentSpeed = 0.0;
-    double desiredSpeed = 0.0;
+    float currentSpeed = 0.0;
+    float desiredSpeed = 0.0;
 
     int throttlePin = 0;
 

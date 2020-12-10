@@ -18,7 +18,7 @@
 class TorqueMotor {
 public:
     TorqueMotor(CANRaw *can_line, uint16_t node_id, unsigned int current_max, unsigned int torque_max,
-                unsigned int torque_slope, double prof_accel, double qs_decel, double prof_vel); // current and torque in thousandths of rated current and torque
+                unsigned int torque_slope, float prof_accel, float qs_decel, float prof_vel); // current and torque in thousandths of rated current and torque
 
     void start();
 
@@ -27,30 +27,30 @@ public:
     void setMode(uint16_t mode);
 
     // Torque in Nm
-    void setTorque(double torque);
+    void setTorque(float torque);
 
     // Speed in rad/s
-    void setVelocity(double velocity);
+    void setVelocity(float velocity);
 
     // position in rad
-    void setPosition(double phi);
+    void setPosition(float phi);
 
     // Torque in Nm
-    double getTorque();
+    float getTorque();
 
     // Speed in rad/s
-    double getVelocity();
+    float getVelocity();
 
     // position in rad
-    double getPosition();
+    float getPosition();
 
     uint16_t getStatus();
 
 //    // Speed in rad/s
-//    double getTargetVelocity();
+//    float getTargetVelocity();
 //
 //    // position in rad
-//    double getTargetPosition();
+//    float getTargetPosition();
 
     void update();
 

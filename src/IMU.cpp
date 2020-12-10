@@ -111,7 +111,7 @@ bool IMU::calibrateGyros() {
            abs(z_acc / CALIB_SAMP) < CALIB_G_TOL;
 }
 
-bool IMU::calibrateAccel(double x_expected, double y_expected, double z_expected) {
+bool IMU::calibrateAccel(float x_expected, float y_expected, float z_expected) {
     long x_acc = 0;
     long y_acc = 0;
     long z_acc = 0;
@@ -128,9 +128,9 @@ bool IMU::calibrateAccel(double x_expected, double y_expected, double z_expected
         delay(2);
     }
 
-    int16_t x_a_expected = x_expected / GRAV / (double) accel_fsr * ACCEL_RANGE;
-    int16_t y_a_expected = y_expected / GRAV / (double) accel_fsr * ACCEL_RANGE;
-    int16_t z_a_expected = z_expected / GRAV / (double) accel_fsr * ACCEL_RANGE;
+    int16_t x_a_expected = x_expected / GRAV / (float) accel_fsr * ACCEL_RANGE;
+    int16_t y_a_expected = y_expected / GRAV / (float) accel_fsr * ACCEL_RANGE;
+    int16_t z_a_expected = z_expected / GRAV / (float) accel_fsr * ACCEL_RANGE;
 
     int16_t x_a_offset;
     int16_t y_a_offset;
@@ -169,31 +169,31 @@ bool IMU::calibrateAccel(double x_expected, double y_expected, double z_expected
            abs(z_acc / CALIB_SAMP) < CALIB_A_TOL;
 }
 
-double IMU::accelX() const {
+float IMU::accelX() const {
     return a_x;
 }
 
-double IMU::accelY() const {
+float IMU::accelY() const {
     return a_y;
 }
 
-double IMU::accelZ() const {
+float IMU::accelZ() const {
     return a_z;
 }
 
-double IMU::gyroX() const {
+float IMU::gyroX() const {
     return g_x;
 }
 
-double IMU::gyroY() const {
+float IMU::gyroY() const {
     return g_y;
 }
 
-double IMU::gyroZ() const {
+float IMU::gyroZ() const {
     return g_z;
 }
 
-double IMU::chipTemp() const {
+float IMU::chipTemp() const {
     return temp;
 }
 
@@ -210,14 +210,14 @@ void IMU::update() {
     g_y_raw = buffer[5];
     g_z_raw = buffer[6];
 
-    a_x = GRAV * (double) (a_x_raw * accel_fsr) / ACCEL_RANGE;
-    a_y = GRAV * (double) (a_y_raw * accel_fsr) / ACCEL_RANGE;
-    a_z = GRAV * (double) (a_z_raw * accel_fsr) / ACCEL_RANGE;
+    a_x = GRAV * (float) (a_x_raw * accel_fsr) / ACCEL_RANGE;
+    a_y = GRAV * (float) (a_y_raw * accel_fsr) / ACCEL_RANGE;
+    a_z = GRAV * (float) (a_z_raw * accel_fsr) / ACCEL_RANGE;
 
-    temp = (double) temp_raw / 340.0 + 36.53f;
-    g_x = (double) (g_x_raw * gyro_fsr) / GYRO_RANGE *  PI / 180.0;
-    g_y = (double) (g_y_raw * gyro_fsr) / GYRO_RANGE * PI / 180.0;
-    g_z = (double) (g_z_raw * gyro_fsr) / GYRO_RANGE *  PI / 180.0;
+    temp = (float) temp_raw / 340.0 + 36.53f;
+    g_x = (float) (g_x_raw * gyro_fsr) / GYRO_RANGE *  PI / 180.0;
+    g_y = (float) (g_y_raw * gyro_fsr) / GYRO_RANGE * PI / 180.0;
+    g_z = (float) (g_z_raw * gyro_fsr) / GYRO_RANGE *  PI / 180.0;
 
 }
 

@@ -59,7 +59,24 @@
 // State transition constants
 #define FTHRESH PI/4.0      // Threshold for being fallen over
 #define UTHRESH PI/20.0     // Threshold for being back upright
+#define HIGH_V_THRESH 4.0
+#define LOW_V_THRESH 3.5
 
+#define RADIOCOMM
+
+#ifdef RADIOCOMM
+
+#include <nRF24L01.h>
+#include <RF24.h>
+
+RF24 radio(7, 8);
+#define TELEMETRY radio
+uint8_t readAddr[] = "NODEU";
+uint8_t writeAddr[] = "NODED";
+
+#else
+#define TELEMETRY Serial
+#endif
 
 // Device object definitions
 IMU imu(0x68);
@@ -70,19 +87,19 @@ DriveMotor *drive_motor;
 
 // State variables
 uint8_t user_req = 0;       // User request binary flags
-double phi = 0.0;           // Roll angle (rad)
-double del = 0.0;           // Steering angle (rad)
-double dphi = 0.0;          // Roll angle rate (rad/s)
-double ddel = 0.0;          // Steering angle rate (rad/s)
-double v = 0.0;             // Velocity (m/s)
+float phi = 0.0;           // Roll angle (rad)
+float del = 0.0;           // Steering angle (rad)
+float dphi = 0.0;          // Roll angle rate (rad/s)
+float ddel = 0.0;          // Steering angle rate (rad/s)
+float v = 0.0;             // Velocity (m/s)
 
 // Reference variables
-double phi_r = 0.0;         // Required roll angle (rad)
-double del_r = 0.0;         // Required steering angle (rad)
-double v_r = 0.0;           // Required velocity (m/s)
+float phi_r = 0.0;         // Required roll angle (rad)
+float del_r = 0.0;         // Required steering angle (rad)
+float v_r = 0.0;           // Required velocity (m/s)
 
 // Control variables
-double torque = 0.0;        // Current torque (Nm)
+float torque = 0.0;        // Current torque (Nm)
 
 
 // State actions
@@ -107,7 +124,17 @@ void setup() {
     Wire.begin();                               // Begin I2C interface
     SPI.begin();                                // Begin Serial Peripheral Interface (SPI)
 
-    Serial.begin(115200);             // Begin Main Serial (UART to USB) communication
+#ifdef RADIOCOMM
+    radio.begin();
+    radio.openWritingPipe(writeAddr);
+    radio.openReadingPipe(1, readAddr);
+    radio.setPALevel(
+            RF24_PA_MIN);         // we can increase this if they dont connect but then a bypass diode is needed
+    radio.startListening();
+#else
+    TELEMETRY.begin(115200);                    // Begin Main Serial (UART to USB) communication
+#endif
+
     Serial1.begin(1200);              // Begin Bafang Serial (UART) communication
     Serial2.begin(1200);
     delay(1000);                          // Wait for Serial interfaces to initialize
@@ -172,7 +199,7 @@ void loop() {
             if (v > 1.0) {
                 state = ASSIST;
                 torque_motor->setMode(OP_PROFILE_POSITION);
-                while(!torque_motor->enableOperation());
+                while (!torque_motor->enableOperation());
                 indicator.setPassiveRGB(RGB_ASSIST_P);
                 indicator.setBlinkRGB(RGB_ASSIST_B);
             }
@@ -235,6 +262,8 @@ void loop() {
             }
             if (v > 4.0) {
                 state = AUTO;
+                torque_motor->setMode(OP_PROFILE_TORQUE);
+                while (!torque_motor->enableOperation());
                 indicator.setPassiveRGB(RGB_AUTO_P);
                 indicator.setBlinkRGB(RGB_AUTO_B);
             }
@@ -262,8 +291,10 @@ void loop() {
                 indicator.setBlinkRGB(RGB_FALLEN_B);
                 indicator.setPulse(500, 1500);
             }
-            if (v < 3.5) {
+            if (v < LOW_V_THRESH) {
                 state = ASSIST;
+                torque_motor->setMode(OP_PROFILE_POSITION);
+                while (!torque_motor->enableOperation());
                 indicator.setPassiveRGB(RGB_ASSIST_P);
                 indicator.setBlinkRGB(RGB_ASSIST_B);
             }
@@ -320,13 +351,23 @@ void loop() {
     // Report state, reference, and control values
     report(state);
 
-    if (Serial.available()) {
-        delay(50);
-        char c = Serial.read();
+    if (TELEMETRY.available()) {
+        delay(10);
+        uint8_t buffer[32];
+        TELEMETRY.read(buffer, 32);
+        uint8_t c = buffer[0];
+
+
         switch (c) {
-            case 's':
-                v_r = Serial.parseFloat();
+            case 1:
+                v_r = *((float*) &(buffer[2]));
                 drive_motor->setSpeed(v_r);
+                break;
+            case 2:
+                del_r = *((float*) &(buffer[2]));
+                break;
+            case 3:
+                user_req = buffer[2];
                 break;
             default:
                 break;
@@ -340,14 +381,12 @@ void idle() {
 
 void calibrate() {
     if (imu.calibrateGyros()) {
-        Serial.println("Gyroscopes Successfully Calibrated.");
         indicator.beepstring((uint8_t) 0b01110111);
     } else {
         indicator.beepstring((uint16_t) 0b0000000100000001);
     }
 
     if (imu.calibrateAccel(0, 0, GRAV)) {
-        Serial.println("Accelerometers Successfully Calibrated.");
         indicator.beepstring((uint8_t) 0b10101010);
     } else {
         indicator.beepstring((uint8_t) 0b10001000, 1);
@@ -355,19 +394,12 @@ void calibrate() {
 }
 
 void manual() {
-    double er = phi - phi_r;
 
-    torque_motor->setPosition(er);
-
-//    torque_motor->setPosition(del_r);
-//    drive_motor->setSpeed(v_r);
 }
 
 void assist() {
-    double er = phi - phi_r;
-
+    float er = del - del_r;
     torque_motor->setPosition(er);
-//    drive_motor->setSpeed(v_r);
 }
 
 void automatic() {
@@ -383,25 +415,28 @@ void emergency_stop() {
 }
 
 void report(uint8_t state) {
-    Serial.print(state);
-    Serial.print('\t');
-    Serial.print(phi);
-    Serial.print('\t');
-    Serial.print(del);
-    Serial.print('\t');
-    Serial.print(dphi);
-    Serial.print('\t');
-    Serial.print(ddel);
-    Serial.print('\t');
-    Serial.print(v);
-    Serial.print('\t');
-    Serial.print(torque);
-    Serial.print('\t');
-    Serial.print(phi_r);
-    Serial.print('\t');
-    Serial.print(del_r);
-    Serial.print('\t');
-    Serial.print(v_r);
-    Serial.println();
-    Serial.flush();
+    uint8_t frame[27];
+
+
+    frame[0] = 13;          // Telemetry frame header
+    frame[1] = sizeof frame;
+
+    frame[2] = state;
+
+    *((float *) &(frame[3])) = phi;
+    *((float *) &(frame[7])) = del;
+    *((float *) &(frame[11])) = dphi;
+    *((float *) &(frame[15])) = ddel;
+    *((float *) &(frame[19])) = torque;
+    *((float *) &(frame[23])) = v;
+
+#ifdef RADIOCOMM
+    TELEMETRY.stopListening();
+#endif
+
+    TELEMETRY.write(frame, sizeof frame);
+
+#ifdef RADIOCOMM
+    TELEMETRY.startListening();
+#endif
 }

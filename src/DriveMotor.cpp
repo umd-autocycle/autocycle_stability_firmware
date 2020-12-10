@@ -279,7 +279,7 @@ void DriveMotor::setPAS(int num) {
     Serial1.write(b2);
 }
 
-void DriveMotor::setSpeed(double speed) {
+void DriveMotor::setSpeed(float speed) {
     if (speed == 0) {
         analogWrite(throttlePin, 0);
     } else {
@@ -339,7 +339,7 @@ void DriveMotor::setSpeed(double speed) {
     setPAS(DEFAULT_PAS);
 }
 
-double DriveMotor::getSpeed() {
+float DriveMotor::getSpeed() {
     while (Serial1.available()) Serial1.read();
     Serial1.write(TAG_READ);
     Serial1.write(TAG_RPM);

@@ -12,9 +12,9 @@
 #define RATED_CURRENT_MA        5330
 #define MAX_CURRENT_DUR_MS      100
 #define BLDC_MOTOR              0x0000000041U
-#define RATED_TORQUE_N          0.5
-#define GEARING                 33.0
-#define EFFICIENCY              0.93
+#define RATED_TORQUE_N          0.5f
+#define GEARING                 33.0f
+#define EFFICIENCY              0.93f
 
 // Position control word flags
 #define CTRW_POSITION_MOVE_COMMAND  0b0000000000010000U
@@ -46,7 +46,7 @@
 #define CONTROL_TX_PDO_NUM 3
 
 TorqueMotor::TorqueMotor(CANRaw *can_line, uint16_t node_id, unsigned int current_max, unsigned int torque_max,
-                         unsigned int torque_slope, double prof_accel, double qs_decel, double prof_vel) {
+                         unsigned int torque_slope, float prof_accel, float qs_decel, float prof_vel) {
     motor_dev = new CANOpenDevice(can_line, node_id);
 
     this->current_max = current_max;
@@ -144,7 +144,6 @@ void TorqueMotor::start() {
 }
 
 void TorqueMotor::autoSetup() {
-    Serial.println("Beginning Auto Setup");
     uint32_t status = 0;
 
     shutdown();
@@ -166,9 +165,7 @@ void TorqueMotor::autoSetup() {
     status = 0;
 
     while (!shutdown());
-    Serial.println("Finished Auto Setup");
 
-    Serial.println("Saving Drive and Tuning Parameters...");
 
     // Start saving tuning parameters
     motor_dev->writeSDO(0x1010U, 0x06U, SDO_WRITE_4B, 0x65766173U); // write "save"
@@ -189,8 +186,6 @@ void TorqueMotor::autoSetup() {
         delay(100);
     }
     status = 0;
-
-    Serial.println("Drive and Tuning Parameters Saved.");
 }
 
 void TorqueMotor::setMode(uint16_t mode) {
@@ -254,7 +249,7 @@ void TorqueMotor::setMode(uint16_t mode) {
     while (!switchOn());
 }
 
-void TorqueMotor::setTorque(double torque) {
+void TorqueMotor::setTorque(float torque) {
     int16_t torque_thou = 1000.0 * torque / GEARING / EFFICIENCY / RATED_TORQUE_N;
     outgoing.s0 = torque_thou;
     outgoing.s1 = 0;
@@ -263,14 +258,14 @@ void TorqueMotor::setTorque(double torque) {
     motor_dev->writePDO(TORQUE_RX_PDO_NUM, outgoing);
 }
 
-void TorqueMotor::setVelocity(double velocity) {
+void TorqueMotor::setVelocity(float velocity) {
     int32_t desired_velocity = 100 * velocity * GEARING;
     outgoing.low = desired_velocity;
     outgoing.high = 0;
     motor_dev->writePDO(VELOCITY_RX_PDO_NUM, outgoing);
 }
 
-void TorqueMotor::setPosition(double phi) {
+void TorqueMotor::setPosition(float phi) {
     int32_t desired_position = 100 * phi * GEARING;
     outgoing.low = desired_position;
     outgoing.high = 0;
@@ -283,23 +278,23 @@ void TorqueMotor::setPosition(double phi) {
     motor_dev->writePDO(CONTROL_RX_PDO_NUM, outgoing);
 }
 
-double TorqueMotor::getTorque() {
+float TorqueMotor::getTorque() {
     motor_dev->readPDO(TORQUE_TX_PDO_NUM, incoming);
     int16_t torque_thou = incoming.s0;
 
-    return (1 / 1000.0) * GEARING * EFFICIENCY * RATED_TORQUE_N * torque_thou;
+    return (1 / 1000.0f) * GEARING * EFFICIENCY * RATED_TORQUE_N * torque_thou;
 }
 
-double TorqueMotor::getVelocity() {
+float TorqueMotor::getVelocity() {
     motor_dev->readPDO(VELOCITY_TX_PDO_NUM, incoming);
 
-    return ((int32_t) incoming.low) / 100.0 / GEARING;
+    return ((int32_t) incoming.low) / 100.0f / GEARING;
 }
 
-double TorqueMotor::getPosition() {
+float TorqueMotor::getPosition() {
     motor_dev->readPDO(POSITION_TX_PDO_NUM, incoming);
 
-    return ((int32_t) incoming.low) / 100.0 / GEARING;
+    return ((int32_t) incoming.low) / 100.0f / GEARING;
 }
 
 uint16_t TorqueMotor::getStatus() {
@@ -308,13 +303,13 @@ uint16_t TorqueMotor::getStatus() {
     return incoming.s0;
 }
 
-//double TorqueMotor::getTargetVelocity() {
+//float TorqueMotor::getTargetVelocity() {
 //    motor_dev->readPDO(VELOCITY_TX_PDO_NUM, incoming);
 //
 //    return ((int32_t) incoming.low) / 100.0 / GEARING;
 //}
 //
-//double TorqueMotor::getTargetPosition() {
+//float TorqueMotor::getTargetPosition() {
 //    motor_dev->readPDO(POSITION_TX_PDO_NUM, incoming);
 //
 //    return ((int32_t) incoming.low) / 100.0 / GEARING;

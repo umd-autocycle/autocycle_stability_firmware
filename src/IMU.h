@@ -22,20 +22,20 @@ public:
     bool start();
     bool configure(uint8_t accel_res, uint8_t gyro_res, uint8_t filtering);
     bool calibrateGyros();
-    bool calibrateAccel(double x_expected, double y_expected, double z_expected);
+    bool calibrateAccel(float x_expected, float y_expected, float z_expected);
 
     // Retrieve corrected accelerometer values in m/s
-    double accelX() const;
-    double accelY() const;
-    double accelZ() const;
+    float accelX() const;
+    float accelY() const;
+    float accelZ() const;
 
     // Retrieve corrected gyroscope values in rad/s
-    double gyroX() const;
-    double gyroY() const;
-    double gyroZ() const;
+    float gyroX() const;
+    float gyroY() const;
+    float gyroZ() const;
 
     // Retrieve chip temperature in degrees Celsius
-    double chipTemp() const;
+    float chipTemp() const;
 
     // Update readings from hardware
     void update();
@@ -52,9 +52,9 @@ private:
     int16_t a_x_raw, a_y_raw, a_z_raw;
     int16_t g_x_raw, g_y_raw, g_z_raw;
     int16_t temp_raw;
-    double a_x, a_y, a_z;
-    double g_x, g_y, g_z;
-    double temp;
+    float a_x, a_y, a_z;
+    float g_x, g_y, g_z;
+    float temp;
 
     // Gyroscope and accelerometer FS_SEL and AFS_SEL register resolution values
     uint8_t fs_sel;

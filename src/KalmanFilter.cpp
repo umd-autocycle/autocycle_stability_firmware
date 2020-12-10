@@ -9,9 +9,9 @@
 
 using namespace BLA;
 
-BLA::Matrix<6, 6> buildA(double);
+BLA::Matrix<6, 6> buildA(float);
 
-BLA::Matrix<6, 6> buildA(double v) {
+BLA::Matrix<6, 6> buildA(float v) {
     BLA::Matrix<6, 6> A;
     A << 0, 0, 1, 0, 0, 0,
             0, 0, 0, 1, 0, 0,
@@ -22,9 +22,9 @@ BLA::Matrix<6, 6> buildA(double v) {
     return A;
 }
 
-BLA::Matrix<6, 1> KalmanFilter::filter(double measuredphi, double measureddelta, double measureddphi,
-                                       double measuredddelta, double measuredvelocity,
-                                       double appliedTorque, double measuredax, double measureday) {
+BLA::Matrix<6, 1> KalmanFilter::filter(float measured_phi, float measured_delta, float measured_dphi,
+                                       float measured_ddelta, float measured_velocity,
+                                       float applied_torque, float measured_ax, float measured_ay) {
     BLA::Matrix<6, 6> A;
     BLA::Matrix<6, 3> B;
     BLA::Matrix<6, 6> C;
@@ -80,9 +80,9 @@ BLA::Matrix<6, 1> KalmanFilter::filter(double measuredphi, double measureddelta,
             0, 0, 0, 0, 0, .1;
 
     //set the values
-    y_new << measuredphi, measureddelta, measureddphi, measuredddelta, cos(measureddelta) * measuredvelocity,
-            sin(measureddelta) * measuredvelocity;
-    u_new << appliedTorque, measuredax, measureday;
+    y_new << measured_phi, measured_delta, measured_dphi, measured_ddelta, cos(measured_delta) * measured_velocity,
+            sin(measured_delta) * measured_velocity;
+    u_new << applied_torque, measured_ax, measured_ay;
 //    A = buildA(v[i]) * TIMERATE + I;
 
     //cout << "set prediction" << endl
