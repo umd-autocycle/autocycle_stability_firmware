@@ -280,12 +280,10 @@ void DriveMotor::setPAS(int num) {
 }
 
 void DriveMotor::setSpeed(float speed) {
-    if (speed == 0) {
-        analogWrite(throttlePin, 0);
-    } else {
-        analogWrite(throttlePin, 4095);
-    }
+    unsigned long throttleLevel = min(speed * 60 * 60 / 1000 / 0x0F * 4095.0, 4095);
     byte speedCode = min(0x28, max(0x0F, speed * 60 * 60 / 1000));
+
+    analogWrite(throttlePin, throttleLevel);
 
     storeThrottle();
     throttleBuffer[6] = speedCode; // Convert speed from m/s to km/hr
