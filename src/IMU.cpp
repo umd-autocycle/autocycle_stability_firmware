@@ -214,10 +214,10 @@ void IMU::update() {
     a_y = GRAV * (float) (a_y_raw * accel_fsr) / ACCEL_RANGE;
     a_z = GRAV * (float) (a_z_raw * accel_fsr) / ACCEL_RANGE;
 
-    temp = (float) temp_raw / 340.0 + 36.53f;
-    g_x = (float) (g_x_raw * gyro_fsr) / GYRO_RANGE *  PI / 180.0;
-    g_y = (float) (g_y_raw * gyro_fsr) / GYRO_RANGE * PI / 180.0;
-    g_z = (float) (g_z_raw * gyro_fsr) / GYRO_RANGE *  PI / 180.0;
+    temp = (float) temp_raw / 340.0f + 36.53f;
+    g_x = (float) (g_x_raw * gyro_fsr) / GYRO_RANGE * (float) PI / 180.0f;
+    g_y = (float) (g_y_raw * gyro_fsr) / GYRO_RANGE * (float) PI / 180.0f;
+    g_z = (float) (g_z_raw * gyro_fsr) / GYRO_RANGE * (float) PI / 180.0f;
 
 }
 

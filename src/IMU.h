@@ -5,7 +5,7 @@
 #ifndef AUTOCYCLE_STABILITY_FIRMWARE_IMU_H
 #define AUTOCYCLE_STABILITY_FIRMWARE_IMU_H
 
-#define GRAV            9.8
+#define GRAV            9.8f
 
 #define CALIB_DISCARD   50
 #define CALIB_SAMP      200

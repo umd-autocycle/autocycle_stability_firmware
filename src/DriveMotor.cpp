@@ -35,67 +35,67 @@ void DriveMotor::start() {
     setPAS(DEFAULT_PAS);
 }
 
-void DriveMotor::resetMotor() {
-    //default settings according to python github
-    basicBuffer[0] = 0x52;
-    basicBuffer[1] = 0x18;
-    basicBuffer[2] = 0x1F;
-    basicBuffer[3] = 0x0F;
-    basicBuffer[4] = 0x00;
-    basicBuffer[5] = 0x1C;
-    basicBuffer[6] = 0x25;
-    basicBuffer[7] = 0x2E;
-    basicBuffer[8] = 0x37;
-    basicBuffer[9] = 0x40;
-    basicBuffer[10] = 0x49;
-    basicBuffer[11] = 0x52;
-    basicBuffer[12] = 0x5B;
-    basicBuffer[13] = 0x64;
-    basicBuffer[14] = 0x64;
-    basicBuffer[15] = 0x64;
-    basicBuffer[16] = 0x64;
-    basicBuffer[17] = 0x64;
-    basicBuffer[18] = 0x64;
-    basicBuffer[19] = 0x64;
-    basicBuffer[20] = 0x64;
-    basicBuffer[21] = 0x64;
-    basicBuffer[22] = 0x64;
-    basicBuffer[23] = 0x64;
-    //not setting 24-26 cause we shouldn't be messing with those settings anyways
-
-    pedalBuffer[0] = 0x53;
-    pedalBuffer[1] = 0x0B;
-    pedalBuffer[2] = 0x03;
-    pedalBuffer[3] = 0xFF;
-    pedalBuffer[4] = 0xFF;
-    //not setting anything past 4 cause we shouldn't be messing with those settings in the first place
-
-    throttleBuffer[0] = 0x54;
-    throttleBuffer[1] = 0x06;
-    throttleBuffer[3] = 0x00;
-    throttleBuffer[4] = 0x03;
-
-    Serial1.write(0x16);
-    Serial1.write(0x52);
-    Serial1.write(0x24);
-    for (int i = 3; i < 27; i++) {
-        Serial1.write(basicBuffer[i]);
-    }
-
-    Serial1.write(0x16);
-    Serial1.write(0x53);
-    Serial1.write(0x11);
-    for (int i = 3; i < 15; i++) {
-        Serial1.write(pedalBuffer[i]);
-    }
-
-    Serial1.write(0x16);
-    Serial1.write(0x54);
-    Serial1.write(0x06);
-    for (int i = 3; i < 9; i++) {
-        Serial1.write(throttleBuffer[i]);
-    }
-}
+//void DriveMotor::resetMotor() {
+//    //default settings according to python github
+//    basicBuffer[0] = 0x52;
+//    basicBuffer[1] = 0x18;
+//    basicBuffer[2] = 0x1F;
+//    basicBuffer[3] = 0x0F;
+//    basicBuffer[4] = 0x00;
+//    basicBuffer[5] = 0x1C;
+//    basicBuffer[6] = 0x25;
+//    basicBuffer[7] = 0x2E;
+//    basicBuffer[8] = 0x37;
+//    basicBuffer[9] = 0x40;
+//    basicBuffer[10] = 0x49;
+//    basicBuffer[11] = 0x52;
+//    basicBuffer[12] = 0x5B;
+//    basicBuffer[13] = 0x64;
+//    basicBuffer[14] = 0x64;
+//    basicBuffer[15] = 0x64;
+//    basicBuffer[16] = 0x64;
+//    basicBuffer[17] = 0x64;
+//    basicBuffer[18] = 0x64;
+//    basicBuffer[19] = 0x64;
+//    basicBuffer[20] = 0x64;
+//    basicBuffer[21] = 0x64;
+//    basicBuffer[22] = 0x64;
+//    basicBuffer[23] = 0x64;
+//    //not setting 24-26 cause we shouldn't be messing with those settings anyways
+//
+//    pedalBuffer[0] = 0x53;
+//    pedalBuffer[1] = 0x0B;
+//    pedalBuffer[2] = 0x03;
+//    pedalBuffer[3] = 0xFF;
+//    pedalBuffer[4] = 0xFF;
+//    //not setting anything past 4 cause we shouldn't be messing with those settings in the first place
+//
+//    throttleBuffer[0] = 0x54;
+//    throttleBuffer[1] = 0x06;
+//    throttleBuffer[3] = 0x00;
+//    throttleBuffer[4] = 0x03;
+//
+//    Serial1.write(0x16);
+//    Serial1.write(0x52);
+//    Serial1.write(0x24);
+//    for (int i = 3; i < 27; i++) {
+//        Serial1.write(basicBuffer[i]);
+//    }
+//
+//    Serial1.write(0x16);
+//    Serial1.write(0x53);
+//    Serial1.write(0x11);
+//    for (int i = 3; i < 15; i++) {
+//        Serial1.write(pedalBuffer[i]);
+//    }
+//
+//    Serial1.write(0x16);
+//    Serial1.write(0x54);
+//    Serial1.write(0x06);
+//    for (int i = 3; i < 9; i++) {
+//        Serial1.write(throttleBuffer[i]);
+//    }
+//}
 
 
 bool DriveMotor::storeBasic() {
@@ -286,36 +286,6 @@ void DriveMotor::setSpeed(float speed) {
         analogWrite(throttlePin, 4095);
     }
     byte speedCode = min(0x28, max(0x0F, speed * 60 * 60 / 1000));
-
-//    storePedal();
-//    pedalBuffer[4] = speedCode; // Convert speed from m/s to km/hr
-//    pedalBuffer[2 + LEN_PEDAL] = checksum(0, 0, 2 + LEN_PEDAL, pedalBuffer);
-//
-//    Serial1.write(TAG_WRITE);
-//    Serial1.write(TAG_PEDAL);
-//    Serial1.write(LEN_PEDAL);
-//    Serial.println("writing:");
-//    Serial.print(TAG_WRITE, HEX);
-//    Serial.print(" ");
-//    Serial.print(TAG_PEDAL, HEX);
-//    Serial.print(" ");
-//    Serial.print(LEN_PEDAL, HEX);
-//    Serial.print(" ");
-//    for (int i = 2; i < 3 + LEN_PEDAL; i++) {
-//        Serial.print(pedalBuffer[i], HEX);
-//        Serial.print(" ");
-//        Serial1.write(pedalBuffer[i]);
-//    }
-//    Serial.println();
-//    while (!Serial1.available());
-//    int c = 0;
-//    while (Serial1.available()) {
-//        delay(20);
-//        resp[c] = Serial1.read();
-//        Serial.println(resp[c], HEX);
-//        c++;
-//    }
-
 
     storeThrottle();
     throttleBuffer[6] = speedCode; // Convert speed from m/s to km/hr

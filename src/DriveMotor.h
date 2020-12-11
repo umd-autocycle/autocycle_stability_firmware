@@ -34,7 +34,7 @@ public:
 
     void start();
 
-    void resetMotor();
+//    void resetMotor();
 
     bool storeBasic();
     bool storePedal();

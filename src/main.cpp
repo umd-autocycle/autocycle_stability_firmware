@@ -11,10 +11,11 @@
 // Internal libraries
 #include "IMU.h"
 #include "Indicator.h"
-#include "controls.h"
 #include "CANOpen.h"
 #include "TorqueMotor.h"
 #include "DriveMotor.h"
+#include "Controller.h"
+#include "PIDController.h"
 
 // States
 #define IDLE    0
@@ -59,10 +60,10 @@
 // State transition constants
 #define FTHRESH PI/4.0      // Threshold for being fallen over
 #define UTHRESH PI/20.0     // Threshold for being back upright
-#define HIGH_V_THRESH 4.0
-#define LOW_V_THRESH 3.5
+#define HIGH_V_THRESH 2.5
+#define LOW_V_THRESH 2.0
 
-#define RADIOCOMM
+//#define RADIOCOMM
 
 #ifdef RADIOCOMM
 
@@ -83,6 +84,8 @@ IMU imu(0x68);
 Indicator indicator(3, 4, 5, 11);
 TorqueMotor *torque_motor;
 DriveMotor *drive_motor;
+
+PIDController controller(100, 5, 38, 10);
 
 
 // State variables
@@ -260,7 +263,7 @@ void loop() {
                 indicator.setBlinkRGB(RGB_FALLEN_B);
                 indicator.setPulse(500, 1500);
             }
-            if (v > 4.0) {
+            if (v > HIGH_V_THRESH) {
                 state = AUTO;
                 torque_motor->setMode(OP_PROFILE_TORQUE);
                 while (!torque_motor->enableOperation());
@@ -274,6 +277,7 @@ void loop() {
             }
             if (user_req & R_STOP) {
                 state = E_STOP;
+                drive_motor->setSpeed(0);
                 indicator.setPassiveRGB(RGB_E_STOP_P);
                 indicator.setBlinkRGB(RGB_E_STOP_B);
             }
@@ -300,6 +304,7 @@ void loop() {
             }
             if (user_req & R_STOP) {
                 state = E_STOP;
+                drive_motor->setSpeed(0);
                 indicator.setPassiveRGB(RGB_E_STOP_P);
                 indicator.setBlinkRGB(RGB_E_STOP_B);
             }
@@ -353,6 +358,7 @@ void loop() {
 
     if (TELEMETRY.available()) {
         delay(10);
+#ifdef RADIOCOMM
         uint8_t buffer[32];
         TELEMETRY.read(buffer, 32);
         uint8_t c = buffer[0];
@@ -372,6 +378,24 @@ void loop() {
             default:
                 break;
         }
+#else
+        uint8_t c = TELEMETRY.read();
+
+        switch (c) {
+            case 's':
+                v_r = Serial.parseFloat();
+                drive_motor->setSpeed(v_r);
+                break;
+            case 'd':
+                del_r = Serial.parseFloat();
+                break;
+            case 'c':
+                user_req |= Serial.read();
+                break;
+            default:
+                break;
+        }
+#endif
     }
 }
 
@@ -383,13 +407,13 @@ void calibrate() {
     if (imu.calibrateGyros()) {
         indicator.beepstring((uint8_t) 0b01110111);
     } else {
-        indicator.beepstring((uint16_t) 0b0000000100000001);
+        indicator.beepstring((uint8_t) 0b10001000);
     }
 
     if (imu.calibrateAccel(0, 0, GRAV)) {
         indicator.beepstring((uint8_t) 0b10101010);
     } else {
-        indicator.beepstring((uint8_t) 0b10001000, 1);
+        indicator.beepstring((uint8_t) 0b00110011);
     }
 }
 
@@ -403,7 +427,13 @@ void assist() {
 }
 
 void automatic() {
+    static long t0 = millis();
+    long t = millis();
+    float dt = (float) (t - t0) / 1000.0f;
+    t0 = t;
 
+    float u = controller.control(phi, del, dphi, ddel, phi_r, del_r, dt);
+    torque_motor->setTorque(u);
 }
 
 void fallen() {
@@ -415,8 +445,8 @@ void emergency_stop() {
 }
 
 void report(uint8_t state) {
+#ifdef RADIOCOMM
     uint8_t frame[27];
-
 
     frame[0] = 13;          // Telemetry frame header
     frame[1] = sizeof frame;
@@ -430,13 +460,25 @@ void report(uint8_t state) {
     *((float *) &(frame[19])) = torque;
     *((float *) &(frame[23])) = v;
 
-#ifdef RADIOCOMM
+
     TELEMETRY.stopListening();
-#endif
-
     TELEMETRY.write(frame, sizeof frame);
-
-#ifdef RADIOCOMM
     TELEMETRY.startListening();
+#else
+    Serial.print(state);
+    Serial.print('\t');
+    Serial.print(phi);
+    Serial.print('\t');
+    Serial.print(del);
+    Serial.print('\t');
+    Serial.print(dphi);
+    Serial.print('\t');
+    Serial.print(ddel);
+    Serial.print('\t');
+    Serial.print(v);
+    Serial.print('\t');
+    Serial.print(torque);
+    Serial.println();
+    Serial.flush();
 #endif
 }
