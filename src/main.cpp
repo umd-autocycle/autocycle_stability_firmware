@@ -85,7 +85,7 @@ Indicator indicator(3, 4, 5, 11);
 TorqueMotor *torque_motor;
 DriveMotor *drive_motor;
 
-PIDController controller(100, 5, 38, 10);
+PIDController controller(10, 0, 0.5, 5);
 
 
 // State variables
@@ -478,6 +478,8 @@ void report(uint8_t state) {
     Serial.print(v);
     Serial.print('\t');
     Serial.print(torque);
+    Serial.print('\t');
+    Serial.print(millis()/1000.0f);
     Serial.println();
     Serial.flush();
 #endif
