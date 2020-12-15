@@ -42,8 +42,8 @@
 // State transition constants
 #define FTHRESH PI/4.0      // Threshold for being fallen over
 #define UTHRESH PI/20.0     // Threshold for being back upright
-#define HIGH_V_THRESH 2.5
-#define LOW_V_THRESH 2.0
+#define HIGH_V_THRESH 2.0
+#define LOW_V_THRESH 1.5
 
 // Loop timing constants (frequencies in Hz)
 #define SPEED_UPDATE_FREQ   5
@@ -71,7 +71,7 @@ Indicator indicator(3, 4, 5, 11);
 TorqueMotor *torque_motor;
 DriveMotor *drive_motor;
 
-PIDController controller(10, 0, 0.5, 5);
+PIDController controller(20, 0, 0.5, 5);
 
 
 // State variables
@@ -165,12 +165,12 @@ void loop() {
     imu.update();
     torque_motor->update();
 
-    unsigned long dt = millis() - last_speed_time;
-    last_speed_time = millis();
+    unsigned long dt = millis() - last_time;
+    last_time = millis();
 
     // Update state variables
     float g_mag = imu.accelY()*imu.accelY() + imu.accelZ()*imu.accelZ();    // Check if measured orientation gravity vector exceeds feasibility
-    float phi_new = g_mag <= 9.8f*9.8f ? atan2(imu.accelY(), imu.accelZ()) : phi;    // TODO add Kalman filter
+    float phi_new = g_mag <= 11*11 ? atan2(imu.accelY(), imu.accelZ()) : phi;    // TODO add Kalman filter
     dphi = imu.gyroX();                         // TODO add Kalman filter
     phi = 0.9f * phi_new + 0.1f * (phi + dphi * (float) dt / 1000.0f);
     del = torque_motor->getPosition();
