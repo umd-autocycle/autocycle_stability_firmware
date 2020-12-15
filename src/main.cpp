@@ -11,6 +11,7 @@
 // Internal libraries
 #include "IMU.h"
 #include "Indicator.h"
+#include "StateColors.h"
 #include "CANOpen.h"
 #include "TorqueMotor.h"
 #include "DriveMotor.h"
@@ -25,25 +26,6 @@
 #define AUTO    4
 #define FALLEN  5
 #define E_STOP  6
-
-// State colors
-#define RGB_STARTUP_P   255, 255, 255
-#define RGB_IDLE_P      255, 255, 0
-#define RGB_CALIB_P     128, 0, 128
-#define RGB_MANUAL_P    255, 165, 0
-#define RGB_ASSIST_P    34, 139, 34
-#define RGB_AUTO_P      0, 255, 0
-#define RGB_FALLEN_P    255, 140, 0
-#define RGB_E_STOP_P    255, 0, 0
-#define RGB_STARTUP_B   0, 0, 255
-#define RGB_IDLE_B      0, 0, 255
-#define RGB_CALIB_B     128, 255, 128
-#define RGB_MANUAL_B    0, 89, 255
-#define RGB_ASSIST_B    140, 34, 140
-#define RGB_AUTO_B      255, 0, 255
-#define RGB_FALLEN_B    255, 0, 0
-#define RGB_E_STOP_B    0, 0, 255
-
 
 // User request bit flags
 #define R_CALIB     0b00000001U
@@ -62,6 +44,10 @@
 #define UTHRESH PI/20.0     // Threshold for being back upright
 #define HIGH_V_THRESH 2.5
 #define LOW_V_THRESH 2.0
+
+// Loop timing constants (frequencies in Hz)
+#define SPEED_UPDATE_FREQ   5
+
 
 //#define RADIOCOMM
 
@@ -89,7 +75,7 @@ PIDController controller(10, 0, 0.5, 5);
 
 
 // State variables
-uint8_t user_req = 0;       // User request binary flags
+uint8_t user_req = 0;      // User request binary flags
 float phi = 0.0;           // Roll angle (rad)
 float del = 0.0;           // Steering angle (rad)
 float dphi = 0.0;          // Roll angle rate (rad/s)
@@ -172,18 +158,28 @@ void setup() {
 
 void loop() {
     static uint8_t state = IDLE;
+    static unsigned long last_time = millis();
+    static unsigned long last_speed_time = millis();
 
     // Update sensor information
     imu.update();
     torque_motor->update();
 
+    unsigned long dt = millis() - last_speed_time;
+    last_speed_time = millis();
+
     // Update state variables
-    phi = atan2(imu.accelY(), imu.accelZ());    // TODO add Kalman filter
+    float g_mag = imu.accelY()*imu.accelY() + imu.accelZ()*imu.accelZ();    // Check if measured orientation gravity vector exceeds feasibility
+    float phi_new = g_mag <= 9.8f*9.8f ? atan2(imu.accelY(), imu.accelZ()) : phi;    // TODO add Kalman filter
     dphi = imu.gyroX();                         // TODO add Kalman filter
+    phi = 0.9f * phi_new + 0.1f * (phi + dphi * (float) dt / 1000.0f);
     del = torque_motor->getPosition();
     ddel = torque_motor->getVelocity();
     torque = torque_motor->getTorque();
-    v = drive_motor->getSpeed();                // TODO add Kalman filter
+    if(millis() - last_speed_time >= 1000/SPEED_UPDATE_FREQ) {
+        v = drive_motor->getSpeed();                // TODO add Kalman filter
+        last_speed_time = millis();
+    }
 
     // Update indicator
     indicator.update();
@@ -217,8 +213,7 @@ void loop() {
                 indicator.setPassiveRGB(RGB_MANUAL_P);
                 indicator.setBlinkRGB(RGB_MANUAL_B);
 
-                torque_motor->setMode(OP_PROFILE_POSITION);
-                while (!torque_motor->enableOperation());
+                while (!torque_motor->disableOperation());
             }
 
             // Action
@@ -262,11 +257,15 @@ void loop() {
                 indicator.setPassiveRGB(RGB_FALLEN_P);
                 indicator.setBlinkRGB(RGB_FALLEN_B);
                 indicator.setPulse(500, 1500);
+
+                while (!torque_motor->disableOperation());
             }
             if (v > HIGH_V_THRESH) {
                 state = AUTO;
+
                 torque_motor->setMode(OP_PROFILE_TORQUE);
                 while (!torque_motor->enableOperation());
+
                 indicator.setPassiveRGB(RGB_AUTO_P);
                 indicator.setBlinkRGB(RGB_AUTO_B);
             }
@@ -274,12 +273,16 @@ void loop() {
                 state = IDLE;
                 indicator.setPassiveRGB(RGB_IDLE_P);
                 indicator.setBlinkRGB(RGB_IDLE_B);
+
+                while (!torque_motor->disableOperation());
             }
             if (user_req & R_STOP) {
                 state = E_STOP;
                 drive_motor->setSpeed(0);
                 indicator.setPassiveRGB(RGB_E_STOP_P);
                 indicator.setBlinkRGB(RGB_E_STOP_B);
+
+                while (!torque_motor->disableOperation());
             }
 
             // Action
@@ -294,11 +297,15 @@ void loop() {
                 indicator.setPassiveRGB(RGB_FALLEN_P);
                 indicator.setBlinkRGB(RGB_FALLEN_B);
                 indicator.setPulse(500, 1500);
+
+                while (!torque_motor->disableOperation());
             }
             if (v < LOW_V_THRESH) {
                 state = ASSIST;
+
                 torque_motor->setMode(OP_PROFILE_POSITION);
                 while (!torque_motor->enableOperation());
+
                 indicator.setPassiveRGB(RGB_ASSIST_P);
                 indicator.setBlinkRGB(RGB_ASSIST_B);
             }
@@ -307,6 +314,8 @@ void loop() {
                 drive_motor->setSpeed(0);
                 indicator.setPassiveRGB(RGB_E_STOP_P);
                 indicator.setBlinkRGB(RGB_E_STOP_B);
+
+                while (!torque_motor->disableOperation());
             }
 
             // Action

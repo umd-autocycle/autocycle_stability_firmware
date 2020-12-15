@@ -17,5 +17,5 @@ float PIDController::control(float phi, float del, float dphi, float ddel, float
     float de = -dphi;
     ei += e * dt;
 
-    return min(k_p * e + k_i * ei + k_d * de, torque_max);
+    return constrain(k_p * e + k_i * ei + k_d * de, -torque_max, torque_max);
 }
