@@ -282,7 +282,7 @@ float TorqueMotor::getTorque() {
     motor_dev->readPDO(TORQUE_TX_PDO_NUM, incoming);
     int16_t torque_thou = incoming.s0;
 
-    return (1 / 1000.0f) * GEARING * EFFICIENCY * RATED_TORQUE_N * torque_thou;
+    return (1 / 1000.0f) * GEARING * EFFICIENCY * RATED_TORQUE_N * (float) torque_thou;
 }
 
 float TorqueMotor::getVelocity() {

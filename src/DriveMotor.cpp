@@ -121,16 +121,12 @@ bool DriveMotor::storePedal() {
     Serial1.write(TAG_PEDAL);
 
     int c = 0;
-    Serial.println("Read:");
     while (c < LEN_PEDAL + 3) {
         if (Serial1.available() > 0) {
             pedalBuffer[c] = Serial1.read();
-            Serial.print(pedalBuffer[c], HEX);
-            Serial.print(" ");
             c++;
         }
     }
-    Serial.println();
 
 
     return true;
@@ -157,7 +153,6 @@ void DriveMotor::programCurrent(int current, int pas) {
     if (current >= 0 && current < 101) {
         set = (byte) current;
     } else {
-        Serial.write("Invalid value for max current. Please choose a percentage between 0 and 100.");
         return;
     }
 
@@ -180,7 +175,6 @@ void DriveMotor::programSpeed(int speed, int pas) {
     if (speed >= 0 && speed < 101) {
         set = (byte) speed;
     } else {
-        Serial.write("Invalid value for max speed. Please choose a percentage between 0 and 100.");
         return;
     }
 
@@ -299,7 +293,6 @@ void DriveMotor::setSpeed(float speed) {
     while (!Serial1.available());
     while (Serial1.available()) {
         delay(20);
-        Serial.println(Serial1.read(), HEX);
     }
 
     setPAS(0);
