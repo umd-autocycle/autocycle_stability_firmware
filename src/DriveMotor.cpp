@@ -5,6 +5,9 @@
 #include "DriveMotor.h"
 #include <Arduino.h>
 
+#define DRIVE_MOTOR_VERBOSE
+
+
 DriveMotor::DriveMotor(int throttle_pin) {
     throttlePin = throttle_pin;
 }
@@ -26,76 +29,24 @@ void DriveMotor::start() {
         if (Serial1.available() > 0) {
             startBuffer[c] = Serial1.read();
             c++;
+#ifdef DRIVE_MOTOR_VERBOSE
+            Serial.print(startBuffer[c]);
+            Serial.print(' ');
+#endif
         }
     }
+#ifdef DRIVE_MOTOR_VERBOSE
+    Serial.println();
+#endif
 
     storeBasic();
     storePedal();
     storeThrottle();
     setPAS(DEFAULT_PAS);
-}
 
-//void DriveMotor::resetMotor() {
-//    //default settings according to python github
-//    basicBuffer[0] = 0x52;
-//    basicBuffer[1] = 0x18;
-//    basicBuffer[2] = 0x1F;
-//    basicBuffer[3] = 0x0F;
-//    basicBuffer[4] = 0x00;
-//    basicBuffer[5] = 0x1C;
-//    basicBuffer[6] = 0x25;
-//    basicBuffer[7] = 0x2E;
-//    basicBuffer[8] = 0x37;
-//    basicBuffer[9] = 0x40;
-//    basicBuffer[10] = 0x49;
-//    basicBuffer[11] = 0x52;
-//    basicBuffer[12] = 0x5B;
-//    basicBuffer[13] = 0x64;
-//    basicBuffer[14] = 0x64;
-//    basicBuffer[15] = 0x64;
-//    basicBuffer[16] = 0x64;
-//    basicBuffer[17] = 0x64;
-//    basicBuffer[18] = 0x64;
-//    basicBuffer[19] = 0x64;
-//    basicBuffer[20] = 0x64;
-//    basicBuffer[21] = 0x64;
-//    basicBuffer[22] = 0x64;
-//    basicBuffer[23] = 0x64;
-//    //not setting 24-26 cause we shouldn't be messing with those settings anyways
-//
-//    pedalBuffer[0] = 0x53;
-//    pedalBuffer[1] = 0x0B;
-//    pedalBuffer[2] = 0x03;
-//    pedalBuffer[3] = 0xFF;
-//    pedalBuffer[4] = 0xFF;
-//    //not setting anything past 4 cause we shouldn't be messing with those settings in the first place
-//
-//    throttleBuffer[0] = 0x54;
-//    throttleBuffer[1] = 0x06;
-//    throttleBuffer[3] = 0x00;
-//    throttleBuffer[4] = 0x03;
-//
-//    Serial1.write(0x16);
-//    Serial1.write(0x52);
-//    Serial1.write(0x24);
-//    for (int i = 3; i < 27; i++) {
-//        Serial1.write(basicBuffer[i]);
-//    }
-//
-//    Serial1.write(0x16);
-//    Serial1.write(0x53);
-//    Serial1.write(0x11);
-//    for (int i = 3; i < 15; i++) {
-//        Serial1.write(pedalBuffer[i]);
-//    }
-//
-//    Serial1.write(0x16);
-//    Serial1.write(0x54);
-//    Serial1.write(0x06);
-//    for (int i = 3; i < 9; i++) {
-//        Serial1.write(throttleBuffer[i]);
-//    }
-//}
+    throttleMinV = (float) throttleBuffer[2] * 0.1f;
+    throttleMaxV = (float) throttleBuffer[3] * 0.1f;
+}
 
 
 bool DriveMotor::storeBasic() {
@@ -108,8 +59,15 @@ bool DriveMotor::storeBasic() {
         if (Serial1.available() > 0) {
             basicBuffer[c] = Serial1.read();
             c++;
+#ifdef DRIVE_MOTOR_VERBOSE
+            Serial.print(basicBuffer[c]);
+            Serial.print(' ');
+#endif
         }
     }
+#ifdef DRIVE_MOTOR_VERBOSE
+    Serial.println();
+#endif
 
     return true;
 }
@@ -125,9 +83,15 @@ bool DriveMotor::storePedal() {
         if (Serial1.available() > 0) {
             pedalBuffer[c] = Serial1.read();
             c++;
+#ifdef DRIVE_MOTOR_VERBOSE
+            Serial.print(pedalBuffer[c]);
+            Serial.print(' ');
+#endif
         }
     }
-
+#ifdef DRIVE_MOTOR_VERBOSE
+    Serial.println();
+#endif
 
     return true;
 }
@@ -142,15 +106,22 @@ bool DriveMotor::storeThrottle() {
         if (Serial1.available() > 0) {
             throttleBuffer[c] = Serial1.read();
             c++;
+#ifdef DRIVE_MOTOR_VERBOSE
+            Serial.print(throttleBuffer[c]);
+            Serial.print(' ');
+#endif
         }
     }
+#ifdef DRIVE_MOTOR_VERBOSE
+    Serial.println();
+#endif
 
     return true;
 }
 
 void DriveMotor::programCurrent(int current, int pas) {
     byte set;
-    if (current >= 0 && current < 101) {
+    if (current >= 0 && current <= 100) {
         set = (byte) current;
     } else {
         return;
@@ -172,7 +143,7 @@ void DriveMotor::programCurrent(int current, int pas) {
 
 void DriveMotor::programSpeed(int speed, int pas) {
     byte set;
-    if (speed >= 0 && speed < 101) {
+    if (speed >= 0 && speed <= 100) {
         set = (byte) speed;
     } else {
         return;
@@ -274,13 +245,14 @@ void DriveMotor::setPAS(int num) {
 }
 
 void DriveMotor::setSpeed(float speed) {
-    unsigned long throttleLevel = min(speed * 60 * 60 / 1000 / 0x0F * 4095.0, 4095);
-    byte speedCode = min(0x28, max(0x0F, speed * 60 * 60 / 1000));
+    float throttleVoltage = (speed / MAX_SPEED) * (throttleMaxV - throttleMinV) + throttleMinV;
+    unsigned long throttleLevel = min(4095l * (throttleVoltage - DAC_MIN_V) / (DAC_MAX_V - DAC_MIN_V), 4095l);
+    byte speedCode = min(0x28, max(0x0F, speed * 60 * 60 / 1000)); // Convert speed from m/s to km/hr
 
     analogWrite(throttlePin, throttleLevel);
 
     storeThrottle();
-    throttleBuffer[6] = speedCode; // Convert speed from m/s to km/hr
+    throttleBuffer[6] = speedCode;
     throttleBuffer[2 + LEN_THROTTLE] = checksum(0, 0, 2 + LEN_THROTTLE, throttleBuffer);
 
     Serial1.write(TAG_WRITE);

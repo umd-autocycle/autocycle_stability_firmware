@@ -11,6 +11,7 @@
 // Internal libraries
 #include "IMU.h"
 #include "Indicator.h"
+#include "StateMachine.h"
 #include "StateColors.h"
 #include "CANOpen.h"
 #include "TorqueMotor.h"
@@ -40,14 +41,13 @@
 #define TM_TORQUE_SLOPE     10000   // Thousandths of max torque per second
 
 // State transition constants
-#define FTHRESH PI/4.0      // Threshold for being fallen over
-#define UTHRESH PI/20.0     // Threshold for being back upright
+#define FTHRESH (PI/4.0)      // Threshold for being fallen over
+#define UTHRESH (PI/20.0)     // Threshold for being back upright
 #define HIGH_V_THRESH 2.0
 #define LOW_V_THRESH 1.5
 
 // Loop timing constants (frequencies in Hz)
 #define SPEED_UPDATE_FREQ   5
-
 
 //#define RADIOCOMM
 
@@ -71,7 +71,7 @@ Indicator indicator(3, 4, 5, 11);
 TorqueMotor *torque_motor;
 DriveMotor *drive_motor;
 
-PIDController controller(20, 0, 0.5, 5);
+Controller *controller;
 
 
 // State variables
@@ -89,22 +89,6 @@ float v_r = 0.0;           // Required velocity (m/s)
 
 // Control variables
 float torque = 0.0;        // Current torque (Nm)
-
-
-// State actions
-void idle();
-
-void calibrate();
-
-void manual();
-
-void assist();
-
-void automatic();
-
-void fallen();
-
-void emergency_stop();
 
 void report(uint8_t state);
 
@@ -152,6 +136,8 @@ void setup() {
     imu.start();                                    // Initialize IMU
     imu.configure(2, 2, 1);  // Set accelerometer and gyro resolution, on-chip low-pass filter
 
+    controller = new PIDController(20, 0, 0.5, 5);
+
     indicator.setPassiveRGB(RGB_IDLE_P);
     indicator.setBlinkRGB(RGB_IDLE_B);
 }
@@ -160,25 +146,27 @@ void loop() {
     static uint8_t state = IDLE;
     static unsigned long last_time = millis();
     static unsigned long last_speed_time = millis();
+    float dt = (float) (millis() - last_time) / 1000.0f;
+    last_time = millis();
 
     // Update sensor information
     imu.update();
     torque_motor->update();
 
-    unsigned long dt = millis() - last_time;
-    last_time = millis();
-
     // Update state variables
-    float g_mag = imu.accelY()*imu.accelY() + imu.accelZ()*imu.accelZ();    // Check if measured orientation gravity vector exceeds feasibility
-    float phi_new = g_mag <= 11*11 ? atan2(imu.accelY(), imu.accelZ()) : phi;    // TODO add Kalman filter
+    float g_mag = imu.accelY() * imu.accelY() +
+                  imu.accelZ() * imu.accelZ();    // Check if measured orientation gravity vector exceeds feasibility
+    float phi_new = g_mag <= 11 * 11 ? atan2(imu.accelY(), imu.accelZ()) : phi;    // TODO add Kalman filter
     dphi = imu.gyroX();                         // TODO add Kalman filter
-    phi = 0.9f * phi_new + 0.1f * (phi + dphi * (float) dt / 1000.0f);
+    phi = 0.9f * phi_new + 0.1f * (phi + dphi * dt);
     del = torque_motor->getPosition();
     ddel = torque_motor->getVelocity();
     torque = torque_motor->getTorque();
-    if(millis() - last_speed_time >= 1000/SPEED_UPDATE_FREQ) {
-        v = drive_motor->getSpeed();                // TODO add Kalman filter
+    if (millis() - last_speed_time >= 1000 / SPEED_UPDATE_FREQ) {
+        v = 0.5f * drive_motor->getSpeed() + 0.5f * v;                // TODO add Kalman filter
         last_speed_time = millis();
+    } else {
+        v += imu.accelX() * dt;
     }
 
     // Update indicator
@@ -441,7 +429,7 @@ void automatic() {
     float dt = (float) (t - t0) / 1000.0f;
     t0 = t;
 
-    float u = controller.control(phi, del, dphi, ddel, phi_r, del_r, dt);
+    float u = controller->control(phi, del, dphi, ddel, phi_r, del_r, dt);
     torque_motor->setTorque(u);
 }
 
@@ -488,7 +476,7 @@ void report(uint8_t state) {
     Serial.print('\t');
     Serial.print(torque);
     Serial.print('\t');
-    Serial.print(millis()/1000.0f);
+    Serial.print(millis() / 1000.0f);
     Serial.println();
     Serial.flush();
 #endif

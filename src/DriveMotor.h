@@ -25,16 +25,21 @@
 
 #define DEFAULT_PAS     5
 
-#define WHEEL_RADIUS        0.35                        // m // TODO Measure wheel radius
-#define WHEEL_CIRCUMFERENCE 2.0 * PI * WHEEL_RADIUS
+#define WHEEL_RADIUS        0.35f                       // meters
+#define WHEEL_CIRCUMFERENCE (2.0f * (float) PI * WHEEL_RADIUS)
+
+#define DAC_MIN_V       0.55f
+#define DAC_MAX_V       2.75f
+#define REAR_TEETH      20
+#define DRIVE_TEETH     44
+#define MAX_RPM         120.0f
+#define MAX_SPEED       (MAX_RPM * DRIVE_TEETH * WHEEL_CIRCUMFERENCE / REAR_TEETH / 60.0f)
 
 class DriveMotor {
 public:
     DriveMotor(int throttle_pin);
 
     void start();
-
-//    void resetMotor();
 
     bool storeBasic();
     bool storePedal();
@@ -52,8 +57,8 @@ public:
 private:
     static byte checksum(long prefactor, int from, int to, const byte *arr);
 
-    float currentSpeed = 0.0;
-    float desiredSpeed = 0.0;
+    float throttleMinV = 0;
+    float throttleMaxV = 0;
 
     int throttlePin = 0;
 
@@ -61,7 +66,6 @@ private:
     byte basicBuffer[LEN_BASIC + 3];
     byte pedalBuffer[LEN_PEDAL + 3];
     byte throttleBuffer[LEN_THROTTLE + 3];
-
 };
 
 
