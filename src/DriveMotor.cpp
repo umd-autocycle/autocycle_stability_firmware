@@ -28,11 +28,11 @@ void DriveMotor::start() {
     while (c < LEN_START) {
         if (Serial1.available() > 0) {
             startBuffer[c] = Serial1.read();
-            c++;
 #ifdef DRIVE_MOTOR_VERBOSE
             Serial.print(startBuffer[c]);
             Serial.print(' ');
 #endif
+            c++;
         }
     }
 #ifdef DRIVE_MOTOR_VERBOSE
@@ -58,11 +58,11 @@ bool DriveMotor::storeBasic() {
     while (c < LEN_BASIC + 3) {
         if (Serial1.available() > 0) {
             basicBuffer[c] = Serial1.read();
-            c++;
 #ifdef DRIVE_MOTOR_VERBOSE
             Serial.print(basicBuffer[c]);
             Serial.print(' ');
 #endif
+            c++;
         }
     }
 #ifdef DRIVE_MOTOR_VERBOSE
@@ -82,11 +82,11 @@ bool DriveMotor::storePedal() {
     while (c < LEN_PEDAL + 3) {
         if (Serial1.available() > 0) {
             pedalBuffer[c] = Serial1.read();
-            c++;
 #ifdef DRIVE_MOTOR_VERBOSE
             Serial.print(pedalBuffer[c]);
             Serial.print(' ');
 #endif
+            c++;
         }
     }
 #ifdef DRIVE_MOTOR_VERBOSE
@@ -105,11 +105,11 @@ bool DriveMotor::storeThrottle() {
     while (c < LEN_THROTTLE + 3) {
         if (Serial1.available() > 0) {
             throttleBuffer[c] = Serial1.read();
-            c++;
 #ifdef DRIVE_MOTOR_VERBOSE
             Serial.print(throttleBuffer[c]);
             Serial.print(' ');
 #endif
+            c++;
         }
     }
 #ifdef DRIVE_MOTOR_VERBOSE
