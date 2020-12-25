@@ -12,7 +12,7 @@
 #define RATED_CURRENT_MA        5330
 #define MAX_CURRENT_DUR_MS      100
 #define BLDC_MOTOR              0x0000000041U
-#define RATED_TORQUE_N          0.5f
+#define RATED_TORQUE_NM         0.5f
 #define GEARING                 33.0f
 #define EFFICIENCY              0.93f
 
@@ -36,14 +36,14 @@
 #define STAW_VELOCITY_REACHED       0b0000010000000000U
 #define STAW_VELOCITY_DEV_ERROR     0b0010000000000000U
 
-#define TORQUE_RX_PDO_NUM 0
-#define TORQUE_TX_PDO_NUM 0
+#define TORQUE_RX_PDO_NUM   0
+#define TORQUE_TX_PDO_NUM   0
 #define VELOCITY_RX_PDO_NUM 1
 #define VELOCITY_TX_PDO_NUM 1
 #define POSITION_RX_PDO_NUM 2
 #define POSITION_TX_PDO_NUM 2
-#define CONTROL_RX_PDO_NUM 3
-#define CONTROL_TX_PDO_NUM 3
+#define CONTROL_RX_PDO_NUM  3
+#define CONTROL_TX_PDO_NUM  3
 
 TorqueMotor::TorqueMotor(CANRaw *can_line, uint16_t node_id, unsigned int current_max, unsigned int torque_max,
                          unsigned int torque_slope, float prof_accel, float qs_decel, float prof_vel) {
@@ -250,7 +250,7 @@ void TorqueMotor::setMode(uint16_t mode) {
 }
 
 void TorqueMotor::setTorque(float torque) {
-    int16_t torque_thou = 1000.0 * torque / GEARING / EFFICIENCY / RATED_TORQUE_N;
+    int16_t torque_thou = 1000.0 * torque / GEARING / EFFICIENCY / RATED_TORQUE_NM;
     outgoing.s0 = torque_thou;
     outgoing.s1 = 0;
     outgoing.s2 = 0;
@@ -282,7 +282,7 @@ float TorqueMotor::getTorque() {
     motor_dev->readPDO(TORQUE_TX_PDO_NUM, incoming);
     int16_t torque_thou = incoming.s0;
 
-    return (1 / 1000.0f) * GEARING * EFFICIENCY * RATED_TORQUE_N * (float) torque_thou;
+    return (1 / 1000.0f) * GEARING * EFFICIENCY * RATED_TORQUE_NM * (float) torque_thou;
 }
 
 float TorqueMotor::getVelocity() {

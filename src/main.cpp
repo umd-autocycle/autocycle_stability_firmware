@@ -102,11 +102,11 @@ float v_r = 0.0;           // Required velocity (m/s)
 float torque = 0.0;        // Current torque (Nm)
 
 // Filter tuning parameters
-float var_drive_motor = 0.04;
-float var_roll_accel = 0.01;
-float var_steer_accel = 0.01;
+float var_drive_motor = 0.04;   // Variance in (m/s^2)^2
+float var_roll_accel = 0.01;    // Variance in (rad/s^2)^2
+float var_steer_accel = 0.01;   // Variance in (rad/s^2)^2
 
-void report(uint8_t state);
+void report();
 
 void find_variances(float &var_v, float &var_a, float &var_phi, float &var_del, float &var_dphi, float &var_ddel);
 
@@ -376,7 +376,7 @@ void loop() {
     }
 
     // Report state, reference, and control values
-    report(state);
+    report();
 
     if (TELEMETRY.available()) {
         delay(10);
@@ -495,11 +495,11 @@ void automatic() {
 }
 
 void fallen() {
-    // TODO respond to falling over
+
 }
 
 void emergency_stop() {
-    // TODO implement braking for emergency stop
+
 }
 
 // State assertion
@@ -514,6 +514,7 @@ void assert_idle() {
 
 void assert_calibrate() {
     state = CALIB;
+
     indicator.setPassiveRGB(RGB_CALIB_P);
     indicator.setBlinkRGB(RGB_CALIB_B);
     indicator.setPulse(250, 250);
@@ -521,6 +522,8 @@ void assert_calibrate() {
 
 void assert_manual() {
     state = MANUAL;
+
+    indicator.disablePulse();
     indicator.setPassiveRGB(RGB_MANUAL_P);
     indicator.setBlinkRGB(RGB_MANUAL_B);
 }
@@ -530,6 +533,7 @@ void assert_assist() {
     torque_motor->setMode(OP_PROFILE_POSITION);
     while (!torque_motor->enableOperation());
 
+    indicator.disablePulse();
     indicator.setPassiveRGB(RGB_ASSIST_P);
     indicator.setBlinkRGB(RGB_ASSIST_B);
 }
@@ -539,14 +543,15 @@ void assert_automatic() {
     torque_motor->setMode(OP_PROFILE_TORQUE);
     while (!torque_motor->enableOperation());
 
+    indicator.disablePulse();
     indicator.setPassiveRGB(RGB_AUTO_P);
     indicator.setBlinkRGB(RGB_AUTO_B);
 }
 
 void assert_fallen() {
     state = FALLEN;
-    torque_motor->shutdown();
     drive_motor->setSpeed(0);
+    while(!torque_motor->shutdown());
 
     indicator.setPassiveRGB(RGB_FALLEN_P);
     indicator.setBlinkRGB(RGB_FALLEN_B);
@@ -558,11 +563,12 @@ void assert_emergency_stop() {
     drive_motor->setSpeed(0);
     while (!torque_motor->shutdown());
 
+    indicator.disablePulse();
     indicator.setPassiveRGB(RGB_E_STOP_P);
     indicator.setBlinkRGB(RGB_E_STOP_B);
 }
 
-void report(uint8_t state) {
+void report() {
 #ifdef RADIOCOMM
     uint8_t frame[27];
 
