@@ -6,19 +6,43 @@
 #define AUTOCYCLE_STABILITY_FIRMWARE_KALMANFILTER_H
 
 #include <BasicLinearAlgebra.h>
+
 using namespace BLA;
 
+template<int xN, int yN, int uN>
 class KalmanFilter {
 public:
-    KalmanFilter(BLA::Matrix<6, 6> A, BLA::Matrix<6, 3>);
-    BLA::Matrix<6, 1>
-    filter(float measured_phi, float measured_delta, float measured_dphi, float measured_ddelta,
-           float measured_velocity, float applied_torque, float measured_ax, float measured_ay);
+    void predict(BLA::Matrix<uN, 1> u);
 
-private:
-    BLA::Matrix<6, 1> x_old;
-    BLA::Matrix<6, 6> P_old;
+    void update(BLA::Matrix<yN, 1> y);
+
+
+    BLA::Matrix<xN, 1> x;   // State estimate
+    BLA::Matrix<xN, xN> P;  // State estimate covariance matrix
+
+    BLA::Matrix<xN, xN> A;  // State transition matrix
+    BLA::Matrix<xN, uN> B;  // Control matrix
+    BLA::Matrix<yN, xN> C;  // Sensor matrix
+
+    BLA::Matrix<xN, xN> Q;  // Process covariance matrix
+    BLA::Matrix<yN, yN> R;  // Measurement covariance matrix
 };
+
+
+template<int xN, int yN, int uN>
+void KalmanFilter<xN, yN, uN>::predict(BLA::Matrix<uN, 1> u) {
+    x = A * x + B * u;
+    P = A * P * (~A) + Q;
+}
+
+template<int xN, int yN, int uN>
+void KalmanFilter<xN, yN, uN>::update(BLA::Matrix<yN, 1> y) {
+    auto residual = y - C * x;
+    auto S = C * P * (~C) + R;
+    auto K = P * (~C) * S;
+    x = x + K * residual;
+    P = (BLA::Identity<xN, xN>() - K * C) * P;
+}
 
 
 #endif //AUTOCYCLE_STABILITY_FIRMWARE_KALMANFILTER_H

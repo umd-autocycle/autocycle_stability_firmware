@@ -21,5 +21,20 @@ void fallen();
 
 void emergency_stop();
 
+// State assertions
+void assert_idle();
+
+void assert_calibrate();
+
+void assert_manual();
+
+void assert_assist();
+
+void assert_automatic();
+
+void assert_fallen();
+
+void assert_emergency_stop();
+
 
 #endif //AUTOCYCLE_STABILITY_FIRMWARE_STATEMACHINE_H

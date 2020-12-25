@@ -57,7 +57,7 @@ bool IMU::configure(uint8_t accel_res, uint8_t gyro_res, uint8_t filtering) {
     return true;
 }
 
-bool IMU::calibrateGyros() {
+bool IMU::calibrateGyroBias() {
     int x_acc = 0;
     int y_acc = 0;
     int z_acc = 0;
@@ -74,21 +74,14 @@ bool IMU::calibrateGyros() {
         delay(2);
     }
 
-    int16_t x_g_offset;
-    int16_t y_g_offset;
-    int16_t z_g_offset;
-
-    read_register(0x13, (int16_t *) &x_g_offset);
-    read_register(0x15, (int16_t *) &y_g_offset);
-    read_register(0x17, (int16_t *) &z_g_offset);
+    int16_t x_g_offset, y_g_offset, z_g_offset;
+    get_gyro_offsets(x_g_offset, y_g_offset, z_g_offset);
 
     x_g_offset -= x_acc / CALIB_SAMP;
     y_g_offset -= y_acc / CALIB_SAMP;
     z_g_offset -= z_acc / CALIB_SAMP;
 
-    set_register(0x13, x_g_offset);     // set XG_OFFS (undocumented X gyro offset, uses FS_SEL units)
-    set_register(0x15, y_g_offset);     // set YG_OFFS (undocumented Y gyro offset, uses FS_SEL units)
-    set_register(0x17, z_g_offset);     // set ZG_OFFS (undocumented Z gyro offset, uses FS_SEL units)
+    set_gyro_offsets(x_g_offset, y_g_offset, z_g_offset);
 
     x_acc = 0;
     y_acc = 0;
@@ -111,7 +104,7 @@ bool IMU::calibrateGyros() {
            abs(z_acc / CALIB_SAMP) < CALIB_G_TOL;
 }
 
-bool IMU::calibrateAccel(float x_expected, float y_expected, float z_expected) {
+bool IMU::calibrateAccelBias(float x_expected, float y_expected, float z_expected) {
     long x_acc = 0;
     long y_acc = 0;
     long z_acc = 0;
@@ -132,21 +125,14 @@ bool IMU::calibrateAccel(float x_expected, float y_expected, float z_expected) {
     int16_t y_a_expected = y_expected / GRAV / (float) accel_fsr * ACCEL_RANGE;
     int16_t z_a_expected = z_expected / GRAV / (float) accel_fsr * ACCEL_RANGE;
 
-    int16_t x_a_offset;
-    int16_t y_a_offset;
-    int16_t z_a_offset;
-
-    read_register(0x06, (int16_t *) &x_a_offset);
-    read_register(0x08, (int16_t *) &y_a_offset);
-    read_register(0x0A, (int16_t *) &z_a_offset);
+    int16_t x_a_offset, y_a_offset, z_a_offset;
+    get_accel_offsets(x_a_offset, y_a_offset, z_a_offset);
 
     x_a_offset -= (x_acc / CALIB_SAMP - x_a_expected) / 2;
     y_a_offset -= (y_acc / CALIB_SAMP - y_a_expected) / 2;
     z_a_offset -= (z_acc / CALIB_SAMP - z_a_expected) / 2;
 
-    set_register(0x06, x_a_offset); // set XA_OFFS (undocumented X accelerometer offset, uses 1/2 AFS_SEL units)
-    set_register(0x08, y_a_offset); // set YA_OFFS (undocumented Y accelerometer offset, uses 1/2 AFS_SEL units)
-    set_register(0x0A, z_a_offset); // set ZA_OFFS (undocumented Z accelerometer offset, uses 1/2 AFS_SEL units)
+    set_accel_offsets(x_a_offset, y_a_offset, z_a_offset);
 
     x_acc = 0;
     y_acc = 0;
@@ -270,5 +256,29 @@ void IMU::read_registers(uint8_t reg, int16_t *val, int n) const {
 
     for (int i = 0; i < n; i++)
         val[i] = Wire.read() << 8 | Wire.read();
+}
+
+void IMU::set_gyro_offsets(int16_t gx_off, int16_t gy_off, int16_t gz_off) {
+    set_register(0x13, gx_off);     // set XG_OFFS (undocumented X gyro offset, uses FS_SEL units)
+    set_register(0x15, gy_off);     // set YG_OFFS (undocumented Y gyro offset, uses FS_SEL units)
+    set_register(0x17, gz_off);     // set ZG_OFFS (undocumented Z gyro offset, uses FS_SEL units)
+}
+
+void IMU::set_accel_offsets(int16_t ax_off, int16_t ay_off, int16_t az_off) {
+    set_register(0x06, ax_off); // set XA_OFFS (undocumented X accelerometer offset, uses 1/2 AFS_SEL units)
+    set_register(0x08, ay_off); // set YA_OFFS (undocumented Y accelerometer offset, uses 1/2 AFS_SEL units)
+    set_register(0x0A, az_off); // set ZA_OFFS (undocumented Z accelerometer offset, uses 1/2 AFS_SEL units)
+}
+
+void IMU::get_gyro_offsets(int16_t &gx_off, int16_t &gy_off, int16_t &gz_off) {
+    read_register(0x13, (int16_t *) &gx_off);
+    read_register(0x15, (int16_t *) &gy_off);
+    read_register(0x17, (int16_t *) &gz_off);
+}
+
+void IMU::get_accel_offsets(int16_t &ax_off, int16_t &ay_off, int16_t &az_off) {
+    read_register(0x06, (int16_t *) &ax_off);
+    read_register(0x08, (int16_t *) &ay_off);
+    read_register(0x0A, (int16_t *) &az_off);
 }
 

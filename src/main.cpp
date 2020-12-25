@@ -7,6 +7,7 @@
 #include <Wire.h>
 #include <SPI.h>
 #include <due_can.h>
+#include <Adafruit_FRAM_SPI.h>
 
 // Internal libraries
 #include "IMU.h"
@@ -18,6 +19,8 @@
 #include "DriveMotor.h"
 #include "Controller.h"
 #include "PIDController.h"
+#include "KalmanFilter.h"
+#include "BikeModel.h"
 
 // States
 #define IDLE    0
@@ -70,12 +73,20 @@ IMU imu(0x68);
 Indicator indicator(3, 4, 5, 11);
 TorqueMotor *torque_motor;
 DriveMotor *drive_motor;
+Adafruit_FRAM_SPI fram(SCK, MISO, MOSI, 8);
+
+BikeModel bike_model;
+
+KalmanFilter<4, 4, 2> orientation_filter;
+KalmanFilter<2, 2, 0> velocity_filter;
 
 Controller *controller;
 
 
 // State variables
 uint8_t user_req = 0;      // User request binary flags
+uint8_t state = IDLE;
+float dt;
 float phi = 0.0;           // Roll angle (rad)
 float del = 0.0;           // Steering angle (rad)
 float dphi = 0.0;          // Roll angle rate (rad/s)
@@ -91,6 +102,8 @@ float v_r = 0.0;           // Required velocity (m/s)
 float torque = 0.0;        // Current torque (Nm)
 
 void report(uint8_t state);
+
+void find_variances(float &var_v, float &var_a, float &var_phi, float &var_del, float &var_dphi, float &var_ddel);
 
 
 void setup() {
@@ -113,7 +126,9 @@ void setup() {
     delay(1000);                          // Wait for Serial interfaces to initialize
 
     Can0.begin(CAN_BPS_1000K);                  // Begin 1M baud rate CAN interface, no enable pin
-    Can0.watchFor();                            // Watch for all incoming CANbus messages
+    Can0.watchFor();                            // Watch for all incoming CAN-Bus messages
+
+    fram.begin();                               // Begin SPI comm to ferroelectric RAM
 
     analogWriteResolution(12);              // Enable expanded PWM and ADC resolution
     analogReadResolution(12);
@@ -136,38 +151,115 @@ void setup() {
     imu.start();                                    // Initialize IMU
     imu.configure(2, 2, 1);  // Set accelerometer and gyro resolution, on-chip low-pass filter
 
+    // Initialize stability controller
     controller = new PIDController(20, 0, 0.5, 5);
+
+    // Load parameters from FRAM
+    float stored_vars[6];
+    float var_v, var_a, var_phi, var_del, var_dphi, var_ddel;
+    fram.read(0, (uint8_t *) stored_vars, sizeof stored_vars);
+    var_v = stored_vars[0];
+    var_a = stored_vars[1];
+    var_phi = stored_vars[2];
+    var_del = stored_vars[3];
+    var_dphi = stored_vars[4];
+    var_ddel = stored_vars[5];
+
+    int16_t stored_offsets[6];
+    int16_t ax_off, ay_off, az_off, gx_off, gy_off, gz_off;
+    fram.read(sizeof stored_vars, (uint8_t *) stored_offsets, sizeof stored_offsets);
+    ax_off = stored_offsets[0];
+    ay_off = stored_offsets[1];
+    az_off = stored_offsets[2];
+    gx_off = stored_offsets[3];
+    gy_off = stored_offsets[4];
+    gz_off = stored_offsets[5];
+    imu.set_accel_offsets(ax_off, ay_off, az_off);
+    imu.set_gyro_offsets(gx_off, gy_off, gz_off);
+
+
+    // Initialize velocity Kalman filter
+    velocity_filter.x = {0, 0};
+    velocity_filter.P = BLA::Zeros<2, 2>();
+    velocity_filter.B = {};
+    velocity_filter.C = BLA::Identity<2, 2>();
+    velocity_filter.Q = {
+
+    };
+    velocity_filter.R = {
+            var_v, 0,
+            0, var_a
+    };
+
+    // Initialize orientation Kalman filter
+    orientation_filter.x = {0, 0, 0, 0};
+    orientation_filter.P = BLA::Zeros<4, 4>();
+    orientation_filter.C = BLA::Identity<4, 4>();
+    orientation_filter.Q = {
+
+    };
+    orientation_filter.R = {
+            var_phi, 0, 0, 0,
+            0, var_del, 0, 0,
+            0, 0, var_dphi, 0,
+            0, 0, 0, var_ddel
+    };
 
     indicator.setPassiveRGB(RGB_IDLE_P);
     indicator.setBlinkRGB(RGB_IDLE_B);
 }
 
 void loop() {
-    static uint8_t state = IDLE;
     static unsigned long last_time = millis();
     static unsigned long last_speed_time = millis();
-    float dt = (float) (millis() - last_time) / 1000.0f;
+    dt = (float) (millis() - last_time) / 1000.0f;
     last_time = millis();
 
     // Update sensor information
     imu.update();
     torque_motor->update();
 
-    // Update state variables
+
+    // Update velocity Kalman filter parameters
+    velocity_filter.A = {
+            1, dt,
+            0, 1
+    };
+    velocity_filter.x(1) = imu.accelX();
+    velocity_filter.predict({});
+
+    // Update velocity state measurement
+    if (millis() - last_speed_time >= 1000 / SPEED_UPDATE_FREQ) {
+        float v_y = drive_motor->getSpeed();
+        float a_y = imu.accelX();
+        last_speed_time = millis();
+
+        velocity_filter.update({v_y, a_y});
+    }
+    v = velocity_filter.x(0);
+
+
+    // Update orientation state measurement
     float g_mag = imu.accelY() * imu.accelY() +
                   imu.accelZ() * imu.accelZ();    // Check if measured orientation gravity vector exceeds feasibility
-    float phi_new = g_mag <= 11 * 11 ? atan2(imu.accelY(), imu.accelZ()) : phi;    // TODO add Kalman filter
-    dphi = imu.gyroX();                         // TODO add Kalman filter
-    phi = 0.9f * phi_new + 0.1f * (phi + dphi * dt);
+    phi = g_mag <= 11 * 11 ? atan2(imu.accelY(), imu.accelZ()) : phi;
     del = torque_motor->getPosition();
+    dphi = imu.gyroX();
     ddel = torque_motor->getVelocity();
     torque = torque_motor->getTorque();
-    if (millis() - last_speed_time >= 1000 / SPEED_UPDATE_FREQ) {
-        v = 0.5f * drive_motor->getSpeed() + 0.5f * v;                // TODO add Kalman filter
-        last_speed_time = millis();
-    } else {
-        v += imu.accelX() * dt;
-    }
+
+    // Update orientation Kalman filter parameters
+    orientation_filter.A = bike_model.kalmanTransitionMatrix(v, dt);
+    orientation_filter.B = bike_model.kalmanControlsMatrix(v, dt);
+
+    // Update orientation state estimate
+    orientation_filter.predict({0, torque});
+    orientation_filter.update({phi, del, dphi, ddel});
+    phi = orientation_filter.x(0);
+    del = orientation_filter.x(1);
+    dphi = orientation_filter.x(2);
+    ddel = orientation_filter.x(3);
+
 
     // Update indicator
     indicator.update();
@@ -177,32 +269,14 @@ void loop() {
     switch (state) {
         case IDLE:      // Idle
             // Transitions
-            if (fabs(phi) > FTHRESH) {
-                state = FALLEN;
-                indicator.setPassiveRGB(RGB_FALLEN_P);
-                indicator.setBlinkRGB(RGB_FALLEN_B);
-                indicator.setPulse(500, 1500);
-            }
-            if (v > 1.0) {
-                state = ASSIST;
-                torque_motor->setMode(OP_PROFILE_POSITION);
-                while (!torque_motor->enableOperation());
-                indicator.setPassiveRGB(RGB_ASSIST_P);
-                indicator.setBlinkRGB(RGB_ASSIST_B);
-            }
-            if (user_req & R_CALIB) {
-                state = CALIB;
-                indicator.setPassiveRGB(RGB_CALIB_P);
-                indicator.setBlinkRGB(RGB_CALIB_B);
-                indicator.setPulse(250, 250);
-            }
-            if (user_req & R_MANUAL) {
-                state = MANUAL;
-                indicator.setPassiveRGB(RGB_MANUAL_P);
-                indicator.setBlinkRGB(RGB_MANUAL_B);
-
-                while (!torque_motor->disableOperation());
-            }
+            if (fabs(phi) > FTHRESH)
+                assert_fallen();
+            if (v > 1.0)
+                assert_assist();
+            if (user_req & R_CALIB)
+                assert_calibrate();
+            if (user_req & R_MANUAL)
+                assert_manual();
 
             // Action
             idle();
@@ -213,10 +287,7 @@ void loop() {
             // Transitions
             if (true) {
                 user_req &= ~R_CALIB;
-                state = IDLE;
-                indicator.disablePulse();
-                indicator.setPassiveRGB(RGB_IDLE_P);
-                indicator.setBlinkRGB(RGB_IDLE_B);
+                assert_idle();
             }
 
             // Action
@@ -228,9 +299,7 @@ void loop() {
             // Transitions
             if (user_req & R_RESUME) {
                 user_req &= ~(R_RESUME | R_MANUAL);
-                state = IDLE;
-                indicator.setPassiveRGB(RGB_IDLE_P);
-                indicator.setBlinkRGB(RGB_IDLE_B);
+                assert_idle();
             }
 
             // Action
@@ -240,38 +309,14 @@ void loop() {
 
         case ASSIST:    // Assisted (training wheel) motion, only control heading
             // Transitions
-            if (fabs(phi) > FTHRESH) {
-                state = FALLEN;
-                indicator.setPassiveRGB(RGB_FALLEN_P);
-                indicator.setBlinkRGB(RGB_FALLEN_B);
-                indicator.setPulse(500, 1500);
-
-                while (!torque_motor->disableOperation());
-            }
-            if (v > HIGH_V_THRESH) {
-                state = AUTO;
-
-                torque_motor->setMode(OP_PROFILE_TORQUE);
-                while (!torque_motor->enableOperation());
-
-                indicator.setPassiveRGB(RGB_AUTO_P);
-                indicator.setBlinkRGB(RGB_AUTO_B);
-            }
-            if (v < 0.5) {
-                state = IDLE;
-                indicator.setPassiveRGB(RGB_IDLE_P);
-                indicator.setBlinkRGB(RGB_IDLE_B);
-
-                while (!torque_motor->disableOperation());
-            }
-            if (user_req & R_STOP) {
-                state = E_STOP;
-                drive_motor->setSpeed(0);
-                indicator.setPassiveRGB(RGB_E_STOP_P);
-                indicator.setBlinkRGB(RGB_E_STOP_B);
-
-                while (!torque_motor->disableOperation());
-            }
+            if (fabs(phi) > FTHRESH)
+                assert_fallen();
+            if (v > HIGH_V_THRESH)
+                assert_automatic();
+            if (v < 0.5)
+                assert_idle();
+            if (user_req & R_STOP)
+                assert_emergency_stop();
 
             // Action
             assist();
@@ -280,31 +325,12 @@ void loop() {
 
         case AUTO:      // Automatic motion, control heading and stability
             // Transitions
-            if (fabs(phi) > FTHRESH) {
-                state = FALLEN;
-                indicator.setPassiveRGB(RGB_FALLEN_P);
-                indicator.setBlinkRGB(RGB_FALLEN_B);
-                indicator.setPulse(500, 1500);
-
-                while (!torque_motor->disableOperation());
-            }
-            if (v < LOW_V_THRESH) {
-                state = ASSIST;
-
-                torque_motor->setMode(OP_PROFILE_POSITION);
-                while (!torque_motor->enableOperation());
-
-                indicator.setPassiveRGB(RGB_ASSIST_P);
-                indicator.setBlinkRGB(RGB_ASSIST_B);
-            }
-            if (user_req & R_STOP) {
-                state = E_STOP;
-                drive_motor->setSpeed(0);
-                indicator.setPassiveRGB(RGB_E_STOP_P);
-                indicator.setBlinkRGB(RGB_E_STOP_B);
-
-                while (!torque_motor->disableOperation());
-            }
+            if (fabs(phi) > FTHRESH)
+                assert_fallen();
+            if (v < LOW_V_THRESH)
+                assert_assist();
+            if (user_req & R_STOP)
+                assert_emergency_stop();
 
             // Action
             automatic();
@@ -313,12 +339,8 @@ void loop() {
 
         case FALLEN:    // Fallen
             // Transitions
-            if (fabs(phi) < UTHRESH) {
-                state = IDLE;
-                indicator.setPassiveRGB(RGB_IDLE_P);
-                indicator.setBlinkRGB(RGB_IDLE_B);
-                indicator.disablePulse();
-            }
+            if (fabs(phi) < UTHRESH)
+                assert_idle();
 
             // Action
             fallen();
@@ -327,17 +349,11 @@ void loop() {
 
         case E_STOP:    // Emergency stop
             // Transitions
-            if (fabs(phi) > FTHRESH) {
-                state = FALLEN;
-                indicator.setPassiveRGB(RGB_FALLEN_P);
-                indicator.setBlinkRGB(RGB_FALLEN_B);
-                indicator.setPulse(500, 1500);
-            }
+            if (fabs(phi) > FTHRESH)
+                assert_fallen();
             if (user_req & R_RESUME) {
                 user_req &= ~(R_RESUME | R_STOP);
-                state = IDLE;
-                indicator.setPassiveRGB(RGB_IDLE_P);
-                indicator.setBlinkRGB(RGB_IDLE_B);
+                assert_idle();
             }
 
             // Action
@@ -401,17 +417,58 @@ void idle() {
 }
 
 void calibrate() {
-    if (imu.calibrateGyros()) {
+    if (imu.calibrateGyroBias()) {
         indicator.beepstring((uint8_t) 0b01110111);
     } else {
         indicator.beepstring((uint8_t) 0b10001000);
     }
 
-    if (imu.calibrateAccel(0, 0, GRAV)) {
+    if (imu.calibrateAccelBias(0, 0, GRAV)) {
         indicator.beepstring((uint8_t) 0b10101010);
     } else {
         indicator.beepstring((uint8_t) 0b00110011);
     }
+
+    delay(100);
+
+    float var_v, var_a, var_phi, var_del, var_dphi, var_ddel;
+    find_variances(var_v, var_a, var_phi, var_del, var_dphi, var_ddel);
+    velocity_filter.R = {
+            var_v, 0,
+            0, var_a
+    };
+    orientation_filter.R = {
+            var_phi, 0, 0, 0,
+            0, var_del, 0, 0,
+            0, 0, var_dphi, 0,
+            0, 0, 0, var_ddel
+    };
+
+    // save parameters from FRAM
+    float stored_vars[6];
+    stored_vars[0] = var_v;
+    stored_vars[1] = var_a;
+    stored_vars[2] = var_phi;
+    stored_vars[3] = var_del;
+    stored_vars[4] = var_dphi;
+    stored_vars[5] = var_ddel;
+    fram.write(0, (uint8_t *) stored_vars, sizeof stored_vars);
+
+
+    int16_t stored_offsets[6];
+    int16_t ax_off, ay_off, az_off, gx_off, gy_off, gz_off;
+    imu.get_accel_offsets(ax_off, ay_off, az_off);
+    imu.get_gyro_offsets(gx_off, gy_off, gz_off);
+    stored_offsets[0] = ax_off;
+    stored_offsets[1] = ay_off;
+    stored_offsets[2] = az_off;
+    stored_offsets[3] = gx_off;
+    stored_offsets[4] = gy_off;
+    stored_offsets[5] = gz_off;
+    fram.read(sizeof stored_vars, (uint8_t *) stored_offsets, sizeof stored_offsets);
+
+
+    indicator.beepstring((uint8_t) 0b11101110);
 }
 
 void manual() {
@@ -424,11 +481,6 @@ void assist() {
 }
 
 void automatic() {
-    static long t0 = millis();
-    long t = millis();
-    float dt = (float) (t - t0) / 1000.0f;
-    t0 = t;
-
     float u = controller->control(phi, del, dphi, ddel, phi_r, del_r, dt);
     torque_motor->setTorque(u);
 }
@@ -439,6 +491,66 @@ void fallen() {
 
 void emergency_stop() {
     // TODO implement braking for emergency stop
+}
+
+// State assertion
+void assert_idle() {
+    state = IDLE;
+    while (!torque_motor->shutdown());
+
+    indicator.disablePulse();
+    indicator.setPassiveRGB(RGB_IDLE_P);
+    indicator.setBlinkRGB(RGB_IDLE_B);
+}
+
+void assert_calibrate() {
+    state = CALIB;
+    indicator.setPassiveRGB(RGB_CALIB_P);
+    indicator.setBlinkRGB(RGB_CALIB_B);
+    indicator.setPulse(250, 250);
+}
+
+void assert_manual() {
+    state = MANUAL;
+    indicator.setPassiveRGB(RGB_MANUAL_P);
+    indicator.setBlinkRGB(RGB_MANUAL_B);
+}
+
+void assert_assist() {
+    state = ASSIST;
+    torque_motor->setMode(OP_PROFILE_POSITION);
+    while (!torque_motor->enableOperation());
+
+    indicator.setPassiveRGB(RGB_ASSIST_P);
+    indicator.setBlinkRGB(RGB_ASSIST_B);
+}
+
+void assert_automatic() {
+    state = AUTO;
+    torque_motor->setMode(OP_PROFILE_TORQUE);
+    while (!torque_motor->enableOperation());
+
+    indicator.setPassiveRGB(RGB_AUTO_P);
+    indicator.setBlinkRGB(RGB_AUTO_B);
+}
+
+void assert_fallen() {
+    state = FALLEN;
+    torque_motor->shutdown();
+    drive_motor->setSpeed(0);
+
+    indicator.setPassiveRGB(RGB_FALLEN_P);
+    indicator.setBlinkRGB(RGB_FALLEN_B);
+    indicator.setPulse(500, 1500);
+}
+
+void assert_emergency_stop() {
+    state = E_STOP;
+    drive_motor->setSpeed(0);
+    while (!torque_motor->shutdown());
+
+    indicator.setPassiveRGB(RGB_E_STOP_P);
+    indicator.setBlinkRGB(RGB_E_STOP_B);
 }
 
 void report(uint8_t state) {
@@ -480,4 +592,54 @@ void report(uint8_t state) {
     Serial.println();
     Serial.flush();
 #endif
+}
+
+void find_variances(float &var_v, float &var_a, float &var_phi, float &var_del, float &var_dphi, float &var_ddel) {
+    float data[CALIB_SAMP][6];
+    float v_acc, a_acc, phi_acc, del_acc, dphi_acc, ddel_acc;
+    v_acc = a_acc = phi_acc = del_acc = dphi_acc = ddel_acc = 0;
+
+    for (auto &i : data) {
+        i[0] = drive_motor->getSpeed();
+        i[1] = imu.accelX();
+        i[2] = atan2(imu.accelY(), imu.accelZ());
+        i[3] = torque_motor->getPosition();
+        i[4] = imu.gyroX();
+        i[5] = torque_motor->getVelocity();
+
+        v_acc += i[0];
+        a_acc += i[1];
+        phi_acc += i[2];
+        del_acc += i[3];
+        dphi_acc += i[4];
+        ddel_acc += i[5];
+
+        delay(20);
+    }
+
+    float v_mean = v_acc / CALIB_SAMP;
+    float a_mean = a_acc / CALIB_SAMP;
+    float phi_mean = phi_acc / CALIB_SAMP;
+    float del_mean = del_acc / CALIB_SAMP;
+    float dphi_mean = dphi_acc / CALIB_SAMP;
+    float ddel_mean = ddel_acc / CALIB_SAMP;
+
+    float v_var_acc, a_var_acc, phi_var_acc, del_var_acc, dphi_var_acc, ddel_var_acc;
+    v_var_acc = a_var_acc = phi_var_acc = del_var_acc = dphi_var_acc = ddel_var_acc = 0;
+
+    for (auto &i : data) {
+        v_var_acc += (i[0] - v_mean) * (i[0] - v_mean);
+        a_var_acc += (i[1] - a_mean) * (i[1] - a_mean);
+        phi_var_acc += (i[2] - phi_mean) * (i[2] - phi_mean);
+        del_var_acc += (i[3] - del_mean) * (i[3] - del_mean);
+        dphi_var_acc += (i[4] - dphi_mean) * (i[4] - dphi_mean);
+        ddel_var_acc += (i[5] - ddel_mean) * (i[5] - ddel_mean);
+    }
+
+    var_v = v_var_acc / CALIB_SAMP;
+    var_a = a_var_acc / CALIB_SAMP;
+    var_phi = phi_var_acc / CALIB_SAMP;
+    var_del = del_var_acc / CALIB_SAMP;
+    var_dphi = dphi_var_acc / CALIB_SAMP;
+    var_ddel = ddel_var_acc / CALIB_SAMP;
 }

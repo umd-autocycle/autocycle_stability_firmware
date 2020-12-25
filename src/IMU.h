@@ -21,8 +21,8 @@ public:
 
     bool start();
     bool configure(uint8_t accel_res, uint8_t gyro_res, uint8_t filtering);
-    bool calibrateGyros();
-    bool calibrateAccel(float x_expected, float y_expected, float z_expected);
+    bool calibrateGyroBias();
+    bool calibrateAccelBias(float x_expected, float y_expected, float z_expected);
 
     // Retrieve corrected accelerometer values in m/s
     float accelX() const;
@@ -39,6 +39,11 @@ public:
 
     // Update readings from hardware
     void update();
+
+    void get_gyro_offsets(int16_t & gx_off, int16_t & gy_off, int16_t & gz_off);
+    void get_accel_offsets(int16_t & ax_off, int16_t & ay_off, int16_t & az_off);
+    void set_gyro_offsets(int16_t gx_off, int16_t gy_off, int16_t gz_off);
+    void set_accel_offsets(int16_t ax_off, int16_t ay_off, int16_t az_off);
 
 private:
     void set_register(uint8_t reg, uint8_t val) const;
