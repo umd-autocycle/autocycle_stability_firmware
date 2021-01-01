@@ -52,7 +52,7 @@
 // Loop timing constants (frequencies in Hz)
 #define SPEED_UPDATE_FREQ   5
 
-//#define RADIOCOMM
+#define RADIOCOMM
 
 #ifdef RADIOCOMM
 
@@ -84,22 +84,24 @@ Controller *controller;
 
 
 // State variables
-uint8_t user_req = 0;      // User request binary flags
+uint8_t user_req = 0;       // User request binary flags
 uint8_t state = IDLE;
 float dt;
-float phi = 0.0;           // Roll angle (rad)
-float del = 0.0;           // Steering angle (rad)
-float dphi = 0.0;          // Roll angle rate (rad/s)
-float ddel = 0.0;          // Steering angle rate (rad/s)
-float v = 0.0;             // Velocity (m/s)
+float phi = 0.0;            // Roll angle (rad)
+float del = 0.0;            // Steering angle (rad)
+float dphi = 0.0;           // Roll angle rate (rad/s)
+float ddel = 0.0;           // Steering angle rate (rad/s)
+float v = 0.0;              // Velocity (m/s)
+
+float v_y = 0.0;            // Raw velocity measurement
 
 // Reference variables
-float phi_r = 0.0;         // Required roll angle (rad)
-float del_r = 0.0;         // Required steering angle (rad)
-float v_r = 0.0;           // Required velocity (m/s)
+float phi_r = 0.0;          // Required roll angle (rad)
+float del_r = 0.0;          // Required steering angle (rad)
+float v_r = 0.0;            // Required velocity (m/s)
 
 // Control variables
-float torque = 0.0;        // Current torque (Nm)
+float torque = 0.0;         // Current torque (Nm)
 
 // Filter tuning parameters
 float var_drive_motor = 0.04;   // Variance in (m/s^2)^2
@@ -233,7 +235,7 @@ void loop() {
 
     // Update velocity state measurement
     if (millis() - last_speed_time >= 1000 / SPEED_UPDATE_FREQ) {
-        float v_y = drive_motor->getSpeed();
+        v_y = drive_motor->getSpeed();
         float a_y = imu.accelX();
         last_speed_time = millis();
 
@@ -387,14 +389,14 @@ void loop() {
 
 
         switch (c) {
-            case 1:
+            case 's':
                 v_r = *((float*) &(buffer[2]));
                 drive_motor->setSpeed(v_r);
                 break;
-            case 2:
+            case 'd':
                 del_r = *((float*) &(buffer[2]));
                 break;
-            case 3:
+            case 'c':
                 user_req = buffer[2];
                 break;
             default:
@@ -568,21 +570,64 @@ void assert_emergency_stop() {
     indicator.setBlinkRGB(RGB_E_STOP_B);
 }
 
+uint8_t checksum(const uint8_t * buffer, int len){
+    unsigned int acc = 0;
+
+    for(int i = 0; i < len; i++)
+        acc += buffer[i];
+
+    return acc % 256;
+}
+
 void report() {
 #ifdef RADIOCOMM
-    uint8_t frame[27];
+    uint8_t frame[32];
 
-    frame[0] = 13;          // Telemetry frame header
+    frame[0] = 13;          // State telemetry frame header
     frame[1] = sizeof frame;
 
-    frame[2] = state;
+    *((float *) &(frame[2])) = state;
+    *((float *) &(frame[6])) = phi;
+    *((float *) &(frame[10])) = del;
+    *((float *) &(frame[14])) = dphi;
+    *((float *) &(frame[18])) = ddel;
+    *((float *) &(frame[22])) = torque;
+    *((float *) &(frame[26])) = v;
+    frame[30] = checksum(frame, 30);
 
-    *((float *) &(frame[3])) = phi;
-    *((float *) &(frame[7])) = del;
-    *((float *) &(frame[11])) = dphi;
-    *((float *) &(frame[15])) = ddel;
-    *((float *) &(frame[19])) = torque;
-    *((float *) &(frame[23])) = v;
+
+    TELEMETRY.stopListening();
+    TELEMETRY.write(frame, sizeof frame);
+    TELEMETRY.startListening();
+
+    frame[0] = 14;          // Setpoint telemetry frame header
+    frame[1] = sizeof frame;
+
+    *((float *) &(frame[2])) = state;
+    *((float *) &(frame[6])) = phi_r;
+    *((float *) &(frame[10])) = del_r;
+    *((float *) &(frame[14])) = 0;
+    *((float *) &(frame[18])) = 0;
+    *((float *) &(frame[22])) = 0;
+    *((float *) &(frame[26])) = v_r;
+    frame[30] = checksum(frame, 30);
+
+
+    TELEMETRY.stopListening();
+    TELEMETRY.write(frame, sizeof frame);
+    TELEMETRY.startListening();
+
+    frame[0] = 15;          // Raw sensor telemetry frame header
+    frame[1] = sizeof frame;
+
+    *((float *) &(frame[2])) = imu.accelX();
+    *((float *) &(frame[6])) = imu.accelY();
+    *((float *) &(frame[10])) = imu.accelZ();
+    *((float *) &(frame[14])) = imu.gyroX();
+    *((float *) &(frame[18])) = v_y;
+    *((float *) &(frame[22])) = torque_motor->getPosition();
+    *((float *) &(frame[26])) = torque_motor->getVelocity();
+    frame[30] = checksum(frame, 30);
 
 
     TELEMETRY.stopListening();
