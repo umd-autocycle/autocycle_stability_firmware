@@ -73,7 +73,7 @@ IMU imu(0x68);
 Indicator indicator(3, 4, 5, 11);
 TorqueMotor *torque_motor;
 DriveMotor *drive_motor;
-Adafruit_FRAM_SPI fram(SCK, MISO, MOSI, 50);
+Adafruit_FRAM_SPI fram(50);
 
 BikeModel bike_model;
 
@@ -115,7 +115,7 @@ void find_variances(float &var_v, float &var_a, float &var_phi, float &var_del, 
 
 void setup() {
     Wire.begin();                               // Begin I2C interface
-    SPI.begin();                                // Begin Serial Peripheral Interface (SPI)
+//    SPI.begin();                                // Begin Serial Peripheral Interface (SPI)
 
 #ifdef RADIOCOMM
     radio.begin();
@@ -487,7 +487,9 @@ void calibrate() {
     stored_vars[3] = var_del;
     stored_vars[4] = var_dphi;
     stored_vars[5] = var_ddel;
+    fram.writeEnable(true);
     fram.write(0, (uint8_t *) stored_vars, sizeof stored_vars);
+    fram.writeEnable(false);
 
 
     int16_t stored_offsets[6];
@@ -500,7 +502,9 @@ void calibrate() {
     stored_offsets[3] = gx_off;
     stored_offsets[4] = gy_off;
     stored_offsets[5] = gz_off;
-    fram.read(sizeof stored_vars, (uint8_t *) stored_offsets, sizeof stored_offsets);
+    fram.writeEnable(true);
+    fram.write(sizeof stored_vars, (uint8_t *) stored_offsets, sizeof stored_offsets);
+    fram.writeEnable(false);
 
 
     indicator.beepstring((uint8_t) 0b11101110);
