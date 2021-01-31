@@ -61,8 +61,8 @@
 
 RF24 radio(7, 8);
 #define TELEMETRY radio
-uint8_t readAddr[] = "NODEU";
-uint8_t writeAddr[] = "NODED";
+uint8_t readAddr[] = "UNODE";
+uint8_t writeAddr[] = "DNODE";
 
 #else
 #define TELEMETRY Serial
@@ -73,7 +73,7 @@ IMU imu(0x68);
 Indicator indicator(3, 4, 5, 11);
 TorqueMotor *torque_motor;
 DriveMotor *drive_motor;
-Adafruit_FRAM_SPI fram(SCK, MISO, MOSI, 8);
+Adafruit_FRAM_SPI fram(SCK, MISO, MOSI, 50);
 
 BikeModel bike_model;
 
@@ -121,16 +121,21 @@ void setup() {
     radio.begin();
     radio.openWritingPipe(writeAddr);
     radio.openReadingPipe(1, readAddr);
-    radio.setPALevel(
-            RF24_PA_MIN);         // we can increase this if they dont connect but then a bypass diode is needed
+    radio.setPALevel(RF24_PA_MIN);
     radio.startListening();
+
 #else
     TELEMETRY.begin(115200);                    // Begin Main Serial (UART to USB) communication
 #endif
+    Serial.begin(115200);
+
 
     Serial1.begin(1200);              // Begin Bafang Serial (UART) communication
     Serial2.begin(1200);
     delay(1000);                          // Wait for Serial interfaces to initialize
+
+    Serial.println("Hello!");
+//    Serial.println(radio.getPayloadSize());
 
     Can0.begin(CAN_BPS_1000K);                  // Begin 1M baud rate CAN interface, no enable pin
     Can0.watchFor();                            // Watch for all incoming CAN-Bus messages
@@ -218,7 +223,19 @@ void loop() {
     // Update sensor information
     imu.update();
     torque_motor->update();
-
+    Serial.println();
+    Serial.print(imu.accelX());
+    Serial.print("\t");
+    Serial.print(imu.accelY());
+    Serial.print("\t");
+    Serial.print(imu.accelZ());
+    Serial.print("\t");
+    Serial.print(imu.gyroX());
+    Serial.print("\t");
+    Serial.print(imu.gyroY());
+    Serial.print("\t");
+    Serial.print(imu.gyroZ());
+    Serial.println();
 
     // Update velocity Kalman filter parameters
     velocity_filter.A = {
@@ -231,7 +248,9 @@ void loop() {
     };
     velocity_filter.Q *= var_drive_motor;
     velocity_filter.x(1) = imu.accelX();
+    Serial.println(imu.accelX());
     velocity_filter.predict({});
+    Serial.println("Speed kalman predict");
 
     // Update velocity state measurement
     if (millis() - last_speed_time >= 1000 / SPEED_UPDATE_FREQ) {
@@ -240,9 +259,12 @@ void loop() {
         last_speed_time = millis();
 
         velocity_filter.update({v_y, a_y});
+        Serial.println("Speed kalman update");
     }
     v = velocity_filter.x(0);
-
+    Serial.println("Speed kalman estimate");
+    Serial.println(v);
+//    v = 0;
 
     // Update orientation state measurement
     float g_mag = imu.accelY() * imu.accelY() +
@@ -275,6 +297,8 @@ void loop() {
     // Update indicator
     indicator.update();
 
+    Serial.println("Entering state machine");
+    Serial.println(state);
 
     // Act based on machine state, transition if necessary
     switch (state) {
@@ -580,6 +604,8 @@ uint8_t checksum(const uint8_t * buffer, int len){
 }
 
 void report() {
+    Serial.println("reporting!");
+
 #ifdef RADIOCOMM
     uint8_t frame[32];
 
@@ -597,7 +623,7 @@ void report() {
 
 
     TELEMETRY.stopListening();
-    TELEMETRY.write(frame, sizeof frame);
+    TELEMETRY.write(frame, 32);
     TELEMETRY.startListening();
 
     frame[0] = 14;          // Setpoint telemetry frame header
@@ -614,7 +640,7 @@ void report() {
 
 
     TELEMETRY.stopListening();
-    TELEMETRY.write(frame, sizeof frame);
+    TELEMETRY.write(frame, 32);
     TELEMETRY.startListening();
 
     frame[0] = 15;          // Raw sensor telemetry frame header
@@ -631,7 +657,7 @@ void report() {
 
 
     TELEMETRY.stopListening();
-    TELEMETRY.write(frame, sizeof frame);
+    TELEMETRY.write(frame, 32);
     TELEMETRY.startListening();
 #else
     Serial.print(state);
