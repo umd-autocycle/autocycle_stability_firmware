@@ -57,8 +57,8 @@ public:
 private:
     static byte checksum(long prefactor, int from, int to, const byte *arr);
 
-    float throttleMinV = 0;
-    float throttleMaxV = 0;
+    float throttleMinV = 1;
+    float throttleMaxV = 3;
 
     int throttlePin = 0;
 
