@@ -58,6 +58,8 @@ bool IMU::configure(uint8_t accel_res, uint8_t gyro_res, uint8_t filtering) {
 }
 
 bool IMU::calibrateGyroBias() {
+    set_gyro_offsets(0, 0, 0);
+
     int x_acc = 0;
     int y_acc = 0;
     int z_acc = 0;
@@ -105,6 +107,8 @@ bool IMU::calibrateGyroBias() {
 }
 
 bool IMU::calibrateAccelBias(float x_expected, float y_expected, float z_expected) {
+    set_accel_offsets(0, 0, 0);
+
     long x_acc = 0;
     long y_acc = 0;
     long z_acc = 0;

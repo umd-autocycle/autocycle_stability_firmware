@@ -468,7 +468,7 @@ void calibrate() {
             0, 0, 0, var_ddel
     };
 
-    // save parameters from FRAM
+    // Save parameters from FRAM
     float stored_vars[6];
     stored_vars[0] = var_v;
     stored_vars[1] = var_a;
@@ -597,11 +597,10 @@ uint8_t checksum(const uint8_t * buffer, int len){
 }
 
 void report() {
-    Serial.println("Reporting");
 
 #ifdef RADIOCOMM
     TELEMETRY.stopListening();
-    delay(2);
+    delay(20);
     uint8_t frame[32] = "Hello!";
 
 //    frame[0] = 13;          // State telemetry frame header
@@ -617,10 +616,11 @@ void report() {
 //    frame[30] = checksum(frame, 30);
 //    frame[31] = 0;
 
-    Serial.println((char *)frame);
-    TELEMETRY.openWritingPipe(writeAddr);
+    Serial.println(state);
     TELEMETRY.write(frame, 32);
+    delay(20);
 
+//
 //    frame[0] = 14;          // Setpoint telemetry frame header
 //    frame[1] = sizeof frame;
 //
@@ -635,6 +635,8 @@ void report() {
 //
 //
 //    TELEMETRY.write(frame, 32);
+//    delay(20);
+//
 //
 //    frame[0] = 15;          // Raw sensor telemetry frame header
 //    frame[1] = sizeof frame;
@@ -647,9 +649,11 @@ void report() {
 //    *((float *) &(frame[22])) = torque_motor->getPosition();
 //    *((float *) &(frame[26])) = torque_motor->getVelocity();
 //    frame[30] = checksum(frame, 30);
-
-
+//
+//
 //    TELEMETRY.write(frame, 32);
+//    delay(20);
+
     TELEMETRY.startListening();
 #else
     Serial.print(state);
