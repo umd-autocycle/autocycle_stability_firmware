@@ -81,6 +81,7 @@ BikeModel bike_model;
 
 KalmanFilter<4, 4, 2> orientation_filter;
 KalmanFilter<2, 2, 0> velocity_filter;
+KalmanFilter<2, 1, 0> heading_filter;
 
 Controller *controller;
 
@@ -94,6 +95,9 @@ float del = 0.0;            // Steering angle (rad)
 float dphi = 0.0;           // Roll angle rate (rad/s)
 float ddel = 0.0;           // Steering angle rate (rad/s)
 float v = 0.0;              // Velocity (m/s)
+
+float heading = 0.0;
+float dheading = 0.0;
 
 float v_y = 0.0;            // Raw velocity measurement
 
@@ -109,6 +113,7 @@ float torque = 0.0;         // Current torque (Nm)
 float var_drive_motor = 0.04;   // Variance in (m/s^2)^2
 float var_roll_accel = 0.01;    // Variance in (rad/s^2)^2
 float var_steer_accel = 0.01;   // Variance in (rad/s^2)^2
+float var_heading = 0.01;       // Variance in (rad/s^2)^2
 
 void report();
 
@@ -137,7 +142,6 @@ void setup() {
     delay(1000);                          // Wait for Serial interfaces to initialize
 
     Serial.println("Hello!");
-//    Serial.println(radio.getPayloadSize());
 
     Can0.begin(CAN_BPS_1000K);                  // Begin 1M baud rate CAN interface, no enable pin
     Can0.watchFor();                            // Watch for all incoming CAN-Bus messages
@@ -202,7 +206,7 @@ void setup() {
             0, var_a
     };
 
-    // Initialize orientation Kalman filter
+    // Initialize local orientation Kalman filter
     orientation_filter.x = {0, 0, 0, 0};            // Initial state estimate
     orientation_filter.P = BLA::Zeros<4, 4>();      // Initial estimate covariance
     orientation_filter.C = BLA::Identity<4, 4>();   // Sensor matrix
@@ -211,6 +215,16 @@ void setup() {
             0, var_del, 0, 0,
             0, 0, var_dphi, 0,
             0, 0, 0, var_ddel
+    };
+
+    float var_gyro_z = 0.01;
+
+    // Initialize heading Kalman filter
+    heading_filter.x = {0, 0};                  // Initial state estimate
+    heading_filter.P = BLA::Zeros<2, 2>();      // Initial estimate covariance
+    heading_filter.C = BLA::Identity<1, 2>();   // Sensor matrix
+    heading_filter.R = {                        // Sensor covariance matrix
+            var_gyro_z
     };
 
     assert_idle();
@@ -226,6 +240,23 @@ void loop() {
     // Update sensor information
     imu.update();
     torque_motor->update();
+
+
+    // Update heading Kalman filter parameters
+    heading_filter.A = {
+            1, dt,
+            0, 1
+    };
+    heading_filter.Q = {
+            dt * dt, dt,
+            dt, 1
+    };
+    heading_filter.Q *= var_heading;
+    heading_filter.predict({});
+    heading_filter.update({imu.gyroZ()});
+    heading = heading_filter.x(0);
+    dheading = heading_filter.x(1);
+
 
     // Update velocity Kalman filter parameters
     velocity_filter.A = {
@@ -249,6 +280,7 @@ void loop() {
         velocity_filter.update({v_y, a_y});
     }
     v = velocity_filter.x(0);
+
 
     // Update orientation state measurement
     float g_mag = imu.accelY() * imu.accelY() +
@@ -669,6 +701,10 @@ void report() {
     Serial.print(v);
     Serial.print('\t');
     Serial.print(torque);
+    Serial.print('\t');
+    Serial.print(heading);
+    Serial.print('\t');
+    Serial.print(dheading);
     Serial.print('\t');
     Serial.print(millis() / 1000.0f);
     Serial.println();
