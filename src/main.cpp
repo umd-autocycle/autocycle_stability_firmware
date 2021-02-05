@@ -328,6 +328,7 @@ void loop() {
             // Action
             calibrate();
 
+
             break;
 
         case MANUAL:    // Manual operation
@@ -452,6 +453,13 @@ void idle() {
 }
 
 void calibrate() {
+    torque_motor->calibrate();
+    Serial.println("Successfully calibrated torque motor.");
+    delay(1000);
+    torque_motor->setMode(OP_PROFILE_POSITION);
+    torque_motor->setPosition(0);
+    Serial.println("Succesfully reset to zero position.");
+
     if (imu.calibrateGyroBias()) {
         indicator.beepstring((uint8_t) 0b01110111);
     } else {

@@ -36,6 +36,10 @@
 #define STAW_VELOCITY_REACHED       0b0000010000000000U
 #define STAW_VELOCITY_DEV_ERROR     0b0010000000000000U
 
+//Homing status word flags
+#define HOMING_REFERENCE_START      0b0000000000010000U
+#define HOMING_STATUSWORD           0b0001010000000000U
+
 #define TORQUE_RX_PDO_NUM   0
 #define TORQUE_TX_PDO_NUM   0
 #define VELOCITY_RX_PDO_NUM 1
@@ -57,6 +61,12 @@ TorqueMotor::TorqueMotor(CANRaw *can_line, uint16_t node_id, unsigned int curren
     profile_acceleration = prof_accel * 100 * GEARING;
     quick_stop_deceleration = qs_decel * 100 * GEARING;
     profile_velocity = prof_vel * 100 * GEARING;
+    homing_offset = PI/2*100*GEARING; //157 hundredths = 1.57 radians = 90 degrees
+    homing_method = -2;
+    homing_velocity = profile_velocity/10;
+    homing_acceleration = profile_acceleration/10;
+    homing_current = 50; //milliamps?
+    homing_period = 10; //milliseconds
 }
 
 void TorqueMotor::start() {
@@ -80,7 +90,7 @@ void TorqueMotor::start() {
     motor_dev->writeSDO(0x6073U, 0, SDO_WRITE_2B, current_max);         // Set tenth percents of rated current allowed
 
     motor_dev->writeSDO(0x60A8U, 0, SDO_WRITE_4B,
-                        (0xFEU << 24U) | (0x10U << 16U)); // Set units of position to tenths of a radian
+                        (0xFEU << 24U) | (0x10U << 16U)); // Set units of position to hundredths of a radian
     motor_dev->writeSDO(0x60A9U, 0, SDO_WRITE_4B, (0xFEU << 24U) | (0x10U << 16U) | (0x03U
             << 8U)); // Set units of velocity to tenths of a radian per second
 
@@ -242,11 +252,46 @@ void TorqueMotor::setMode(uint16_t mode) {
 
             break;
 
+        case OP_HOMING:
+            motor_dev->writeSDO(06060U,0,SDO_WRITE_1B, OP_HOMING);
+
+            //configure parameters
+            motor_dev->writeSDO(0x607CU, 0, SDO_WRITE_4B, homing_offset);
+            motor_dev->writeSDO(0x6098U,0,SDO_WRITE_1B,homing_method);
+            motor_dev->writeSDO(0x6099U,1,SDO_WRITE_4B, homing_velocity);
+            motor_dev->writeSDO(0x6099U,2,SDO_WRITE_4B, homing_velocity);
+            motor_dev->writeSDO(0x6080U,0,SDO_WRITE_4B,homing_velocity);
+            motor_dev->writeSDO(0x609AU,0,SDO_WRITE_4B,homing_acceleration);
+            motor_dev->writeSDO(0x203AU,1,SDO_WRITE_4B,homing_current);
+            motor_dev->writeSDO(0x203AU,2,SDO_WRITE_4B,homing_period);
+
+            break;
+
+
+
         default:
             break;
     }
 
     while (!switchOn());
+}
+
+void TorqueMotor::calibrate(){
+    //Put torque motor into mode to begin sweep
+    this->setMode(OP_HOMING);
+    while(!enableOperation());
+
+    outgoing.s0 =  HOMING_REFERENCE_START | 0b0000000000011111U;
+    outgoing.s1 = 0;
+    outgoing.s2 = 0;
+    outgoing.s3 = 0;
+    motor_dev->writePDO(CONTROL_RX_PDO_NUM, outgoing);
+    //delay, update, get status
+    while (!(getStatus() & HOMING_STATUSWORD))
+    {
+        delay(1);
+        update();
+    }
 }
 
 void TorqueMotor::setTorque(float torque) {

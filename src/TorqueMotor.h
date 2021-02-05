@@ -14,6 +14,7 @@
 #define OP_PROFILE_TORQUE       0x04U
 #define OP_PROFILE_VELOCITY     0x03U
 #define OP_PROFILE_POSITION     0x01U
+#define OP_HOMING               0x06U
 
 class TorqueMotor {
 public:
@@ -25,6 +26,8 @@ public:
     void autoSetup(); // Motor must be unloaded, not touched, and free to rotate in any direction.
 
     void setMode(uint16_t mode);
+
+    void calibrate();
 
     // Torque in Nm
     void setTorque(float torque);
@@ -76,6 +79,7 @@ private:
     uint32_t data;
     unsigned int torque_max, current_max, torque_slope;
     uint32_t profile_acceleration, quick_stop_deceleration, profile_velocity;
+    uint32_t homing_offset,homing_method,homing_velocity,homing_acceleration,homing_current,homing_period;
     BytesUnion outgoing{}, incoming{};
 };
 
