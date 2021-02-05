@@ -51,6 +51,8 @@
 
 // Loop timing constants (frequencies in Hz)
 #define SPEED_UPDATE_FREQ   5
+#define REPORT_UPDATE_FREQ  1
+
 
 #define RADIOCOMM
 
@@ -79,6 +81,7 @@ BikeModel bike_model;
 
 KalmanFilter<4, 4, 2> orientation_filter;
 KalmanFilter<2, 2, 0> velocity_filter;
+KalmanFilter<2, 1, 0> heading_filter;
 
 Controller *controller;
 
@@ -92,6 +95,9 @@ float del = 0.0;            // Steering angle (rad)
 float dphi = 0.0;           // Roll angle rate (rad/s)
 float ddel = 0.0;           // Steering angle rate (rad/s)
 float v = 0.0;              // Velocity (m/s)
+
+float heading = 0.0;
+float dheading = 0.0;
 
 float v_y = 0.0;            // Raw velocity measurement
 
@@ -107,6 +113,7 @@ float torque = 0.0;         // Current torque (Nm)
 float var_drive_motor = 0.04;   // Variance in (m/s^2)^2
 float var_roll_accel = 0.01;    // Variance in (rad/s^2)^2
 float var_steer_accel = 0.01;   // Variance in (rad/s^2)^2
+float var_heading = 0.01;       // Variance in (rad/s^2)^2
 
 void report();
 
@@ -121,7 +128,7 @@ void setup() {
     radio.begin();
     radio.openWritingPipe(writeAddr);
     radio.openReadingPipe(1, readAddr);
-    radio.setPALevel(RF24_PA_MIN);
+    radio.setPALevel(RF24_PA_HIGH);
     radio.startListening();
 
 #else
@@ -135,7 +142,6 @@ void setup() {
     delay(1000);                          // Wait for Serial interfaces to initialize
 
     Serial.println("Hello!");
-//    Serial.println(radio.getPayloadSize());
 
     Can0.begin(CAN_BPS_1000K);                  // Begin 1M baud rate CAN interface, no enable pin
     Can0.watchFor();                            // Watch for all incoming CAN-Bus messages
@@ -200,7 +206,7 @@ void setup() {
             0, var_a
     };
 
-    // Initialize orientation Kalman filter
+    // Initialize local orientation Kalman filter
     orientation_filter.x = {0, 0, 0, 0};            // Initial state estimate
     orientation_filter.P = BLA::Zeros<4, 4>();      // Initial estimate covariance
     orientation_filter.C = BLA::Identity<4, 4>();   // Sensor matrix
@@ -211,31 +217,46 @@ void setup() {
             0, 0, 0, var_ddel
     };
 
+    float var_gyro_z = 0.01;
+
+    // Initialize heading Kalman filter
+    heading_filter.x = {0, 0};                  // Initial state estimate
+    heading_filter.P = BLA::Zeros<2, 2>();      // Initial estimate covariance
+    heading_filter.C = BLA::Identity<1, 2>();   // Sensor matrix
+    heading_filter.R = {                        // Sensor covariance matrix
+            var_gyro_z
+    };
+
     assert_idle();
 }
 
 void loop() {
     static unsigned long last_time = millis();
     static unsigned long last_speed_time = millis();
+    static unsigned long last_report_time = millis();
     dt = (float) (millis() - last_time) / 1000.0f;
     last_time = millis();
 
     // Update sensor information
     imu.update();
     torque_motor->update();
-    Serial.println();
-    Serial.print(imu.accelX());
-    Serial.print("\t");
-    Serial.print(imu.accelY());
-    Serial.print("\t");
-    Serial.print(imu.accelZ());
-    Serial.print("\t");
-    Serial.print(imu.gyroX());
-    Serial.print("\t");
-    Serial.print(imu.gyroY());
-    Serial.print("\t");
-    Serial.print(imu.gyroZ());
-    Serial.println();
+
+
+    // Update heading Kalman filter parameters
+    heading_filter.A = {
+            1, dt,
+            0, 1
+    };
+    heading_filter.Q = {
+            dt * dt, dt,
+            dt, 1
+    };
+    heading_filter.Q *= var_heading;
+    heading_filter.predict({});
+    heading_filter.update({imu.gyroZ()});
+    heading = heading_filter.x(0);
+    dheading = heading_filter.x(1);
+
 
     // Update velocity Kalman filter parameters
     velocity_filter.A = {
@@ -248,9 +269,7 @@ void loop() {
     };
     velocity_filter.Q *= var_drive_motor;
     velocity_filter.x(1) = imu.accelX();
-    Serial.println(imu.accelX());
     velocity_filter.predict({});
-    Serial.println("Speed kalman predict");
 
     // Update velocity state measurement
     if (millis() - last_speed_time >= 1000 / SPEED_UPDATE_FREQ) {
@@ -259,12 +278,9 @@ void loop() {
         last_speed_time = millis();
 
         velocity_filter.update({v_y, a_y});
-        Serial.println("Speed kalman update");
     }
     v = velocity_filter.x(0);
-    Serial.println("Speed kalman estimate");
-    Serial.println(v);
-//    v = 0;
+
 
     // Update orientation state measurement
     float g_mag = imu.accelY() * imu.accelY() +
@@ -297,8 +313,6 @@ void loop() {
     // Update indicator
     indicator.update();
 
-    Serial.println("Entering state machine");
-    Serial.println(state);
 
     // Act based on machine state, transition if necessary
     switch (state) {
@@ -403,26 +417,33 @@ void loop() {
     }
 
     // Report state, reference, and control values
-    report();
+    if (millis() - last_report_time >= 1000 / REPORT_UPDATE_FREQ){
+        report();
+        last_report_time = millis();
+    }
 
     if (TELEMETRY.available()) {
-        delay(10);
+        delay(100);
 #ifdef RADIOCOMM
         uint8_t buffer[32];
         TELEMETRY.read(buffer, 32);
         uint8_t c = buffer[0];
 
+        Serial.println(c);
 
         switch (c) {
             case 's':
                 v_r = *((float*) &(buffer[2]));
+                Serial.println(v_r);
                 drive_motor->setSpeed(v_r);
                 break;
             case 'd':
                 del_r = *((float*) &(buffer[2]));
+                Serial.println(del_r);
                 break;
             case 'c':
                 user_req = buffer[2];
+                Serial.println(user_req);
                 break;
             default:
                 break;
@@ -487,7 +508,7 @@ void calibrate() {
             0, 0, 0, var_ddel
     };
 
-    // save parameters from FRAM
+    // Save parameters from FRAM
     float stored_vars[6];
     stored_vars[0] = var_v;
     stored_vars[1] = var_a;
@@ -616,60 +637,63 @@ uint8_t checksum(const uint8_t * buffer, int len){
 }
 
 void report() {
-    Serial.println("reporting!");
 
 #ifdef RADIOCOMM
-    uint8_t frame[32];
-
-    frame[0] = 13;          // State telemetry frame header
-    frame[1] = sizeof frame;
-
-    *((float *) &(frame[2])) = state;
-    *((float *) &(frame[6])) = phi;
-    *((float *) &(frame[10])) = del;
-    *((float *) &(frame[14])) = dphi;
-    *((float *) &(frame[18])) = ddel;
-    *((float *) &(frame[22])) = torque;
-    *((float *) &(frame[26])) = v;
-    frame[30] = checksum(frame, 30);
-
-
     TELEMETRY.stopListening();
+    delay(20);
+    uint8_t frame[32] = "Hello!";
+
+//    frame[0] = 13;          // State telemetry frame header
+//    frame[1] = sizeof frame;
+//
+//    *((float *) &(frame[2])) = state;
+//    *((float *) &(frame[6])) = phi;
+//    *((float *) &(frame[10])) = del;
+//    *((float *) &(frame[14])) = dphi;
+//    *((float *) &(frame[18])) = ddel;
+//    *((float *) &(frame[22])) = torque;
+//    *((float *) &(frame[26])) = v;
+//    frame[30] = checksum(frame, 30);
+//    frame[31] = 0;
+
+    Serial.println(state);
     TELEMETRY.write(frame, 32);
-    TELEMETRY.startListening();
+    delay(20);
 
-    frame[0] = 14;          // Setpoint telemetry frame header
-    frame[1] = sizeof frame;
+//
+//    frame[0] = 14;          // Setpoint telemetry frame header
+//    frame[1] = sizeof frame;
+//
+//    *((float *) &(frame[2])) = state;
+//    *((float *) &(frame[6])) = phi_r;
+//    *((float *) &(frame[10])) = del_r;
+//    *((float *) &(frame[14])) = 0;
+//    *((float *) &(frame[18])) = 0;
+//    *((float *) &(frame[22])) = 0;
+//    *((float *) &(frame[26])) = v_r;
+//    frame[30] = checksum(frame, 30);
+//
+//
+//    TELEMETRY.write(frame, 32);
+//    delay(20);
+//
+//
+//    frame[0] = 15;          // Raw sensor telemetry frame header
+//    frame[1] = sizeof frame;
+//
+//    *((float *) &(frame[2])) = imu.accelX();
+//    *((float *) &(frame[6])) = imu.accelY();
+//    *((float *) &(frame[10])) = imu.accelZ();
+//    *((float *) &(frame[14])) = imu.gyroX();
+//    *((float *) &(frame[18])) = v_y;
+//    *((float *) &(frame[22])) = torque_motor->getPosition();
+//    *((float *) &(frame[26])) = torque_motor->getVelocity();
+//    frame[30] = checksum(frame, 30);
+//
+//
+//    TELEMETRY.write(frame, 32);
+//    delay(20);
 
-    *((float *) &(frame[2])) = state;
-    *((float *) &(frame[6])) = phi_r;
-    *((float *) &(frame[10])) = del_r;
-    *((float *) &(frame[14])) = 0;
-    *((float *) &(frame[18])) = 0;
-    *((float *) &(frame[22])) = 0;
-    *((float *) &(frame[26])) = v_r;
-    frame[30] = checksum(frame, 30);
-
-
-    TELEMETRY.stopListening();
-    TELEMETRY.write(frame, 32);
-    TELEMETRY.startListening();
-
-    frame[0] = 15;          // Raw sensor telemetry frame header
-    frame[1] = sizeof frame;
-
-    *((float *) &(frame[2])) = imu.accelX();
-    *((float *) &(frame[6])) = imu.accelY();
-    *((float *) &(frame[10])) = imu.accelZ();
-    *((float *) &(frame[14])) = imu.gyroX();
-    *((float *) &(frame[18])) = v_y;
-    *((float *) &(frame[22])) = torque_motor->getPosition();
-    *((float *) &(frame[26])) = torque_motor->getVelocity();
-    frame[30] = checksum(frame, 30);
-
-
-    TELEMETRY.stopListening();
-    TELEMETRY.write(frame, 32);
     TELEMETRY.startListening();
 #else
     Serial.print(state);
@@ -685,6 +709,10 @@ void report() {
     Serial.print(v);
     Serial.print('\t');
     Serial.print(torque);
+    Serial.print('\t');
+    Serial.print(heading);
+    Serial.print('\t');
+    Serial.print(dheading);
     Serial.print('\t');
     Serial.print(millis() / 1000.0f);
     Serial.println();
