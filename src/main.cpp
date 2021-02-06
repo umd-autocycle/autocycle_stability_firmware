@@ -54,7 +54,7 @@
 #define REPORT_UPDATE_FREQ  1
 
 
-#define RADIOCOMM
+//#define RADIOCOMM
 
 #ifdef RADIOCOMM
 
@@ -186,12 +186,12 @@ void setup() {
     int16_t stored_offsets[6];
     int16_t ax_off, ay_off, az_off, gx_off, gy_off, gz_off;
     fram.read(sizeof stored_vars, (uint8_t *) stored_offsets, sizeof stored_offsets);
-    ax_off = stored_offsets[0];
-    ay_off = stored_offsets[1];
-    az_off = stored_offsets[2];
-    gx_off = stored_offsets[3];
-    gy_off = stored_offsets[4];
-    gz_off = stored_offsets[5];
+    ax_off = 0; //stored_offsets[0];
+    ay_off =0; //stored_offsets[1];
+    az_off = 0; //stored_offsets[2];
+    gx_off =0; // stored_offsets[3];
+    gy_off = 0; //stored_offsets[4];
+    gz_off =0; // stored_offsets[5];
     imu.set_accel_offsets(ax_off, ay_off, az_off);
     imu.set_gyro_offsets(gx_off, gy_off, gz_off);
 
@@ -228,6 +228,7 @@ void setup() {
     };
 
     assert_idle();
+    Serial.println("Finished setup.");
 }
 
 void loop() {
@@ -281,11 +282,10 @@ void loop() {
     }
     v = velocity_filter.x(0);
 
-
     // Update orientation state measurement
     float g_mag = imu.accelY() * imu.accelY() +
                   imu.accelZ() * imu.accelZ();    // Check if measured orientation gravity vector exceeds feasibility
-    phi = g_mag <= 11 * 11 ? atan2(imu.accelY(), imu.accelZ()) : phi;
+    phi = 0; //g_mag <= 11 * 11 ? atan2(imu.accelY(), imu.accelZ()) : phi;
     del = torque_motor->getPosition();
     dphi = imu.gyroX();
     ddel = torque_motor->getVelocity();
@@ -308,6 +308,7 @@ void loop() {
     del = orientation_filter.x(1);
     dphi = orientation_filter.x(2);
     ddel = orientation_filter.x(3);
+    phi = 0;
 
 
     // Update indicator
@@ -478,7 +479,8 @@ void calibrate() {
     Serial.println("Successfully calibrated torque motor.");
     delay(1000);
     torque_motor->setMode(OP_PROFILE_POSITION);
-    torque_motor->setPosition(0);
+    while(!torque_motor->enableOperation());
+    torque_motor->setPosition(-PI/2);
     Serial.println("Succesfully reset to zero position.");
 
     if (imu.calibrateGyroBias()) {

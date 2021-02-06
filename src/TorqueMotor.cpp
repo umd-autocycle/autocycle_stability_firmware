@@ -38,7 +38,8 @@
 
 //Homing status word flags
 #define HOMING_REFERENCE_START      0b0000000000010000U
-#define HOMING_STATUSWORD           0b0001010000000000U
+#define HOMING_STATUSWORD1          0b0001000000000000U
+#define HOMING_STATUSWORD2          0b0000010000000000U
 
 #define TORQUE_RX_PDO_NUM   0
 #define TORQUE_TX_PDO_NUM   0
@@ -61,12 +62,12 @@ TorqueMotor::TorqueMotor(CANRaw *can_line, uint16_t node_id, unsigned int curren
     profile_acceleration = prof_accel * 100 * GEARING;
     quick_stop_deceleration = qs_decel * 100 * GEARING;
     profile_velocity = prof_vel * 100 * GEARING;
-    homing_offset = PI/2*100*GEARING; //157 hundredths = 1.57 radians = 90 degrees
-    homing_method = -2;
+    homing_offset = -PI/2*100*GEARING; //157 hundredths = 1.57 radians = 90 degrees
+    homing_method = -18;
     homing_velocity = profile_velocity/10;
     homing_acceleration = profile_acceleration/10;
-    homing_current = 50; //milliamps?
-    homing_period = 10; //milliseconds
+    homing_current = 750; //milliamps
+    homing_period = 50; //milliseconds
 }
 
 void TorqueMotor::start() {
@@ -253,10 +254,11 @@ void TorqueMotor::setMode(uint16_t mode) {
             break;
 
         case OP_HOMING:
-            motor_dev->writeSDO(06060U,0,SDO_WRITE_1B, OP_HOMING);
+            motor_dev->writeSDO(0x06060U,0,SDO_WRITE_1B, OP_HOMING);
+
 
             //configure parameters
-            motor_dev->writeSDO(0x607CU, 0, SDO_WRITE_4B, homing_offset);
+            motor_dev->writeSDO(0x607CU, 0, SDO_WRITE_4B, -1*homing_offset);
             motor_dev->writeSDO(0x6098U,0,SDO_WRITE_1B,homing_method);
             motor_dev->writeSDO(0x6099U,1,SDO_WRITE_4B, homing_velocity);
             motor_dev->writeSDO(0x6099U,2,SDO_WRITE_4B, homing_velocity);
@@ -279,6 +281,7 @@ void TorqueMotor::setMode(uint16_t mode) {
 void TorqueMotor::calibrate(){
     //Put torque motor into mode to begin sweep
     this->setMode(OP_HOMING);
+    Serial.println("Made it past homing mode set.");
     while(!enableOperation());
 
     outgoing.s0 =  HOMING_REFERENCE_START | 0b0000000000011111U;
@@ -287,11 +290,18 @@ void TorqueMotor::calibrate(){
     outgoing.s3 = 0;
     motor_dev->writePDO(CONTROL_RX_PDO_NUM, outgoing);
     //delay, update, get status
-    while (!(getStatus() & HOMING_STATUSWORD))
+    update();
+    while (!((getStatus() & HOMING_STATUSWORD1) && (getStatus() & HOMING_STATUSWORD2)))
     {
         delay(1);
         update();
+        Serial.print(getTorque());
+        Serial.print("\t");
+        Serial.println(getPosition());
+
     }
+    Serial.println();
+    Serial.println(getPosition());
 }
 
 void TorqueMotor::setTorque(float torque) {

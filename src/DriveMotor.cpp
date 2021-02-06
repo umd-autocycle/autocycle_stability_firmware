@@ -264,7 +264,7 @@ void DriveMotor::setSpeed(float speed) {
     }
     while (!Serial1.available());
     while (Serial1.available()) {
-        delay(20);
+        Serial1.read();
     }
 
     setPAS(0);
