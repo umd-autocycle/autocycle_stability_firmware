@@ -52,6 +52,7 @@
 // Loop timing constants (frequencies in Hz)
 #define SPEED_UPDATE_FREQ   5
 #define REPORT_UPDATE_FREQ  1
+#define STORE_UPDATE_FREQ   5
 
 
 //#define RADIOCOMM
@@ -118,6 +119,12 @@ float var_heading = 0.01;       // Variance in (rad/s^2)^2
 void report();
 
 void find_variances(float &var_v, float &var_a, float &var_phi, float &var_del, float &var_dphi, float &var_ddel);
+
+int32_t readBack(uint32_t addr, int32_t data);
+void storeTelemetry(int startAddress);
+void retrieveTelemetry(int startAddress);
+int memSize = 0;
+int framAddress = 100;
 
 
 void setup() {
@@ -228,6 +235,13 @@ void setup() {
     };
 
     assert_idle();
+
+
+
+    while (readBack(memSize, memSize) == memSize) {
+        memSize += 256;
+        //Serial.print("Block: #"); Serial.println(memSize/256);
+    }
     Serial.println("Finished setup.");
 }
 
@@ -235,6 +249,7 @@ void loop() {
     static unsigned long last_time = millis();
     static unsigned long last_speed_time = millis();
     static unsigned long last_report_time = millis();
+    static unsigned long last_store_time = millis();
     dt = (float) (millis() - last_time) / 1000.0f;
     last_time = millis();
 
@@ -422,6 +437,13 @@ void loop() {
         report();
         last_report_time = millis();
     }
+    if(millis() - last_store_time >= 1000/ STORE_UPDATE_FREQ){
+        if(framAddress < (8000-37)){
+            storeTelemetry(framAddress);
+            framAddress += 37;
+        }
+        last_store_time = millis();
+    }
 
     if (TELEMETRY.available()) {
         delay(100);
@@ -463,6 +485,10 @@ void loop() {
             case 'c':
                 user_req |= Serial.read();
                 break;
+            case 'f':
+                retrieveTelemetry(100);
+                break;
+
             default:
                 break;
         }
@@ -540,6 +566,67 @@ void calibrate() {
 
     indicator.beepstring((uint8_t) 0b11101110);
 }
+
+int32_t readBack(uint32_t addr, int32_t data) {
+    int32_t check = !data;
+    int32_t wrapCheck, backup;
+    fram.read(addr, (uint8_t*)&backup, sizeof(int32_t));
+    fram.writeEnable(true);
+    fram.write(addr, (uint8_t*)&data, sizeof(int32_t));
+    fram.writeEnable(false);
+    fram.read(addr, (uint8_t*)&check, sizeof(int32_t));
+    fram.read(0, (uint8_t*)&wrapCheck, sizeof(int32_t));
+    fram.writeEnable(true);
+    fram.write(addr, (uint8_t*)&backup, sizeof(int32_t));
+    fram.writeEnable(false);
+    // Check for wraparound, address 0 will work anyway
+    if (wrapCheck==check)
+        check = 0;
+    return check;
+}
+
+
+
+void storeTelemetry(int startAddress){
+    fram.writeEnable(true);
+    float valuesToStore [9] = {phi, del, dphi, ddel,v, torque, heading, dheading, millis()/ 1000.0f};
+    fram.write8((uint32_t) startAddress, state);
+    fram.write(startAddress + 8, (uint8_t *) valuesToStore, sizeof valuesToStore);
+    fram.writeEnable(false);
+}
+
+float bytesToFloat(uint8_t b0, uint8_t b1, uint8_t b2, uint8_t b3)
+{
+    float output;
+
+    *((uint8_t*)(&output) + 3) = b0;
+    *((uint8_t*)(&output) + 2) = b1;
+    *((uint8_t*)(&output) + 1) = b2;
+    *((uint8_t*)(&output) + 0) = b3;
+
+    return output;
+}
+
+void retrieveTelemetry(int startAddress){
+    while(startAddress < (8000-(4*9+1))) {
+        Serial.print(fram.read8((uint32_t) startAddress));
+        Serial.print(" ");
+        for(int i = 0; i < 10; i++){
+            uint8_t b0 = fram.read8((uint32_t) startAddress + 8 + i*4);
+            uint8_t b1 = fram.read8((uint32_t) startAddress + 9 + i*4);
+            uint8_t b2 = fram.read8((uint32_t) startAddress + 10 + i*4);
+            uint8_t b3 = fram.read8((uint32_t) startAddress + 11 + i*4);
+            Serial.print(bytesToFloat(b0,b1,b2,b3));
+            Serial.print(" ");
+        }
+        Serial.println();
+        startAddress += (37);
+    }
+}
+
+//to-do:
+//write function call within state
+//call only at specific rate
 
 void manual() {
 
@@ -720,6 +807,7 @@ void report() {
     Serial.println();
     Serial.flush();
 #endif
+
 }
 
 void find_variances(float &var_v, float &var_a, float &var_phi, float &var_del, float &var_dphi, float &var_ddel) {
