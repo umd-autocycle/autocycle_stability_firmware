@@ -6,42 +6,42 @@
 
 BikeModel::BikeModel() {
     /* Bicycle parameter definitions */
-    float w = 1.02;
-    float t = 0.08;
-    float alpha = (float) atan(3.0);
+    float w = 1.16;
+    float t = 0.09;
+    float alpha = 1.319;
     float g = 9.81;
 
     // Rear wheel parameters
-    float r_rw = 0.3;                           // Rear wheel radius
-    float m_rw = 2.0;                           // Rear wheel mass
-    BLA::Matrix<3, 1> A = {0.06, 0.12, 0.06};   // Rear wheel moment of inertia
+    float r_rw = 0.35;                           // Rear wheel radius
+    float m_rw = 3.30;                           // Rear wheel mass
+    BLA::Matrix<3, 1> A = {0.177, 0.354, 0.177};   // Rear wheel moment of inertia
 
     // Rear frame parameters
-    float x_rf = 0.3;
+    float x_rf = 0.4;
     float y_rf = 0;
-    float z_rf = -0.9;
-    float m_rf = 85.0;                          // Rear frame mass
+    float z_rf = -0.605;
+    float m_rf = 28.65;                          // Rear frame mass
     BLA::Matrix<3, 3> B = {                     // Rear frame moment of inertia
-            9.2, 0, 2.4,
-            0, 11, 0,
-            2.4, 0, 2.8,
+            3.124, 0, -0.877,
+            0, 4.150, 0,
+            -0.877, 0, 3.398,
     };
 
     // Front frame parameters
-    float x_ff = 0.9;
+    float x_ff = 0.92;
     float y_ff = 0;
-    float z_ff = -0.7;
-    float m_ff = 4.0;                           // Front frame mass
+    float z_ff = -0.835;
+    float m_ff = 3.05;                           // Front frame mass
     BLA::Matrix<3, 3> C = {                     // Front frame moment of inertia
-            0.0546, 0, -0.0162,
-            0, 0.06, 0,
-            -0.0162, 0, 0.0114,
+            0.344, 0, 0.0637,
+            0, 0.239, 0,
+            0.0637, 0, 0.0578,
     };
 
     // Front wheel parameters
     float r_fw = 0.35;                          // Front wheel radius
-    float m_fw = 3.0;                           // Front wheel mass
-    BLA::Matrix<3, 1> D = {0.14, 0.28, 0.14};   // Front wheel moment of inertia
+    float m_fw = 2.9;                           // Front wheel mass
+    BLA::Matrix<3, 1> D = {0.177, 0.354, 0.177};   // Front wheel moment of inertia
 
 
     /* Computation of parameters for equivalent linearized matrices */

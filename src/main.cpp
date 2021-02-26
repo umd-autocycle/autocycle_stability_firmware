@@ -177,7 +177,7 @@ void setup() {
     imu.configure(2, 2, 1);  // Set accelerometer and gyro resolution, on-chip low-pass filter
 
     // Initialize stability controller
-    controller = new PIDController(20, 0, 0.5, 5);
+    controller = new PIDController(30, 15, 30, 8);
 
     // Load parameters from FRAM
     float stored_vars[6];
