@@ -245,10 +245,11 @@ void DriveMotor::setPAS(int num) {
 }
 
 void DriveMotor::setSpeed(float speed) {
-    float throttleVoltage = (speed / MAX_SPEED) * (throttleMaxV - throttleMinV) + throttleMinV;
-    unsigned long throttleLevel = min(4095l * (throttleVoltage - DAC_MIN_V) / (DAC_MAX_V - DAC_MIN_V), 4095l);
+//    float throttleVoltage = (speed / MAX_SPEED) * (throttleMaxV - throttleMinV) + throttleMinV;
+//    unsigned long throttleLevel = min(4095l * (throttleVoltage - DAC_MIN_V) / (DAC_MAX_V - DAC_MIN_V), 4095l);
     byte speedCode = min(0x28, max(0x0F, speed * 60 * 60 / 1000)); // Convert speed from m/s to km/hr
 
+    unsigned long throttleLevel = speed > 0 ? 4095l : 0;
     analogWrite(throttlePin, throttleLevel);
 
     storeThrottle();

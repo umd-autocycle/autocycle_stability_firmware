@@ -183,29 +183,29 @@ void setup() {
     float stored_vars[6];
     float var_v, var_a, var_phi, var_del, var_dphi, var_ddel;
     fram.read(0, (uint8_t *) stored_vars, sizeof stored_vars);
-    var_v = stored_vars[0];
-    var_a = stored_vars[1];
-    var_phi = stored_vars[2];
-    var_del = stored_vars[3];
-    var_dphi = stored_vars[4];
-    var_ddel = stored_vars[5];
+    var_v = 0.1;//stored_vars[0];
+    var_a = 0.1;//stored_vars[1];
+    var_phi = 0.1;//stored_vars[2];
+    var_del = 0.1;//stored_vars[3];
+    var_dphi = 0.1;//stored_vars[4];
+    var_ddel = 0.1;//stored_vars[5];
 
     int16_t stored_offsets[6];
     int16_t ax_off, ay_off, az_off, gx_off, gy_off, gz_off;
     fram.read(sizeof stored_vars, (uint8_t *) stored_offsets, sizeof stored_offsets);
-    ax_off = 0; //stored_offsets[0];
-    ay_off =0; //stored_offsets[1];
-    az_off = 0; //stored_offsets[2];
-    gx_off =0; // stored_offsets[3];
-    gy_off = 0; //stored_offsets[4];
-    gz_off =0; // stored_offsets[5];
+    ax_off = stored_offsets[0];
+    ay_off = stored_offsets[1];
+    az_off = stored_offsets[2];
+    gx_off = stored_offsets[3];
+    gy_off = stored_offsets[4];
+    gz_off = stored_offsets[5];
     imu.set_accel_offsets(ax_off, ay_off, az_off);
     imu.set_gyro_offsets(gx_off, gy_off, gz_off);
 
 
     // Initialize velocity Kalman filter
     velocity_filter.x = {0, 0};                 // Initial state estimate
-    velocity_filter.P = BLA::Zeros<2, 2>();     // Initial estimate covariance
+    velocity_filter.P = BLA::Identity<2, 2>() * 0.1;     // Initial estimate covariance
     velocity_filter.B = {};                     // Control matrix
     velocity_filter.C = BLA::Identity<2, 2>();  // Sensor matrix
     velocity_filter.R = {                       // Sensor covariance matrix
@@ -215,7 +215,7 @@ void setup() {
 
     // Initialize local orientation Kalman filter
     orientation_filter.x = {0, 0, 0, 0};            // Initial state estimate
-    orientation_filter.P = BLA::Zeros<4, 4>();      // Initial estimate covariance
+    orientation_filter.P = BLA::Identity<4, 4>() * 0.1;      // Initial estimate covariance
     orientation_filter.C = BLA::Identity<4, 4>();   // Sensor matrix
     orientation_filter.R = {                        // Sensor covariance matrix
             var_phi, 0, 0, 0,
@@ -228,7 +228,7 @@ void setup() {
 
     // Initialize heading Kalman filter
     heading_filter.x = {0, 0};                  // Initial state estimate
-    heading_filter.P = BLA::Zeros<2, 2>();      // Initial estimate covariance
+    heading_filter.P = BLA::Identity<2, 2>() * 0.1;      // Initial estimate covariance
     heading_filter.C = BLA::Identity<1, 2>();   // Sensor matrix
     heading_filter.R = {                        // Sensor covariance matrix
             var_gyro_z
@@ -242,6 +242,7 @@ void setup() {
         memSize += 256;
         //Serial.print("Block: #"); Serial.println(memSize/256);
     }
+    retrieveTelemetry(100);
     Serial.println("Finished setup.");
 }
 
@@ -259,71 +260,72 @@ void loop() {
 
 
     // Update heading Kalman filter parameters
-    heading_filter.A = {
-            1, dt,
-            0, 1
-    };
-    heading_filter.Q = {
-            dt * dt, dt,
-            dt, 1
-    };
-    heading_filter.Q *= var_heading;
-    heading_filter.predict({});
-    heading_filter.update({imu.gyroZ()});
-    heading = heading_filter.x(0);
-    dheading = heading_filter.x(1);
+//    heading_filter.A = {
+//            1, dt,
+//            0, 1
+//    };
+//    heading_filter.Q = {
+//            dt * dt, dt,
+//            dt, 1
+//    };
+//    heading_filter.Q *= var_heading;
+//    heading_filter.predict({});
+//    heading_filter.update({imu.gyroZ()});
+//    heading = heading_filter.x(0);
+//    dheading = heading_filter.x(1);
 
 
     // Update velocity Kalman filter parameters
-    velocity_filter.A = {
-            1, dt,
-            0, 1
-    };
-    velocity_filter.Q = {
-            dt * dt, dt,
-            dt, 1
-    };
-    velocity_filter.Q *= var_drive_motor;
-    velocity_filter.x(1) = imu.accelX();
-    velocity_filter.predict({});
+//    velocity_filter.A = {
+//            1, dt,
+//            0, 1
+//    };
+//    velocity_filter.Q = {
+//            dt * dt, dt,
+//            dt, 1
+//    };
+//    velocity_filter.Q *= var_drive_motor;
+//    velocity_filter.x(1) = imu.accelX();
+//    velocity_filter.predict({});
 
     // Update velocity state measurement
     if (millis() - last_speed_time >= 1000 / SPEED_UPDATE_FREQ) {
         v_y = drive_motor->getSpeed();
-        float a_y = imu.accelX();
-        last_speed_time = millis();
-
-        velocity_filter.update({v_y, a_y});
+        v = v_y;
+//        float a_y = imu.accelX();
+//        last_speed_time = millis();
+//
+//        velocity_filter.update({v_y, a_y});
     }
-    v = velocity_filter.x(0);
+//    v = velocity_filter.x(0);
 
     // Update orientation state measurement
     float g_mag = imu.accelY() * imu.accelY() +
                   imu.accelZ() * imu.accelZ();    // Check if measured orientation gravity vector exceeds feasibility
-    phi = 0; //g_mag <= 11 * 11 ? atan2(imu.accelY(), imu.accelZ()) : phi;
+//    Serial.println(imu.gyroX());
+    phi = g_mag <= 11 * 11 ? atan2(imu.accelY(), imu.accelZ()) : phi;
     del = torque_motor->getPosition();
     dphi = imu.gyroX();
     ddel = torque_motor->getVelocity();
     torque = torque_motor->getTorque();
 
     // Update orientation Kalman filter parameters
-    orientation_filter.A = bike_model.kalmanTransitionMatrix(v, dt);
-    orientation_filter.B = bike_model.kalmanControlsMatrix(v, dt);
-    orientation_filter.Q = {
-            var_roll_accel / 4 * dt * dt * dt * dt, var_roll_accel / 2 * dt * dt * dt, 0, 0,
-            var_roll_accel / 2 * dt * dt * dt, var_roll_accel * dt * dt, 0, 0,
-            0, 0, var_steer_accel / 4 * dt * dt * dt * dt, var_steer_accel / 2 * dt * dt * dt,
-            0, 0, var_steer_accel / 2 * dt * dt * dt, var_steer_accel * dt * dt,
-    };
+//    orientation_filter.A = bike_model.kalmanTransitionMatrix(v, dt);
+//    orientation_filter.B = bike_model.kalmanControlsMatrix(v, dt);
+//    orientation_filter.Q = {
+//            var_roll_accel / 4 * dt * dt * dt * dt, var_roll_accel / 2 * dt * dt * dt, 0, 0,
+//            var_roll_accel / 2 * dt * dt * dt, var_roll_accel * dt * dt, 0, 0,
+//            0, 0, var_steer_accel / 4 * dt * dt * dt * dt, var_steer_accel / 2 * dt * dt * dt,
+//            0, 0, var_steer_accel / 2 * dt * dt * dt, var_steer_accel * dt * dt,
+//    };
 
     // Update orientation state estimate
-    orientation_filter.predict({0, torque});
-    orientation_filter.update({phi, del, dphi, ddel});
-    phi = orientation_filter.x(0);
-    del = orientation_filter.x(1);
-    dphi = orientation_filter.x(2);
-    ddel = orientation_filter.x(3);
-    phi = 0;
+//    orientation_filter.predict({0, torque});
+//    orientation_filter.update({phi, del, dphi, ddel});
+//    phi = orientation_filter.x(0);
+//    del = orientation_filter.x(1);
+//    dphi = orientation_filter.x(2);
+//    ddel = orientation_filter.x(3);
 
 
     // Update indicator

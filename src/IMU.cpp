@@ -107,7 +107,8 @@ bool IMU::calibrateGyroBias() {
 }
 
 bool IMU::calibrateAccelBias(float x_expected, float y_expected, float z_expected) {
-    set_accel_offsets(0, 0, 0);
+//    set_accel_offsets(0, 0, 0);
+    delay(100);
 
     long x_acc = 0;
     long y_acc = 0;

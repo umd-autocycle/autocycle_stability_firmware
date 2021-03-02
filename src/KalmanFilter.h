@@ -39,6 +39,8 @@ template<int xN, int yN, int uN>
 void KalmanFilter<xN, yN, uN>::update(BLA::Matrix<yN, 1> y) {
     auto residual = y - C * x;
     auto S = C * P * (~C) + R;
+//    Serial << S;
+//    Serial << "\n";
     auto K = P * (~C) * (S.Inverse());
     x = x + K * residual;
     P = (BLA::Identity<xN, xN>() - K * C) * P;
