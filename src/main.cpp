@@ -46,16 +46,16 @@
 // State transition constants
 #define FTHRESH (PI/4.0)      // Threshold for being fallen over
 #define UTHRESH (PI/20.0)     // Threshold for being back upright
-#define HIGH_V_THRESH 2.0
+#define HIGH_V_THRESH 10.0
 #define LOW_V_THRESH 1.5
 
 // Loop timing constants (frequencies in Hz)
 #define SPEED_UPDATE_FREQ   5
-#define REPORT_UPDATE_FREQ  1
+#define REPORT_UPDATE_FREQ  2
 #define STORE_UPDATE_FREQ   5
 
 
-//#define RADIOCOMM
+#define RADIOCOMM
 
 #ifdef RADIOCOMM
 
@@ -117,6 +117,7 @@ float var_steer_accel = 0.01;   // Variance in (rad/s^2)^2
 float var_heading = 0.01;       // Variance in (rad/s^2)^2
 
 void report();
+void home_delta();
 
 void find_variances(float &var_v, float &var_a, float &var_phi, float &var_del, float &var_dphi, float &var_ddel);
 
@@ -148,7 +149,6 @@ void setup() {
     Serial2.begin(1200);
     delay(1000);                          // Wait for Serial interfaces to initialize
 
-    Serial.println("Hello!");
 
     Can0.begin(CAN_BPS_1000K);                  // Begin 1M baud rate CAN interface, no enable pin
     Can0.watchFor();                            // Watch for all incoming CAN-Bus messages
@@ -242,7 +242,9 @@ void setup() {
         memSize += 256;
         //Serial.print("Block: #"); Serial.println(memSize/256);
     }
-    retrieveTelemetry(100);
+
+    home_delta();
+
     Serial.println("Finished setup.");
 }
 
@@ -302,7 +304,6 @@ void loop() {
     // Update orientation state measurement
     float g_mag = imu.accelY() * imu.accelY() +
                   imu.accelZ() * imu.accelZ();    // Check if measured orientation gravity vector exceeds feasibility
-//    Serial.println(imu.gyroX());
     phi = g_mag <= 11 * 11 ? atan2(imu.accelY(), imu.accelZ()) : phi;
     del = torque_motor->getPosition();
     dphi = imu.gyroX();
@@ -454,21 +455,17 @@ void loop() {
         TELEMETRY.read(buffer, 32);
         uint8_t c = buffer[0];
 
-        Serial.println(c);
 
         switch (c) {
             case 's':
                 v_r = *((float*) &(buffer[2]));
-                Serial.println(v_r);
                 drive_motor->setSpeed(v_r);
                 break;
             case 'd':
                 del_r = *((float*) &(buffer[2]));
-                Serial.println(del_r);
                 break;
             case 'c':
                 user_req = buffer[2];
-                Serial.println(user_req);
                 break;
             default:
                 break;
@@ -503,13 +500,6 @@ void idle() {
 }
 
 void calibrate() {
-    torque_motor->calibrate();
-    Serial.println("Successfully calibrated torque motor.");
-    delay(1000);
-    torque_motor->setMode(OP_PROFILE_POSITION);
-    while(!torque_motor->enableOperation());
-    torque_motor->setPosition(-PI/2);
-    Serial.println("Succesfully reset to zero position.");
 
     if (imu.calibrateGyroBias()) {
         indicator.beepstring((uint8_t) 0b01110111);
@@ -732,22 +722,21 @@ void report() {
 #ifdef RADIOCOMM
     TELEMETRY.stopListening();
     delay(20);
-    uint8_t frame[32] = "Hello!";
+    uint8_t frame[32];
 
-//    frame[0] = 13;          // State telemetry frame header
-//    frame[1] = sizeof frame;
-//
-//    *((float *) &(frame[2])) = state;
-//    *((float *) &(frame[6])) = phi;
-//    *((float *) &(frame[10])) = del;
-//    *((float *) &(frame[14])) = dphi;
-//    *((float *) &(frame[18])) = ddel;
-//    *((float *) &(frame[22])) = torque;
-//    *((float *) &(frame[26])) = v;
-//    frame[30] = checksum(frame, 30);
-//    frame[31] = 0;
+    frame[0] = 13;          // State telemetry frame header
+    frame[1] = sizeof frame;
 
-    Serial.println(state);
+    *((float *) &(frame[2])) = state;
+    *((float *) &(frame[6])) = phi;
+    *((float *) &(frame[10])) = del;
+    *((float *) &(frame[14])) = dphi;
+    *((float *) &(frame[18])) = ddel;
+    *((float *) &(frame[22])) = torque;
+    *((float *) &(frame[26])) = v;
+    frame[30] = checksum(frame, 30);
+    frame[31] = 0;
+
     TELEMETRY.write(frame, 32);
     delay(20);
 
@@ -860,4 +849,14 @@ void find_variances(float &var_v, float &var_a, float &var_phi, float &var_del, 
     var_del = del_var_acc / CALIB_SAMP;
     var_dphi = dphi_var_acc / CALIB_SAMP;
     var_ddel = ddel_var_acc / CALIB_SAMP;
+}
+
+void home_delta() {
+    torque_motor->calibrate();
+    Serial.println("Successfully calibrated torque motor.");
+    delay(1000);
+    torque_motor->setMode(OP_PROFILE_POSITION);
+    while(!torque_motor->enableOperation());
+    torque_motor->setPosition(0);
+    Serial.println("Succesfully reset to zero position.");
 }

@@ -5,7 +5,7 @@
 #include "DriveMotor.h"
 #include <Arduino.h>
 
-#define DRIVE_MOTOR_VERBOSE
+//#define DRIVE_MOTOR_VERBOSE
 
 
 DriveMotor::DriveMotor(int throttle_pin) {
@@ -44,8 +44,11 @@ void DriveMotor::start() {
     storeThrottle();
     setPAS(DEFAULT_PAS);
 
-    throttleMinV = (float) throttleBuffer[2] * 0.1f;
-    throttleMaxV = (float) throttleBuffer[3] * 0.1f;
+    throttleMinV = (float) throttleBuffer[3] * 0.1f;
+    throttleMaxV = (float) throttleBuffer[4] * 0.1f;
+
+    delay(200);
+    programSpeed();
 }
 
 
@@ -141,26 +144,38 @@ void DriveMotor::programCurrent(int current, int pas) {
     while (Serial1.available()) Serial1.read();
 }
 
-void DriveMotor::programSpeed(int speed, int pas) {
-    byte set;
-    if (speed >= 0 && speed <= 100) {
-        set = (byte) speed;
-    } else {
-        return;
-    }
+void DriveMotor::programSpeed() {
 
-    basicBuffer[14 + pas] = set;
+    basicBuffer[14 + 0] = 0;
+    basicBuffer[14 + 2] = 14;
+    basicBuffer[14 + 4] = 28;
+    basicBuffer[14 + 6] = 42;
+    basicBuffer[14 + 8] = 56;
+    basicBuffer[14 + 9] = 70;
     basicBuffer[2 + LEN_BASIC] = checksum(0, 0, 2 + LEN_BASIC, basicBuffer);
 
     Serial1.write(TAG_WRITE);
+    Serial.print(TAG_WRITE);
+    Serial.print(" ");
+
     Serial1.write(TAG_BASIC);
+    Serial.print(TAG_BASIC);
+    Serial.print(" ");
+
     Serial1.write(LEN_BASIC);
+    Serial.print(LEN_BASIC);
+    Serial.print(" ");
+
 
     for (int i = 2; i < 3 + LEN_BASIC; i++) {
         Serial1.write(basicBuffer[i]);
+        Serial.print(basicBuffer[i]);
+        Serial.print(" ");
     }
+    Serial.println();
     while (!Serial1.available());
-    while (Serial1.available()) Serial1.read();
+    while (Serial1.available()) Serial.print(Serial1.read());
+    Serial.println();
 }
 
 void DriveMotor::programPAS(int num) {
@@ -245,32 +260,39 @@ void DriveMotor::setPAS(int num) {
 }
 
 void DriveMotor::setSpeed(float speed) {
-//    float throttleVoltage = (speed / MAX_SPEED) * (throttleMaxV - throttleMinV) + throttleMinV;
-//    unsigned long throttleLevel = min(4095l * (throttleVoltage - DAC_MIN_V) / (DAC_MAX_V - DAC_MIN_V), 4095l);
-    byte speedCode = min(0x28, max(0x0F, speed * 60 * 60 / 1000)); // Convert speed from m/s to km/hr
+    float throttleVoltage = (speed / MIN_SPEED) * (throttleMaxV - throttleMinV) + throttleMinV;
+    unsigned long throttleLevel = min(4095l * (throttleVoltage - DAC_MIN_V) / (DAC_MAX_V - DAC_MIN_V), 4095l);
+//    Serial.println(throttleVoltage);
+//    Serial.println(throttleLevel);
+//    byte speedCode = min(0x28, max(0x0F, speed * 60 * 60 / 1000)); // Convert speed from m/s to km/hr
+//    Serial.println(speedCode, HEX);
 
-    unsigned long throttleLevel = speed > 0 ? 4095l : 0;
+    throttleLevel = speed > 0 ? 4095l : 0;
+
+//    storeThrottle();
+//    throttleBuffer[6] = speedCode;
+//    throttleBuffer[2 + LEN_THROTTLE] = checksum(0, 0, 2 + LEN_THROTTLE, throttleBuffer);
+//
+//    Serial1.write(TAG_WRITE);
+//    Serial1.write(TAG_THROTTLE);
+//    Serial1.write(LEN_THROTTLE);
+//
+//    for (int i = 2; i < 3 + LEN_THROTTLE; i++) {
+//        Serial1.write(throttleBuffer[i]);
+//    }
+//    while (!Serial1.available());
+//    while (Serial1.available()) {
+//        Serial1.read();
+//    }
+
+//    start();
+
+
+//    setPAS(0);
+//    delay(100);
+    setPAS((int) (speed * 10 / MAX_SPEED));
+
     analogWrite(throttlePin, throttleLevel);
-
-    storeThrottle();
-    throttleBuffer[6] = speedCode;
-    throttleBuffer[2 + LEN_THROTTLE] = checksum(0, 0, 2 + LEN_THROTTLE, throttleBuffer);
-
-    Serial1.write(TAG_WRITE);
-    Serial1.write(TAG_THROTTLE);
-    Serial1.write(LEN_THROTTLE);
-
-    for (int i = 2; i < 3 + LEN_THROTTLE; i++) {
-        Serial1.write(throttleBuffer[i]);
-    }
-    while (!Serial1.available());
-    while (Serial1.available()) {
-        Serial1.read();
-    }
-
-    setPAS(0);
-    delay(100);
-    setPAS(DEFAULT_PAS);
 }
 
 float DriveMotor::getSpeed() {
@@ -288,5 +310,5 @@ float DriveMotor::getSpeed() {
 
     int rpm = startBuffer[0] * 256 + startBuffer[1];
 
-    return WHEEL_CIRCUMFERENCE * rpm / 60.0;
+    return WHEEL_CIRCUMFERENCE * (float) rpm / 60.0;
 }

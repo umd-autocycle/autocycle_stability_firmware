@@ -18,7 +18,7 @@
 #define TAG_PAS_NUM     0x0B
 #define TAG_RPM         0x20
 
-#define LEN_START       18
+#define LEN_START       19
 #define LEN_BASIC       24
 #define LEN_PEDAL       11
 #define LEN_THROTTLE    6
@@ -34,10 +34,11 @@
 #define DRIVE_TEETH     44
 #define MAX_RPM         120.0f
 #define MAX_SPEED       (MAX_RPM * DRIVE_TEETH * WHEEL_CIRCUMFERENCE / REAR_TEETH / 60.0f)
+#define MIN_SPEED       4.2f
 
 class DriveMotor {
 public:
-    DriveMotor(int throttle_pin);
+    explicit DriveMotor(int throttle_pin);
 
     void start();
 
@@ -46,7 +47,7 @@ public:
     bool storeThrottle();
 
     void programCurrent(int current, int pas);
-    void programSpeed(int speed, int pas);
+    void programSpeed();
     void programPAS(int num);
 
     void setPAS(int num);
@@ -57,15 +58,15 @@ public:
 private:
     static byte checksum(long prefactor, int from, int to, const byte *arr);
 
-    float throttleMinV = 1;
-    float throttleMaxV = 3;
+    float throttleMinV = 1.1;
+    float throttleMaxV = 3.5;
 
     int throttlePin = 0;
 
-    byte startBuffer[LEN_START];//array to hold responses from controller
-    byte basicBuffer[LEN_BASIC + 3];
-    byte pedalBuffer[LEN_PEDAL + 3];
-    byte throttleBuffer[LEN_THROTTLE + 3];
+    byte startBuffer[LEN_START]{};//array to hold responses from controller
+    byte basicBuffer[LEN_BASIC + 3]{};
+    byte pedalBuffer[LEN_PEDAL + 3]{};
+    byte throttleBuffer[LEN_THROTTLE + 3]{};
 };
 
 

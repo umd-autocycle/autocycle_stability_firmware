@@ -66,8 +66,8 @@ TorqueMotor::TorqueMotor(CANRaw *can_line, uint16_t node_id, unsigned int curren
     homing_method = -18;
     homing_velocity = profile_velocity/10;
     homing_acceleration = profile_acceleration/10;
-    homing_current = 750; //milliamps
-    homing_period = 50; //milliseconds
+    homing_current = 700;   //milliamps
+    homing_period = 50;     //milliseconds
 }
 
 void TorqueMotor::start() {
@@ -321,7 +321,7 @@ void TorqueMotor::setVelocity(float velocity) {
 }
 
 void TorqueMotor::setPosition(float phi) {
-    int32_t desired_position = 100 * phi * GEARING;
+    int32_t desired_position = 100 * (phi - position_offset) * GEARING;
     outgoing.low = desired_position;
     outgoing.high = 0;
     motor_dev->writePDO(POSITION_RX_PDO_NUM, outgoing);
@@ -349,7 +349,7 @@ float TorqueMotor::getVelocity() {
 float TorqueMotor::getPosition() {
     motor_dev->readPDO(POSITION_TX_PDO_NUM, incoming);
 
-    return ((int32_t) incoming.low) / 100.0f / GEARING;
+    return ((int32_t) incoming.low) / 100.0f / GEARING + position_offset;
 }
 
 uint16_t TorqueMotor::getStatus() {
