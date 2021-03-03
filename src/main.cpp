@@ -36,6 +36,7 @@
 #define R_MANUAL    0b00000010U
 #define R_STOP      0b00000100U
 #define R_RESUME    0b00001000U
+#define R_TIMEOUT   0b00010000U
 
 // Info for torque motor
 #define TM_NODE_ID          127
@@ -81,8 +82,8 @@ Adafruit_FRAM_SPI fram(50);
 BikeModel bike_model;
 
 KalmanFilter<4, 4, 2> orientation_filter;
-KalmanFilter<2, 2, 0> velocity_filter;
-KalmanFilter<2, 1, 0> heading_filter;
+KalmanFilter<2, 2, 1> velocity_filter;
+KalmanFilter<2, 1, 1> heading_filter;
 
 Controller *controller;
 
@@ -183,12 +184,12 @@ void setup() {
     float stored_vars[6];
     float var_v, var_a, var_phi, var_del, var_dphi, var_ddel;
     fram.read(0, (uint8_t *) stored_vars, sizeof stored_vars);
-    var_v = 0.1;//stored_vars[0];
+    var_v = 0.01;//stored_vars[0];
     var_a = 0.1;//stored_vars[1];
     var_phi = 0.1;//stored_vars[2];
-    var_del = 0.1;//stored_vars[3];
+    var_del = 0.01;//stored_vars[3];
     var_dphi = 0.1;//stored_vars[4];
-    var_ddel = 0.1;//stored_vars[5];
+    var_ddel = 0.01;//stored_vars[5];
 
     int16_t stored_offsets[6];
     int16_t ax_off, ay_off, az_off, gx_off, gy_off, gz_off;
@@ -206,7 +207,7 @@ void setup() {
     // Initialize velocity Kalman filter
     velocity_filter.x = {0, 0};                 // Initial state estimate
     velocity_filter.P = BLA::Identity<2, 2>() * 0.1;     // Initial estimate covariance
-    velocity_filter.B = {};                     // Control matrix
+    velocity_filter.B = {0, 1};                     // Control matrix
     velocity_filter.C = BLA::Identity<2, 2>();  // Sensor matrix
     velocity_filter.R = {                       // Sensor covariance matrix
             var_v, 0,
@@ -229,7 +230,8 @@ void setup() {
     // Initialize heading Kalman filter
     heading_filter.x = {0, 0};                  // Initial state estimate
     heading_filter.P = BLA::Identity<2, 2>() * 0.1;      // Initial estimate covariance
-    heading_filter.C = BLA::Identity<1, 2>();   // Sensor matrix
+    heading_filter.B = {0, 1};
+    heading_filter.C = {0, 1};   // Sensor matrix
     heading_filter.R = {                        // Sensor covariance matrix
             var_gyro_z
     };
@@ -244,6 +246,8 @@ void setup() {
     }
 
     home_delta();
+    delay(250);
+    assert_idle();
 
     Serial.println("Finished setup.");
 }
@@ -253,6 +257,7 @@ void loop() {
     static unsigned long last_speed_time = millis();
     static unsigned long last_report_time = millis();
     static unsigned long last_store_time = millis();
+    static unsigned long timeout = 0;
     dt = (float) (millis() - last_time) / 1000.0f;
     last_time = millis();
 
@@ -262,44 +267,42 @@ void loop() {
 
 
     // Update heading Kalman filter parameters
-//    heading_filter.A = {
-//            1, dt,
-//            0, 1
-//    };
-//    heading_filter.Q = {
-//            dt * dt, dt,
-//            dt, 1
-//    };
-//    heading_filter.Q *= var_heading;
-//    heading_filter.predict({});
-//    heading_filter.update({imu.gyroZ()});
-//    heading = heading_filter.x(0);
-//    dheading = heading_filter.x(1);
+    heading_filter.A = {
+            1, dt,
+            0, 1
+    };
+    heading_filter.Q = {
+            var_heading* dt * dt, var_heading*dt,
+            var_heading*dt, var_heading
+    };
+    heading_filter.predict({0});
+    heading_filter.update({imu.gyroZ()});
+    heading = heading_filter.x(0);
+    dheading = heading_filter.x(1);
 
 
     // Update velocity Kalman filter parameters
-//    velocity_filter.A = {
-//            1, dt,
-//            0, 1
-//    };
-//    velocity_filter.Q = {
-//            dt * dt, dt,
-//            dt, 1
-//    };
-//    velocity_filter.Q *= var_drive_motor;
+    velocity_filter.A = {
+            1, dt,
+            0, 1
+    };
+    velocity_filter.Q = {
+            var_drive_motor * dt * dt, var_drive_motor * dt,
+            var_drive_motor * dt, var_drive_motor
+    };
 //    velocity_filter.x(1) = imu.accelX();
-//    velocity_filter.predict({});
+    velocity_filter.predict({0});
 
     // Update velocity state measurement
     if (millis() - last_speed_time >= 1000 / SPEED_UPDATE_FREQ) {
         v_y = drive_motor->getSpeed();
-        v = v_y;
-//        float a_y = imu.accelX();
-//        last_speed_time = millis();
-//
-//        velocity_filter.update({v_y, a_y});
+//        v = v_y;
+        float a_y = imu.accelX();
+        last_speed_time = millis();
+
+        velocity_filter.update({v_y, a_y});
     }
-//    v = velocity_filter.x(0);
+    v = velocity_filter.x(0);
 
     // Update orientation state measurement
     float g_mag = imu.accelY() * imu.accelY() +
@@ -311,22 +314,22 @@ void loop() {
     torque = torque_motor->getTorque();
 
     // Update orientation Kalman filter parameters
-//    orientation_filter.A = bike_model.kalmanTransitionMatrix(v, dt);
-//    orientation_filter.B = bike_model.kalmanControlsMatrix(v, dt);
-//    orientation_filter.Q = {
-//            var_roll_accel / 4 * dt * dt * dt * dt, var_roll_accel / 2 * dt * dt * dt, 0, 0,
-//            var_roll_accel / 2 * dt * dt * dt, var_roll_accel * dt * dt, 0, 0,
-//            0, 0, var_steer_accel / 4 * dt * dt * dt * dt, var_steer_accel / 2 * dt * dt * dt,
-//            0, 0, var_steer_accel / 2 * dt * dt * dt, var_steer_accel * dt * dt,
-//    };
+    orientation_filter.A = bike_model.kalmanTransitionMatrix(v, dt);
+    orientation_filter.B = bike_model.kalmanControlsMatrix(v, dt);
+    orientation_filter.Q = {
+            var_roll_accel / 4 * dt * dt * dt * dt, var_roll_accel / 2 * dt * dt * dt, 0, 0,
+            var_roll_accel / 2 * dt * dt * dt, var_roll_accel * dt * dt, 0, 0,
+            0, 0, var_steer_accel / 4 * dt * dt * dt * dt, var_steer_accel / 2 * dt * dt * dt,
+            0, 0, var_steer_accel / 2 * dt * dt * dt, var_steer_accel * dt * dt,
+    };
 
     // Update orientation state estimate
-//    orientation_filter.predict({0, torque});
-//    orientation_filter.update({phi, del, dphi, ddel});
-//    phi = orientation_filter.x(0);
-//    del = orientation_filter.x(1);
-//    dphi = orientation_filter.x(2);
-//    ddel = orientation_filter.x(3);
+    orientation_filter.predict({0, torque});
+    orientation_filter.update({phi, del, dphi, ddel});
+    phi = orientation_filter.x(0);
+    del = orientation_filter.x(1);
+    dphi = orientation_filter.x(2);
+    ddel = orientation_filter.x(3);
 
 
     // Update indicator
@@ -435,6 +438,13 @@ void loop() {
             break;
     }
 
+    if((user_req & R_TIMEOUT) && millis() > timeout) {
+        user_req &= ~R_TIMEOUT;
+        v_r = 0;
+        drive_motor->setSpeed(0);
+        Serial.println("Timed out!");
+    }
+
     // Report state, reference, and control values
     if (millis() - last_report_time >= 1000 / REPORT_UPDATE_FREQ){
         report();
@@ -467,6 +477,13 @@ void loop() {
             case 'c':
                 user_req = buffer[2];
                 break;
+            case 't':
+                v_r = *((float*) &(buffer[2]));
+                drive_motor->setSpeed(v_r);
+                timeout = millis() + *((uint32_t*) &(buffer[6]));
+                user_req |= R_TIMEOUT;
+                break;
+
             default:
                 break;
         }
@@ -483,6 +500,11 @@ void loop() {
                 break;
             case 'c':
                 user_req |= Serial.read();
+                break;
+            case 't':
+                v_r = Serial.parseFloat();
+                timeout = millis() + Serial.parseInt();
+                user_req |= R_TIMEOUT;
                 break;
             case 'f':
                 retrieveTelemetry(100);
@@ -625,7 +647,7 @@ void manual() {
 }
 
 void assist() {
-    float er = del - del_r;
+    float er = del_r;
     torque_motor->setPosition(er);
 }
 
@@ -740,24 +762,25 @@ void report() {
     TELEMETRY.write(frame, 32);
     delay(20);
 
-//
-//    frame[0] = 14;          // Setpoint telemetry frame header
-//    frame[1] = sizeof frame;
-//
-//    *((float *) &(frame[2])) = state;
-//    *((float *) &(frame[6])) = phi_r;
-//    *((float *) &(frame[10])) = del_r;
-//    *((float *) &(frame[14])) = 0;
-//    *((float *) &(frame[18])) = 0;
-//    *((float *) &(frame[22])) = 0;
-//    *((float *) &(frame[26])) = v_r;
-//    frame[30] = checksum(frame, 30);
-//
-//
-//    TELEMETRY.write(frame, 32);
-//    delay(20);
-//
-//
+
+    frame[0] = 14;          // Setpoint telemetry frame header
+    frame[1] = sizeof frame;
+
+    *((float *) &(frame[2])) = 0;
+    *((float *) &(frame[6])) = phi_r;
+    *((float *) &(frame[10])) = del_r;
+    *((float *) &(frame[14])) = v_r;
+    *((float *) &(frame[18])) = heading;
+    *((float *) &(frame[22])) = dheading;
+    *((float *) &(frame[26])) = millis() / 1000.0f;
+    frame[30] = checksum(frame, 30);
+    frame[31] = 0;
+
+
+    TELEMETRY.write(frame, 32);
+    delay(20);
+
+
 //    frame[0] = 15;          // Raw sensor telemetry frame header
 //    frame[1] = sizeof frame;
 //
@@ -769,6 +792,7 @@ void report() {
 //    *((float *) &(frame[22])) = torque_motor->getPosition();
 //    *((float *) &(frame[26])) = torque_motor->getVelocity();
 //    frame[30] = checksum(frame, 30);
+//    frame[31] = 0;
 //
 //
 //    TELEMETRY.write(frame, 32);
@@ -859,4 +883,5 @@ void home_delta() {
     while(!torque_motor->enableOperation());
     torque_motor->setPosition(0);
     Serial.println("Succesfully reset to zero position.");
+    delay(3000);
 }

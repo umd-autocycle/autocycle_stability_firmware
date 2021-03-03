@@ -77,7 +77,7 @@ public:
 private:
     CANOpenDevice *motor_dev;
     uint32_t data;
-    float position_offset = PI/2;
+    float position_offset = 0;
     unsigned int torque_max, current_max, torque_slope;
     uint32_t profile_acceleration, quick_stop_deceleration, profile_velocity;
     uint32_t homing_offset,homing_method,homing_velocity,homing_acceleration,homing_current,homing_period;

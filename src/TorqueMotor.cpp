@@ -62,11 +62,11 @@ TorqueMotor::TorqueMotor(CANRaw *can_line, uint16_t node_id, unsigned int curren
     profile_acceleration = prof_accel * 100 * GEARING;
     quick_stop_deceleration = qs_decel * 100 * GEARING;
     profile_velocity = prof_vel * 100 * GEARING;
-    homing_offset = -PI/2*100*GEARING; //157 hundredths = 1.57 radians = 90 degrees
+    homing_offset = (PI/2)*100.0*GEARING; //157 hundredths = 1.57 radians = 90 degrees
     homing_method = -18;
     homing_velocity = profile_velocity/10;
     homing_acceleration = profile_acceleration/10;
-    homing_current = 700;   //milliamps
+    homing_current = 750;   //milliamps
     homing_period = 50;     //milliseconds
 }
 
@@ -258,7 +258,7 @@ void TorqueMotor::setMode(uint16_t mode) {
 
 
             //configure parameters
-            motor_dev->writeSDO(0x607CU, 0, SDO_WRITE_4B, -1*homing_offset);
+            motor_dev->writeSDO(0x607CU, 0, SDO_WRITE_4B, homing_offset);
             motor_dev->writeSDO(0x6098U,0,SDO_WRITE_1B,homing_method);
             motor_dev->writeSDO(0x6099U,1,SDO_WRITE_4B, homing_velocity);
             motor_dev->writeSDO(0x6099U,2,SDO_WRITE_4B, homing_velocity);
@@ -281,7 +281,6 @@ void TorqueMotor::setMode(uint16_t mode) {
 void TorqueMotor::calibrate(){
     //Put torque motor into mode to begin sweep
     this->setMode(OP_HOMING);
-    Serial.println("Made it past homing mode set.");
     while(!enableOperation());
 
     outgoing.s0 =  HOMING_REFERENCE_START | 0b0000000000011111U;
