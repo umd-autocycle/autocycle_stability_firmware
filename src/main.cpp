@@ -118,13 +118,17 @@ float var_steer_accel = 0.01;   // Variance in (rad/s^2)^2
 float var_heading = 0.01;       // Variance in (rad/s^2)^2
 
 void report();
+
 void home_delta();
 
 void find_variances(float &var_v, float &var_a, float &var_phi, float &var_del, float &var_dphi, float &var_ddel);
 
 int32_t readBack(uint32_t addr, int32_t data);
+
 void storeTelemetry(int startAddress);
+
 void retrieveTelemetry(int startAddress);
+
 int memSize = 0;
 int framAddress = 100;
 bool isRecording = false;
@@ -240,7 +244,6 @@ void setup() {
     assert_idle();
 
 
-
     while (readBack(memSize, memSize) == memSize) {
         memSize += 256;
         //Serial.print("Block: #"); Serial.println(memSize/256);
@@ -273,8 +276,8 @@ void loop() {
             0, 1
     };
     heading_filter.Q = {
-            var_heading* dt * dt, var_heading*dt,
-            var_heading*dt, var_heading
+            var_heading * dt * dt, var_heading * dt,
+            var_heading * dt, var_heading
     };
     heading_filter.predict({0});
     heading_filter.update({imu.gyroZ()});
@@ -439,7 +442,7 @@ void loop() {
             break;
     }
 
-    if((user_req & R_TIMEOUT) && millis() > timeout) {
+    if ((user_req & R_TIMEOUT) && millis() > timeout) {
         user_req &= ~R_TIMEOUT;
         v_r = 0;
         drive_motor->setSpeed(0);
@@ -447,12 +450,12 @@ void loop() {
     }
 
     // Report state, reference, and control values
-    if (millis() - last_report_time >= 1000 / REPORT_UPDATE_FREQ){
+    if (millis() - last_report_time >= 1000 / REPORT_UPDATE_FREQ) {
         report();
         last_report_time = millis();
     }
-    if(millis() - last_store_time >= 1000/ STORE_UPDATE_FREQ){
-        if(framAddress < (8000-37) && isRecording == true){
+    if (millis() - last_store_time >= 1000 / STORE_UPDATE_FREQ) {
+        if (framAddress < (8000 - 37) && isRecording == true) {
             storeTelemetry(framAddress);
             framAddress += 37;
         }
@@ -587,66 +590,49 @@ void calibrate() {
 int32_t readBack(uint32_t addr, int32_t data) {
     int32_t check = !data;
     int32_t wrapCheck, backup;
-    fram.read(addr, (uint8_t*)&backup, sizeof(int32_t));
+    fram.read(addr, (uint8_t *) &backup, sizeof(int32_t));
     fram.writeEnable(true);
-    fram.write(addr, (uint8_t*)&data, sizeof(int32_t));
+    fram.write(addr, (uint8_t *) &data, sizeof(int32_t));
     fram.writeEnable(false);
-    fram.read(addr, (uint8_t*)&check, sizeof(int32_t));
-    fram.read(0, (uint8_t*)&wrapCheck, sizeof(int32_t));
+    fram.read(addr, (uint8_t *) &check, sizeof(int32_t));
+    fram.read(0, (uint8_t *) &wrapCheck, sizeof(int32_t));
     fram.writeEnable(true);
-    fram.write(addr, (uint8_t*)&backup, sizeof(int32_t));
+    fram.write(addr, (uint8_t *) &backup, sizeof(int32_t));
     fram.writeEnable(false);
     // Check for wraparound, address 0 will work anyway
-    if (wrapCheck==check)
+    if (wrapCheck == check)
         check = 0;
     return check;
 }
 
 
-
-void storeTelemetry(int startAddress){
+void storeTelemetry(int startAddress) {
     fram.writeEnable(true);
-    float valuesToStore [9] = {phi, del, dphi, ddel,v, torque, heading, dheading, millis()/ 1000.0f};
-    fram.write8((uint16_t) startAddress, state);
-    int offsetAddress = startAddress + 1;
-    fram.write((uint16_t) offsetAddress, (uint8_t *) valuesToStore, sizeof valuesToStore);
+    float valuesToStore[9] = {phi, del, dphi, ddel, v, torque, heading, dheading, millis() / 1000.0f};
+    Serial.println(valuesToStore[0]);
+    fram.write8(startAddress, state);
+    fram.write(startAddress + 1, (uint8_t *) valuesToStore, sizeof valuesToStore);
     fram.writeEnable(false);
 }
 
-float bytesToFloat(uint8_t b0, uint8_t b1, uint8_t b2, uint8_t b3)
-{
-    float output;
 
-    *((uint8_t*)(&output) + 3) = b0;
-    *((uint8_t*)(&output) + 2) = b1;
-    *((uint8_t*)(&output) + 1) = b2;
-    *((uint8_t*)(&output) + 0) = b3;
-
-    return output;
-}
-
-void retrieveTelemetry(int startAddress){
-    Serial.println();
-    Serial.println();
+void retrieveTelemetry(int startAddress) {
     Serial.println();
     Serial.println();
     Serial.println("RETRIEVAL BEGINNING");
-    float floats [9] = {};
+    float floats[9] = {};
 
-    while(startAddress < (8000-(4*9+1))) {
-        Serial.print(fram.read8((uint16_t) startAddress));
+    for(int i = startAddress; i < 8000 - 37; i++){
+        Serial.print(fram.read8(i));
         Serial.print("\t");
-        int offsetAddress = startAddress + 1;
-        fram.read((uint16_t) offsetAddress, (uint8_t *) floats, sizeof floats);
-        for(int i = 0; i < 9; i++){
-            Serial.print(floats[i]);
+        fram.read(i + 1, (uint8_t *) floats, sizeof floats);
+        for (float j : floats) {
+            Serial.print(j);
             Serial.print("\t");
         }
         Serial.println();
-        startAddress += (37);
     }
 }
-
 
 
 void manual() {
@@ -720,7 +706,7 @@ void assert_automatic() {
 void assert_fallen() {
     state = FALLEN;
     drive_motor->setSpeed(0);
-    while(!torque_motor->shutdown());
+    while (!torque_motor->shutdown());
 
     indicator.setPassiveRGB(RGB_FALLEN_P);
     indicator.setBlinkRGB(RGB_FALLEN_B);
@@ -737,10 +723,10 @@ void assert_emergency_stop() {
     indicator.setBlinkRGB(RGB_E_STOP_B);
 }
 
-uint8_t checksum(const uint8_t * buffer, int len){
+uint8_t checksum(const uint8_t *buffer, int len) {
     unsigned int acc = 0;
 
-    for(int i = 0; i < len; i++)
+    for (int i = 0; i < len; i++)
         acc += buffer[i];
 
     return acc % 256;
@@ -887,7 +873,7 @@ void home_delta() {
     Serial.println("Successfully calibrated torque motor.");
     delay(1000);
     torque_motor->setMode(OP_PROFILE_POSITION);
-    while(!torque_motor->enableOperation());
+    while (!torque_motor->enableOperation());
     torque_motor->setPosition(0);
     Serial.println("Succesfully reset to zero position.");
     delay(3000);
