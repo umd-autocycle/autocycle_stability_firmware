@@ -56,7 +56,7 @@
 #define STORE_UPDATE_FREQ   5
 
 
-#define RADIOCOMM
+//#define RADIOCOMM
 
 #ifdef RADIOCOMM
 
@@ -127,6 +127,7 @@ void storeTelemetry(int startAddress);
 void retrieveTelemetry(int startAddress);
 int memSize = 0;
 int framAddress = 100;
+bool isRecording = false;
 
 
 void setup() {
@@ -451,7 +452,7 @@ void loop() {
         last_report_time = millis();
     }
     if(millis() - last_store_time >= 1000/ STORE_UPDATE_FREQ){
-        if(framAddress < (8000-37)){
+        if(framAddress < (8000-37) && isRecording == true){
             storeTelemetry(framAddress);
             framAddress += 37;
         }
@@ -509,6 +510,8 @@ void loop() {
             case 'f':
                 retrieveTelemetry(100);
                 break;
+            case 'b':
+                isRecording = true;
 
             default:
                 break;
@@ -604,8 +607,9 @@ int32_t readBack(uint32_t addr, int32_t data) {
 void storeTelemetry(int startAddress){
     fram.writeEnable(true);
     float valuesToStore [9] = {phi, del, dphi, ddel,v, torque, heading, dheading, millis()/ 1000.0f};
-    fram.write8((uint32_t) startAddress, state);
-    fram.write(startAddress + 8, (uint8_t *) valuesToStore, sizeof valuesToStore);
+    fram.write8((uint16_t) startAddress, state);
+    int offsetAddress = startAddress + 1;
+    fram.write((uint16_t) offsetAddress, (uint8_t *) valuesToStore, sizeof valuesToStore);
     fram.writeEnable(false);
 }
 
@@ -622,25 +626,28 @@ float bytesToFloat(uint8_t b0, uint8_t b1, uint8_t b2, uint8_t b3)
 }
 
 void retrieveTelemetry(int startAddress){
+    Serial.println();
+    Serial.println();
+    Serial.println();
+    Serial.println();
+    Serial.println("RETRIEVAL BEGINNING");
+    float floats [9] = {};
+
     while(startAddress < (8000-(4*9+1))) {
-        Serial.print(fram.read8((uint32_t) startAddress));
-        Serial.print(" ");
-        for(int i = 0; i < 10; i++){
-            uint8_t b0 = fram.read8((uint32_t) startAddress + 8 + i*4);
-            uint8_t b1 = fram.read8((uint32_t) startAddress + 9 + i*4);
-            uint8_t b2 = fram.read8((uint32_t) startAddress + 10 + i*4);
-            uint8_t b3 = fram.read8((uint32_t) startAddress + 11 + i*4);
-            Serial.print(bytesToFloat(b0,b1,b2,b3));
-            Serial.print(" ");
+        Serial.print(fram.read8((uint16_t) startAddress));
+        Serial.print("\t");
+        int offsetAddress = startAddress + 1;
+        fram.read((uint16_t) offsetAddress, (uint8_t *) floats, sizeof floats);
+        for(int i = 0; i < 9; i++){
+            Serial.print(floats[i]);
+            Serial.print("\t");
         }
         Serial.println();
         startAddress += (37);
     }
 }
 
-//to-do:
-//write function call within state
-//call only at specific rate
+
 
 void manual() {
 
