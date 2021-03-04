@@ -241,6 +241,12 @@ void setup() {
             var_gyro_z
     };
 
+    if (imu.calibrateGyroBias()) {
+        indicator.beepstring((uint8_t) 0b01110111);
+    } else {
+        indicator.beepstring((uint8_t) 0b10001000);
+    }
+
     assert_idle();
 
 
@@ -455,7 +461,7 @@ void loop() {
         last_report_time = millis();
     }
     if (millis() - last_store_time >= 1000 / STORE_UPDATE_FREQ) {
-        if (framAddress < (8000 - 37) && isRecording == true) {
+        if (framAddress < (4000 - 37) && isRecording == true) {
             storeTelemetry(framAddress);
             framAddress += 37;
         }
@@ -513,13 +519,18 @@ void loop() {
             case 'f':
                 retrieveTelemetry(100);
                 break;
-            case 'b':
+            case 'r':
                 isRecording = true;
+                break;
+            case 'q':
+                isRecording = false;
+                break;
 
             default:
                 break;
         }
 #endif
+        indicator.boop(100);
     }
 }
 
@@ -607,11 +618,13 @@ int32_t readBack(uint32_t addr, int32_t data) {
 
 
 void storeTelemetry(int startAddress) {
+    Serial.print(startAddress);
+    Serial.print("\t");
     fram.writeEnable(true);
     float valuesToStore[9] = {phi, del, dphi, ddel, v, torque, heading, dheading, millis() / 1000.0f};
-    Serial.println(valuesToStore[0]);
-    fram.write8(startAddress, state);
-    fram.write(startAddress + 1, (uint8_t *) valuesToStore, sizeof valuesToStore);
+    fram.write8((uint16_t)startAddress, state);
+    fram.writeEnable(true);
+    fram.write((uint16_t)(startAddress + 1), (uint8_t *) valuesToStore, sizeof valuesToStore);
     fram.writeEnable(false);
 }
 
@@ -622,7 +635,7 @@ void retrieveTelemetry(int startAddress) {
     Serial.println("RETRIEVAL BEGINNING");
     float floats[9] = {};
 
-    for(int i = startAddress; i < 8000 - 37; i++){
+    for(uint16_t i = startAddress; i < 4000 - 37; i += 37){
         Serial.print(fram.read8(i));
         Serial.print("\t");
         fram.read(i + 1, (uint8_t *) floats, sizeof floats);
@@ -810,6 +823,8 @@ void report() {
     Serial.print(heading);
     Serial.print('\t');
     Serial.print(dheading);
+    Serial.print('\t');
+    Serial.print(imu.accelX());
     Serial.print('\t');
     Serial.print(millis() / 1000.0f);
     Serial.println();

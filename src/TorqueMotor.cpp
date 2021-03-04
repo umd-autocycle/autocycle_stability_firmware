@@ -294,13 +294,8 @@ void TorqueMotor::calibrate(){
     {
         delay(1);
         update();
-        Serial.print(getTorque());
-        Serial.print("\t");
-        Serial.println(getPosition());
-
     }
-    Serial.println();
-    Serial.println(getPosition());
+
 }
 
 void TorqueMotor::setTorque(float torque) {
