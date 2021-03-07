@@ -76,7 +76,7 @@ void TorqueMotor::start() {
     // Reset communications
     motor_dev->networkCommand(0x81);
     motor_dev->waitForBoot();
-    delay(5000);
+    delay(4000);
 
 //    while (!disableVoltage());
 
@@ -299,7 +299,7 @@ void TorqueMotor::calibrate(){
 }
 
 void TorqueMotor::setTorque(float torque) {
-    int16_t torque_thou = 1000.0 * torque / GEARING / EFFICIENCY / RATED_TORQUE_NM;
+    int16_t torque_thou = -1.0f * 1000.0 * torque / GEARING / EFFICIENCY / RATED_TORQUE_NM;
     outgoing.s0 = torque_thou;
     outgoing.s1 = 0;
     outgoing.s2 = 0;
@@ -308,14 +308,14 @@ void TorqueMotor::setTorque(float torque) {
 }
 
 void TorqueMotor::setVelocity(float velocity) {
-    int32_t desired_velocity = 100 * velocity * GEARING;
+    int32_t desired_velocity = -1.0f * 100 * velocity * GEARING;
     outgoing.low = desired_velocity;
     outgoing.high = 0;
     motor_dev->writePDO(VELOCITY_RX_PDO_NUM, outgoing);
 }
 
 void TorqueMotor::setPosition(float phi) {
-    int32_t desired_position = 100 * (phi - position_offset) * GEARING;
+    int32_t desired_position = -1.0f * 100 * (phi - position_offset) * GEARING;
     outgoing.low = desired_position;
     outgoing.high = 0;
     motor_dev->writePDO(POSITION_RX_PDO_NUM, outgoing);
@@ -331,19 +331,19 @@ float TorqueMotor::getTorque() {
     motor_dev->readPDO(TORQUE_TX_PDO_NUM, incoming);
     int16_t torque_thou = incoming.s0;
 
-    return (1 / 1000.0f) * GEARING * EFFICIENCY * RATED_TORQUE_NM * (float) torque_thou;
+    return -1.0f * (1 / 1000.0f) * GEARING * EFFICIENCY * RATED_TORQUE_NM * (float) torque_thou;
 }
 
 float TorqueMotor::getVelocity() {
     motor_dev->readPDO(VELOCITY_TX_PDO_NUM, incoming);
 
-    return ((int32_t) incoming.low) / 100.0f / GEARING;
+    return -1.0f * ((int32_t) incoming.low) / 100.0f / GEARING;
 }
 
 float TorqueMotor::getPosition() {
     motor_dev->readPDO(POSITION_TX_PDO_NUM, incoming);
 
-    return ((int32_t) incoming.low) / 100.0f / GEARING + position_offset;
+    return -1.0f * ((int32_t) incoming.low) / 100.0f / GEARING + position_offset;
 }
 
 uint16_t TorqueMotor::getStatus() {

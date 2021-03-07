@@ -47,16 +47,16 @@
 // State transition constants
 #define FTHRESH (PI/4.0)      // Threshold for being fallen over
 #define UTHRESH (PI/20.0)     // Threshold for being back upright
-#define HIGH_V_THRESH 1.5
-#define LOW_V_THRESH 1.0
+#define HIGH_V_THRESH 3.0
+#define LOW_V_THRESH 2.6
 
 // Loop timing constants (frequencies in Hz)
 #define SPEED_UPDATE_FREQ   5
 #define REPORT_UPDATE_FREQ  2
-#define STORE_UPDATE_FREQ   5
+#define STORE_UPDATE_FREQ   10
 
 
-//#define RADIOCOMM
+#define RADIOCOMM
 
 #ifdef RADIOCOMM
 
@@ -96,6 +96,10 @@ float phi = 0.0;            // Roll angle (rad)
 float del = 0.0;            // Steering angle (rad)
 float dphi = 0.0;           // Roll angle rate (rad/s)
 float ddel = 0.0;           // Steering angle rate (rad/s)
+float phi_y = 0.0;          // Roll angle measurement (rad)
+float del_y = 0.0;          // Steering angle measurement (rad)
+float dphi_y = 0.0;         // Roll angle rate measurement (rad/s)
+float ddel_y = 0.0;         // Steering angle rate measurement (rad/s)
 float v = 0.0;              // Velocity (m/s)
 
 float heading = 0.0;
@@ -183,18 +187,18 @@ void setup() {
     imu.configure(2, 2, 1);  // Set accelerometer and gyro resolution, on-chip low-pass filter
 
     // Initialize stability controller
-    controller = new PIDController(30, 15, 3, 8);
+    controller = new PIDController(30, 15, 30, 8);
 
     // Load parameters from FRAM
     float stored_vars[6];
     float var_v, var_a, var_phi, var_del, var_dphi, var_ddel;
     fram.read(0, (uint8_t *) stored_vars, sizeof stored_vars);
-    var_v = 0.01;//stored_vars[0];
-    var_a = 0.1;//stored_vars[1];
-    var_phi = 0.1;//stored_vars[2];
-    var_del = 0.01;//stored_vars[3];
-    var_dphi = 0.1;//stored_vars[4];
-    var_ddel = 0.01;//stored_vars[5];
+    var_v = 0.004;//stored_vars[0];
+    var_a = 0.02;//stored_vars[1];
+    var_phi = 0.004;//stored_vars[2];
+    var_del = 0.0001;//stored_vars[3];
+    var_dphi = 0.001;//stored_vars[4];
+    var_ddel = 0.0001;//stored_vars[5];
 
     int16_t stored_offsets[6];
     int16_t ax_off, ay_off, az_off, gx_off, gy_off, gz_off;
@@ -210,11 +214,11 @@ void setup() {
 
 
     // Initialize velocity Kalman filter
-    velocity_filter.x = {0, 0};                 // Initial state estimate
+    velocity_filter.x = {0, 0};                     // Initial state estimate
     velocity_filter.P = BLA::Identity<2, 2>() * 0.1;     // Initial estimate covariance
     velocity_filter.B = {0, 1};                     // Control matrix
-    velocity_filter.C = BLA::Identity<2, 2>();  // Sensor matrix
-    velocity_filter.R = {                       // Sensor covariance matrix
+    velocity_filter.C = BLA::Identity<2, 2>();      // Sensor matrix
+    velocity_filter.R = {                           // Sensor covariance matrix
             var_v, 0,
             0, var_a
     };
@@ -233,11 +237,11 @@ void setup() {
     float var_gyro_z = 0.01;
 
     // Initialize heading Kalman filter
-    heading_filter.x = {0, 0};                  // Initial state estimate
-    heading_filter.P = BLA::Identity<2, 2>() * 0.1;      // Initial estimate covariance
+    heading_filter.x = {0, 0};                      // Initial state estimate
+    heading_filter.P = BLA::Identity<2, 2>() * 0.1; // Initial estimate covariance
     heading_filter.B = {0, 1};
-    heading_filter.C = {0, 1};   // Sensor matrix
-    heading_filter.R = {                        // Sensor covariance matrix
+    heading_filter.C = {0, 1};                      // Sensor matrix
+    heading_filter.R = {                            // Sensor covariance matrix
             var_gyro_z
     };
 
@@ -317,10 +321,10 @@ void loop() {
     // Update orientation state measurement
     float g_mag = imu.accelY() * imu.accelY() +
                   imu.accelZ() * imu.accelZ();    // Check if measured orientation gravity vector exceeds feasibility
-    phi = g_mag <= 11 * 11 ? atan2(-imu.accelY(), imu.accelZ()) : phi;
-    del = torque_motor->getPosition();
-    dphi = imu.gyroX();
-    ddel = torque_motor->getVelocity();
+    phi_y = g_mag <= 11 * 11 ? atan2(imu.accelY(), imu.accelZ()) : phi;
+    del_y = torque_motor->getPosition();
+    dphi_y = imu.gyroX();
+    ddel_y = torque_motor->getVelocity();
     torque = torque_motor->getTorque();
 
     // Update orientation Kalman filter parameters
@@ -335,7 +339,7 @@ void loop() {
 
     // Update orientation state estimate
     orientation_filter.predict({0, torque});
-    orientation_filter.update({phi, del, dphi, ddel});
+    orientation_filter.update({phi_y, del_y, dphi_y, ddel_y});
     phi = orientation_filter.x(0);
     del = orientation_filter.x(1);
     dphi = orientation_filter.x(2);
@@ -352,7 +356,7 @@ void loop() {
             // Transitions
             if (fabs(phi) > FTHRESH)
                 assert_fallen();
-            if (v > 1.0)
+            if (v > 0.6)
                 assert_assist();
             if (user_req & R_CALIB)
                 assert_calibrate();
@@ -421,8 +425,8 @@ void loop() {
 
         case FALLEN:    // Fallen
             // Transitions
-            if (fabs(phi) < UTHRESH)
-                assert_idle();
+//            if (fabs(phi) < UTHRESH)
+//                assert_idle();
 
             // Action
             fallen();
@@ -461,9 +465,9 @@ void loop() {
         last_report_time = millis();
     }
     if (millis() - last_store_time >= 1000 / STORE_UPDATE_FREQ) {
-        if (framAddress < (8000 - 37) && isRecording == true) {
+        if (framAddress < (8000 - 53) && isRecording == true) {
             storeTelemetry(framAddress);
-            framAddress += 37;
+            framAddress += 53;
         }
         last_store_time = millis();
     }
@@ -478,20 +482,21 @@ void loop() {
 
         switch (c) {
             case 's':
-                v_r = *((float*) &(buffer[2]));
+                v_r = *((float *) &(buffer[2]));
                 drive_motor->setSpeed(v_r);
                 break;
             case 'd':
-                del_r = *((float*) &(buffer[2]));
+                del_r = *((float *) &(buffer[2]));
                 break;
             case 'c':
                 user_req = buffer[2];
                 break;
             case 't':
-                v_r = *((float*) &(buffer[2]));
+                v_r = *((float *) &(buffer[2]));
                 drive_motor->setSpeed(v_r);
-                timeout = millis() + *((uint32_t*) &(buffer[6]));
+                timeout = millis() + *((uint32_t *) &(buffer[6]));
                 user_req |= R_TIMEOUT;
+                isRecording = true;
                 break;
             case 'r':
                 isRecording = true;
@@ -537,6 +542,12 @@ void loop() {
         }
 #endif
         indicator.boop(100);
+    }
+
+    if (Serial.available()) {
+        if (Serial.read() == 'f') {
+            retrieveTelemetry(100);
+        }
     }
 }
 
@@ -627,10 +638,11 @@ void storeTelemetry(int startAddress) {
     Serial.print(startAddress);
     Serial.print("\t");
     fram.writeEnable(true);
-    float valuesToStore[9] = {phi, del, dphi, ddel, v, torque, heading, dheading, millis() / 1000.0f};
-    fram.write8((uint16_t)startAddress, state);
+    float valuesToStore[13] = {millis() / 1000.0f, phi, del, dphi, ddel, v, torque, heading, dheading,
+                               phi_y, del_y, dphi_y, ddel_y};
+    fram.write8((uint16_t) startAddress, state);
     fram.writeEnable(true);
-    fram.write((uint16_t)(startAddress + 1), (uint8_t *) valuesToStore, sizeof valuesToStore);
+    fram.write((uint16_t) (startAddress + 1), (uint8_t *) valuesToStore, sizeof valuesToStore);
     fram.writeEnable(false);
 }
 
@@ -639,9 +651,9 @@ void retrieveTelemetry(int startAddress) {
     Serial.println();
     Serial.println();
     Serial.println("RETRIEVAL BEGINNING");
-    float floats[9] = {};
+    float floats[13] = {};
 
-    for(uint16_t i = startAddress; i < 8000 - 37; i += 37){
+    for (uint16_t i = startAddress; i < 8000 - 53; i += 53) {
         Serial.print(fram.read8(i));
         Serial.print("\t");
         fram.read(i + 1, (uint8_t *) floats, sizeof floats);
@@ -829,10 +841,6 @@ void report() {
     Serial.print(heading);
     Serial.print('\t');
     Serial.print(dheading);
-    Serial.print('\t');
-    Serial.print(imu.accelX());
-    Serial.print('\t');
-    Serial.print(imu.accelZ());
     Serial.print('\t');
     Serial.print(millis() / 1000.0f);
     Serial.println();
