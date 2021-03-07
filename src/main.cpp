@@ -321,7 +321,7 @@ void loop() {
     // Update orientation state measurement
     float g_mag = imu.accelY() * imu.accelY() +
                   imu.accelZ() * imu.accelZ();    // Check if measured orientation gravity vector exceeds feasibility
-    phi_y = g_mag <= 11 * 11 ? atan2(imu.accelY(), imu.accelZ()) : phi;
+    phi_y = g_mag <= 10 * 10 ? atan2(imu.accelY(), imu.accelZ()) : phi_y;
     del_y = torque_motor->getPosition();
     dphi_y = imu.gyroX();
     ddel_y = torque_motor->getVelocity();
@@ -425,8 +425,8 @@ void loop() {
 
         case FALLEN:    // Fallen
             // Transitions
-//            if (fabs(phi) < UTHRESH)
-//                assert_idle();
+            if (fabs(phi) < UTHRESH)
+                assert_idle();
 
             // Action
             fallen();
@@ -764,6 +764,11 @@ uint8_t checksum(const uint8_t *buffer, int len) {
 }
 
 void report() {
+//    Serial.print(imu.accelX());
+//    Serial.print('\t');
+//    Serial.print(imu.accelY());
+//    Serial.print('\t');
+//    Serial.println(imu.accelZ());
 
 #ifdef RADIOCOMM
     TELEMETRY.stopListening();
@@ -787,22 +792,22 @@ void report() {
     delay(20);
 
 
-    frame[0] = 14;          // Setpoint telemetry frame header
-    frame[1] = sizeof frame;
-
-    *((float *) &(frame[2])) = 0;
-    *((float *) &(frame[6])) = phi_r;
-    *((float *) &(frame[10])) = del_r;
-    *((float *) &(frame[14])) = v_r;
-    *((float *) &(frame[18])) = heading;
-    *((float *) &(frame[22])) = dheading;
-    *((float *) &(frame[26])) = millis() / 1000.0f;
-    frame[30] = checksum(frame, 30);
-    frame[31] = 0;
-
-
-    TELEMETRY.write(frame, 32);
-    delay(20);
+//    frame[0] = 14;          // Setpoint telemetry frame header
+//    frame[1] = sizeof frame;
+//
+//    *((float *) &(frame[2])) = 0;
+//    *((float *) &(frame[6])) = phi_r;
+//    *((float *) &(frame[10])) = del_r;
+//    *((float *) &(frame[14])) = v_r;
+//    *((float *) &(frame[18])) = heading;
+//    *((float *) &(frame[22])) = dheading;
+//    *((float *) &(frame[26])) = millis() / 1000.0f;
+//    frame[30] = checksum(frame, 30);
+//    frame[31] = 0;
+//
+//
+//    TELEMETRY.write(frame, 32);
+//    delay(20);
 
 
 //    frame[0] = 15;          // Raw sensor telemetry frame header
