@@ -47,8 +47,8 @@
 // State transition constants
 #define FTHRESH (PI/4.0)      // Threshold for being fallen over
 #define UTHRESH (PI/20.0)     // Threshold for being back upright
-#define HIGH_V_THRESH 10.0
-#define LOW_V_THRESH 1.5
+#define HIGH_V_THRESH 1.5
+#define LOW_V_THRESH 1.0
 
 // Loop timing constants (frequencies in Hz)
 #define SPEED_UPDATE_FREQ   5
@@ -183,7 +183,7 @@ void setup() {
     imu.configure(2, 2, 1);  // Set accelerometer and gyro resolution, on-chip low-pass filter
 
     // Initialize stability controller
-    controller = new PIDController(30, 15, 30, 8);
+    controller = new PIDController(30, 15, 3, 8);
 
     // Load parameters from FRAM
     float stored_vars[6];
@@ -317,7 +317,7 @@ void loop() {
     // Update orientation state measurement
     float g_mag = imu.accelY() * imu.accelY() +
                   imu.accelZ() * imu.accelZ();    // Check if measured orientation gravity vector exceeds feasibility
-    phi = g_mag <= 11 * 11 ? atan2(imu.accelY(), imu.accelZ()) : phi;
+    phi = g_mag <= 11 * 11 ? atan2(-imu.accelY(), imu.accelZ()) : phi;
     del = torque_motor->getPosition();
     dphi = imu.gyroX();
     ddel = torque_motor->getVelocity();
@@ -461,7 +461,7 @@ void loop() {
         last_report_time = millis();
     }
     if (millis() - last_store_time >= 1000 / STORE_UPDATE_FREQ) {
-        if (framAddress < (4000 - 37) && isRecording == true) {
+        if (framAddress < (8000 - 37) && isRecording == true) {
             storeTelemetry(framAddress);
             framAddress += 37;
         }
@@ -492,6 +492,12 @@ void loop() {
                 drive_motor->setSpeed(v_r);
                 timeout = millis() + *((uint32_t*) &(buffer[6]));
                 user_req |= R_TIMEOUT;
+                break;
+            case 'r':
+                isRecording = true;
+                break;
+            case 'q':
+                isRecording = false;
                 break;
 
             default:
@@ -635,7 +641,7 @@ void retrieveTelemetry(int startAddress) {
     Serial.println("RETRIEVAL BEGINNING");
     float floats[9] = {};
 
-    for(uint16_t i = startAddress; i < 4000 - 37; i += 37){
+    for(uint16_t i = startAddress; i < 8000 - 37; i += 37){
         Serial.print(fram.read8(i));
         Serial.print("\t");
         fram.read(i + 1, (uint8_t *) floats, sizeof floats);
@@ -825,6 +831,8 @@ void report() {
     Serial.print(dheading);
     Serial.print('\t');
     Serial.print(imu.accelX());
+    Serial.print('\t');
+    Serial.print(imu.accelZ());
     Serial.print('\t');
     Serial.print(millis() / 1000.0f);
     Serial.println();

@@ -161,7 +161,7 @@ bool IMU::calibrateAccelBias(float x_expected, float y_expected, float z_expecte
 }
 
 float IMU::accelX() const {
-    return a_x * cos(rotation) + a_z * sin(rotation);
+    return a_x * cos(rotation) - a_z * sin(rotation);
 }
 
 float IMU::accelY() const {
@@ -169,11 +169,11 @@ float IMU::accelY() const {
 }
 
 float IMU::accelZ() const {
-    return a_z * cos(rotation) - a_x * sin(rotation);
+    return a_z * cos(rotation) + a_x * sin(rotation);
 }
 
 float IMU::gyroX() const {
-    return g_x * cos(rotation) + g_z * sin(rotation);
+    return g_x * cos(rotation) - g_z * sin(rotation);
 }
 
 float IMU::gyroY() const {
@@ -181,7 +181,7 @@ float IMU::gyroY() const {
 }
 
 float IMU::gyroZ() const {
-    return g_z * cos(rotation) - g_x * sin(rotation);
+    return g_z * cos(rotation) + g_x * sin(rotation);
 }
 
 float IMU::chipTemp() const {

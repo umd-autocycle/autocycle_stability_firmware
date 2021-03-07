@@ -60,7 +60,7 @@ private:
     float a_x, a_y, a_z;
     float g_x, g_y, g_z;
     float temp;
-    float rotation = 8.0 *  PI / 180.0f;
+    float rotation = 16.0 *  PI / 180.0f;
 
     // Gyroscope and accelerometer FS_SEL and AFS_SEL register resolution values
     uint8_t fs_sel;

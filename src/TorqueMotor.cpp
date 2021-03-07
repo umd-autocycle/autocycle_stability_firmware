@@ -66,7 +66,7 @@ TorqueMotor::TorqueMotor(CANRaw *can_line, uint16_t node_id, unsigned int curren
     homing_method = -18;
     homing_velocity = profile_velocity/10;
     homing_acceleration = profile_acceleration/10;
-    homing_current = 750;   //milliamps
+    homing_current = 1100;   //milliamps
     homing_period = 50;     //milliseconds
 }
 
