@@ -11,7 +11,7 @@ class PIDController : public Controller {
 public:
     PIDController(float k_p, float k_i, float k_d, float torque_max);
 
-    float control(float phi, float del, float dphi, float ddel, float phi_r, float del_r, float dt) override;
+    float control(float phi, float del, float dphi, float ddel, float phi_r, float del_r, float v, float dt) override;
 
 private:
     float ei = 0;

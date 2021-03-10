@@ -12,9 +12,9 @@ PIDController::PIDController(float k_p, float k_i, float k_d, float torque_max) 
     this->torque_max = torque_max;
 }
 
-float PIDController::control(float phi, float del, float dphi, float ddel, float phi_r, float del_r, float dt) {
-    float e = phi_r - phi;
-    float de = -dphi;
+float PIDController::control(float phi, float del, float dphi, float ddel, float phi_r, float del_r, float v, float dt) {
+    float e = phi - phi_r;
+    float de = dphi;
     ei += e * dt;
 
     return constrain(k_p * e + k_i * ei + k_d * de, -torque_max, torque_max);

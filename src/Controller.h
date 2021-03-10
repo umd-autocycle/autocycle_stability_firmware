@@ -7,7 +7,7 @@
 
 class Controller {
     public:
-        virtual float control(float phi, float del, float dphi, float ddel, float phi_r, float del_r, float dt) = 0;
+        virtual float control(float phi, float del, float dphi, float ddel, float phi_r, float del_r, float v, float dt) = 0;
 
 };
 

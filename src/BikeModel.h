@@ -19,8 +19,6 @@ public:
     BLA::Matrix<4, 4> kalmanTransitionMatrix(float v, float dt);
     BLA::Matrix<4, 2> kalmanControlsMatrix(float v, float dt);
 
-
-private:
     BLA::Matrix<2, 2> M;    // Equivalent mass matrix
     BLA::Matrix<2, 2> M_inv;
     BLA::Matrix<2, 2> C1;   // Linear-velocity equivalent damping matrix

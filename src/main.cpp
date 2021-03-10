@@ -19,6 +19,7 @@
 #include "DriveMotor.h"
 #include "Controller.h"
 #include "PIDController.h"
+#include "FSFController.h"
 #include "KalmanFilter.h"
 #include "BikeModel.h"
 
@@ -187,7 +188,7 @@ void setup() {
     imu.configure(2, 2, 1);  // Set accelerometer and gyro resolution, on-chip low-pass filter
 
     // Initialize stability controller
-    controller = new PIDController(30, 15, 30, 8);
+    controller = new FSFController(&bike_model, 8.0, -2, -3, -4, -5);
 
     // Load parameters from FRAM
     float stored_vars[6];
@@ -676,7 +677,7 @@ void assist() {
 }
 
 void automatic() {
-    float u = controller->control(phi, del, dphi, ddel, phi_r, del_r, dt);
+    float u = controller->control(phi, del, dphi, ddel, phi_r, del_r, v, dt);
     torque_motor->setTorque(u);
 }
 

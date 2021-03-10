@@ -147,35 +147,38 @@ void DriveMotor::programCurrent(int current, int pas) {
 void DriveMotor::programSpeed() {
 
     basicBuffer[14 + 0] = 0;
-    basicBuffer[14 + 2] = 14;
-    basicBuffer[14 + 4] = 28;
-    basicBuffer[14 + 6] = 42;
-    basicBuffer[14 + 8] = 56;
-    basicBuffer[14 + 9] = 70;
+    basicBuffer[14 + 2] = 13;
+    basicBuffer[14 + 4] = 26;
+    basicBuffer[14 + 6] = 40;
+    basicBuffer[14 + 8] = 53;
+    basicBuffer[14 + 9] = 66;
     basicBuffer[2 + LEN_BASIC] = checksum(0, 0, 2 + LEN_BASIC, basicBuffer);
 
     Serial1.write(TAG_WRITE);
+    Serial1.write(TAG_BASIC);
+    Serial1.write(LEN_BASIC);
+#ifdef DRIVE_MOTOR_VERBOSE
     Serial.print(TAG_WRITE);
     Serial.print(" ");
-
-    Serial1.write(TAG_BASIC);
     Serial.print(TAG_BASIC);
     Serial.print(" ");
-
-    Serial1.write(LEN_BASIC);
     Serial.print(LEN_BASIC);
     Serial.print(" ");
+#endif
 
 
     for (int i = 2; i < 3 + LEN_BASIC; i++) {
         Serial1.write(basicBuffer[i]);
+#ifdef DRIVE_MOTOR_VERBOSE
         Serial.print(basicBuffer[i]);
         Serial.print(" ");
+#endif
     }
-    Serial.println();
     while (!Serial1.available());
-    while (Serial1.available()) Serial.print(Serial1.read());
+    while (Serial1.available());
+#ifdef DRIVE_MOTOR_VERBOSE
     Serial.println();
+#endif
 }
 
 void DriveMotor::programPAS(int num) {
@@ -262,34 +265,9 @@ void DriveMotor::setPAS(int num) {
 void DriveMotor::setSpeed(float speed) {
     float throttleVoltage = (speed / MIN_SPEED) * (throttleMaxV - throttleMinV) + throttleMinV;
     unsigned long throttleLevel = min(4095l * (throttleVoltage - DAC_MIN_V) / (DAC_MAX_V - DAC_MIN_V), 4095l);
-//    Serial.println(throttleVoltage);
-//    Serial.println(throttleLevel);
-//    byte speedCode = min(0x28, max(0x0F, speed * 60 * 60 / 1000)); // Convert speed from m/s to km/hr
-//    Serial.println(speedCode, HEX);
 
     throttleLevel = speed > 0 ? 4095l : 0;
 
-//    storeThrottle();
-//    throttleBuffer[6] = speedCode;
-//    throttleBuffer[2 + LEN_THROTTLE] = checksum(0, 0, 2 + LEN_THROTTLE, throttleBuffer);
-//
-//    Serial1.write(TAG_WRITE);
-//    Serial1.write(TAG_THROTTLE);
-//    Serial1.write(LEN_THROTTLE);
-//
-//    for (int i = 2; i < 3 + LEN_THROTTLE; i++) {
-//        Serial1.write(throttleBuffer[i]);
-//    }
-//    while (!Serial1.available());
-//    while (Serial1.available()) {
-//        Serial1.read();
-//    }
-
-//    start();
-
-
-//    setPAS(0);
-//    delay(100);
     setPAS((int) (speed * 10 / MAX_SPEED));
 
     analogWrite(throttlePin, throttleLevel);
