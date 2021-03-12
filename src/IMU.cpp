@@ -161,15 +161,15 @@ bool IMU::calibrateAccelBias(float x_expected, float y_expected, float z_expecte
 }
 
 float IMU::accelX() const {
-    return a_x * cos(rotation) - a_z * sin(rotation);
+    return a_x * cos(rotation) - a_z * sin(rotation) - (gyroZ()*gyroZ())*IMU_TO_ORIGIN_X;
 }
 
 float IMU::accelY() const {
-    return a_y;
+    return a_y - alphaY_from_X * IMU_TO_ORIGIN_Z - alphaY_from_Z * IMU_TO_ORIGIN_X;
 }
 
 float IMU::accelZ() const {
-    return a_z * cos(rotation) + a_x * sin(rotation);
+    return a_z * cos(rotation) + a_x * sin(rotation) - (gyroX()*gyroX())*IMU_TO_ORIGIN_Z ;
 }
 
 float IMU::gyroX() const {
@@ -190,6 +190,9 @@ float IMU::chipTemp() const {
 
 
 void IMU::update() {
+    dt = (float) (millis() - last_time) / 1000.0f;
+    last_time = millis();
+
     int16_t buffer[7];
     read_registers(0x3B, buffer, 7);
 
@@ -209,6 +212,12 @@ void IMU::update() {
     g_x = (float) (g_x_raw * gyro_fsr) / GYRO_RANGE * (float) PI / 180.0f;
     g_y = (float) (g_y_raw * gyro_fsr) / GYRO_RANGE * (float) PI / 180.0f;
     g_z = (float) (g_z_raw * gyro_fsr) / GYRO_RANGE * (float) PI / 180.0f;
+
+    alphaY_from_X = ((gyroX() - last_gyro_x))/dt;
+    alphaY_from_Z = ((gyroZ() - last_gyro_z))/dt;
+
+    last_gyro_x = gyroX();
+    last_gyro_z = gyroZ();
 
 }
 
