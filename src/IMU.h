@@ -15,8 +15,8 @@
 #define GYRO_RANGE      32767
 #define ACCEL_RANGE     32767
 
-#define IMU_TO_ORIGIN_X .62
-#define IMU_TO_ORIGIN_Z .76
+#define IMU_TO_ORIGIN_X .62f
+#define IMU_TO_ORIGIN_Z .76f
 
 class IMU {
 public:
@@ -40,15 +40,6 @@ public:
     // Retrieve chip temperature in degrees Celsius
     float chipTemp() const;
 
-    float dt;
-    float last_time = 0;
-
-    float alphaY_from_X;
-    float alphaY_from_Z;
-
-    float last_gyro_x = 0;
-    float last_gyro_z = 0;
-
     // Update readings from hardware
     void update();
 
@@ -71,6 +62,9 @@ private:
     int16_t temp_raw;
     float a_x, a_y, a_z;
     float g_x, g_y, g_z;
+    float alphaX, alphaZ;
+    float last_gyro_x = 0;
+    float last_gyro_z = 0;
     float temp;
     float rotation = 16.0 *  PI / 180.0f;
 
