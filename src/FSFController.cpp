@@ -19,12 +19,18 @@ FSFController::FSFController(BikeModel *model, float torque_max, float l1, float
     C1_det = BLA::Determinant(model->C1);
     K0_det = BLA::Determinant(model->K0);
     K2_det = BLA::Determinant(model->K2);
-    C1_M_det = BLA::Determinant(model->C1 - model->M);
-    K2_M_det = BLA::Determinant(model->K2 - model->M);
-    K0_M_det = BLA::Determinant(model->K0 - model->M);
-    C1_K2_det = BLA::Determinant(model->C1 - model->K2);
-    C1_K0_det = BLA::Determinant(model->C1 - model->K0);
-    K0_K2_det = BLA::Determinant(model->K0 - model->K2);
+    auto t1 = model->C1 - model->M;
+    C1_M_det = t1.Det();
+    auto t2 = model->K2 - model->M;
+    K2_M_det = t2.Det();
+    auto t3 = model->K0 - model->M;
+    K0_M_det = t3.Det();
+    auto t4 = model->C1 - model->K2;
+    C1_K2_det = t4.Det();
+    auto t5 = model->C1 - model->K0;
+    C1_K0_det = t5.Det();
+    auto t6 = model->K0 - model->K2;
+    K0_K2_det = t6.Det();
 }
 
 float
