@@ -5,7 +5,7 @@
 #include "DriveMotor.h"
 #include <Arduino.h>
 
-//#define DRIVE_MOTOR_VERBOSE
+#define DRIVE_MOTOR_VERBOSE
 
 
 DriveMotor::DriveMotor(int throttle_pin) {
@@ -48,7 +48,7 @@ void DriveMotor::start() {
     throttleMaxV = (float) throttleBuffer[4] * 0.1f;
 
     delay(200);
-    programSpeed();
+//    programSpeed();
 }
 
 
@@ -267,6 +267,8 @@ void DriveMotor::setSpeed(float speed) {
     unsigned long throttleLevel = min(4095l * (throttleVoltage - DAC_MIN_V) / (DAC_MAX_V - DAC_MIN_V), 4095l);
 
     throttleLevel = speed > 0 ? 4095l : 0;
+    Serial.println((int) (speed * 10 / MAX_SPEED));
+    Serial.println(throttleLevel);
 
     setPAS((int) (speed * 10 / MAX_SPEED));
 

@@ -48,8 +48,8 @@
 // State transition constants
 #define FTHRESH (PI/4.0)      // Threshold for being fallen over
 #define UTHRESH (PI/20.0)     // Threshold for being back upright
-#define HIGH_V_THRESH 3.0
-#define LOW_V_THRESH 2.6
+#define HIGH_V_THRESH 2.2
+#define LOW_V_THRESH 1.8
 
 // Loop timing constants (frequencies in Hz)
 #define SPEED_UPDATE_FREQ   5
@@ -61,7 +61,7 @@
 
 #ifdef RADIOCOMM
 
-#include <nRF24L01.h>
+//#include <nRF24L01.h>
 #include <RF24.h>
 
 RF24 radio(7, 8);
@@ -143,8 +143,12 @@ void setup() {
     Wire.begin();                               // Begin I2C interface
 //    SPI.begin();                                // Begin Serial Peripheral Interface (SPI)
 
+    Serial.begin(115200);
 #ifdef RADIOCOMM
-    radio.begin();
+    if(!radio.begin()){
+        Serial.println("Radio not found");
+        while(1);
+    }
     radio.openWritingPipe(writeAddr);
     radio.openReadingPipe(1, readAddr);
     radio.setPALevel(RF24_PA_HIGH);
@@ -153,7 +157,7 @@ void setup() {
 #else
     TELEMETRY.begin(115200);                    // Begin Main Serial (UART to USB) communication
 #endif
-    Serial.begin(115200);
+
 
 
     Serial1.begin(1200);              // Begin Bafang Serial (UART) communication
@@ -179,27 +183,32 @@ void setup() {
     torque_motor = new TorqueMotor(&Can0, TM_NODE_ID, TM_CURRENT_MAX, TM_TORQUE_MAX, TM_TORQUE_SLOPE,
                                    8 * PI, 16 * PI, 10);
     torque_motor->start();
+    Serial.println("Initialized Torque Motor.");
 
+    Serial.println("Initializing Drive Motor.");
     // Initialize Bafang drive motor
     drive_motor = new DriveMotor(DAC0);
     drive_motor->start();
+    Serial.println("Initialized Drive Motor.");
 
     imu.start();                                    // Initialize IMU
     imu.configure(2, 2, 1);  // Set accelerometer and gyro resolution, on-chip low-pass filter
 
+    Serial.println("Initializing controller.");
     // Initialize stability controller
     controller = new FSFController(&bike_model, 8.0, -2, -3, -4, -5);
 
+    Serial.println("Initialized controller.");
     // Load parameters from FRAM
     float stored_vars[6];
     float var_v, var_a, var_phi, var_del, var_dphi, var_ddel;
     fram.read(0, (uint8_t *) stored_vars, sizeof stored_vars);
-    var_v = 0.004;//stored_vars[0];
+    var_v = 0.0004;//stored_vars[0];
     var_a = 0.02;//stored_vars[1];
-    var_phi = 0.004;//stored_vars[2];
-    var_del = 0.0001;//stored_vars[3];
-    var_dphi = 0.001;//stored_vars[4];
-    var_ddel = 0.0001;//stored_vars[5];
+    var_phi = 0.00265;//stored_vars[2];
+    var_del = 0.00001;//stored_vars[3];
+    var_dphi = 0.00001;//stored_vars[4];
+    var_ddel = 0.00001;//stored_vars[5];
 
     int16_t stored_offsets[6];
     int16_t ax_off, ay_off, az_off, gx_off, gy_off, gz_off;
@@ -479,6 +488,8 @@ void loop() {
         uint8_t buffer[32];
         TELEMETRY.read(buffer, 32);
         uint8_t c = buffer[0];
+        Serial.print(c);
+        Serial.println(buffer[1]);
 
 
         switch (c) {
@@ -733,6 +744,7 @@ void assert_automatic() {
     indicator.disablePulse();
     indicator.setPassiveRGB(RGB_AUTO_P);
     indicator.setBlinkRGB(RGB_AUTO_B);
+    indicator.beep();
 }
 
 void assert_fallen() {
