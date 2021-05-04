@@ -123,6 +123,9 @@ float var_roll_accel = 0.01;    // Variance in (rad/s^2)^2
 float var_steer_accel = 0.01;   // Variance in (rad/s^2)^2
 float var_heading = 0.01;       // Variance in (rad/s^2)^2
 
+const int dirPin = 10;      // Placeholder values for pin numbers
+const int stepPin = 11;
+
 void report();
 
 void home_delta();
@@ -134,6 +137,8 @@ int32_t readBack(uint32_t addr, int32_t data);
 void storeTelemetry(int startAddress);
 
 void retrieveTelemetry(int startAddress);
+
+void physical_brake(bool engage, int timeInMill);
 
 int memSize = 0;
 int framAddress = 100;
@@ -273,6 +278,9 @@ void setup() {
     home_delta();
     delay(250);
     assert_idle();
+
+    pinMode(stepPin, OUTPUT);
+    pinMode(dirPin, OUTPUT);
 
     Serial.println("Finished setup.");
 }
@@ -441,7 +449,7 @@ void loop() {
 
             // Action
             fallen();
-
+            physical_brake(true,1000);
             break;
 
         case E_STOP:    // Emergency stop
@@ -455,7 +463,7 @@ void loop() {
 
             // Action
             emergency_stop();
-
+            physical_brake(true,1000);
             break;
 
         default:        // Invalid state, fatal error
@@ -934,4 +942,16 @@ void home_delta() {
     torque_motor->setPosition(0);
     Serial.println("Succesfully reset to zero position.");
     delay(3000);
+}
+
+void physical_brake(bool engage, int timeInMill){
+    digtalWrite(dirPin,engage);
+    int steps = floor(70/(20*3.1415)*200); // distance desired/circumfrence*stepsPerRe
+    for (int k;k>steps;k++){
+        digtalWrite(stepPin,HIGH);
+        delayMicroseconds(1000);
+        digitalWrite(stepPin, LOW);
+        delayMicroseconds(1000);
+    }
+    delay(timeInMill);
 }
