@@ -110,22 +110,30 @@ BikeModel::BikeModel() {
 
 }
 
-BLA::Matrix<4, 4> BikeModel::dynamicsMatrix(float v) {
-    auto a11 = BLA::Zeros<2, 2>();
-    auto a12 = BLA::Identity<2, 2>();
-    auto a21 = M_inv * (K0 + K2 * (v * v)) * (-1);
-    auto a22 = M_inv * C1 * (-v);
-    return (a11 || a12) && (a21 || a22);
+BLA::Matrix<4, 4> BikeModel::dynamicsMatrix(float v, bool free_running) {
+    if (free_running) {
+        auto a11 = BLA::Zeros<2, 2>();
+        auto a12 = BLA::Identity<2, 2>();
+        auto a21 = M_inv * (K0 + K2 * (v * v)) * (-1);
+        auto a22 = M_inv * C1 * (-v);
+        return (a11 || a12) && (a21 || a22);
+    } else {
+        auto a11 = BLA::Zeros<2, 2>();
+        auto a12 = BLA::Identity<2, 2>();
+        auto a21 = BLA::Zeros<2, 2>();
+        auto a22 = BLA::Zeros<2, 2>();
+        return (a11 || a12) && (a21 || a22);
+    }
 }
 
-BLA::Matrix<4, 2> BikeModel::controlsMatrix(float v) {
+BLA::Matrix<4, 2> BikeModel::controlsMatrix(float v, bool free_running) {
     return BLA::Zeros<2, 2>() && M_inv;
 }
 
-BLA::Matrix<4, 4> BikeModel::kalmanTransitionMatrix(float v, float dt) {
-    return (BLA::Identity<4, 4>() + dynamicsMatrix(v) * dt);
+BLA::Matrix<4, 4> BikeModel::kalmanTransitionMatrix(float v, float dt, bool free_running) {
+    return (BLA::Identity<4, 4>() + dynamicsMatrix(v, free_running) * dt);
 }
 
-BLA::Matrix<4, 2> BikeModel::kalmanControlsMatrix(float v, float dt) {
-    return controlsMatrix(v) * dt;
+BLA::Matrix<4, 2> BikeModel::kalmanControlsMatrix(float v, float dt, bool free_running) {
+    return controlsMatrix(v, free_running) * dt;
 }

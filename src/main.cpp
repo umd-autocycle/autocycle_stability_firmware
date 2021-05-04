@@ -102,6 +102,7 @@ float del_y = 0.0;          // Steering angle measurement (rad)
 float dphi_y = 0.0;         // Roll angle rate measurement (rad/s)
 float ddel_y = 0.0;         // Steering angle rate measurement (rad/s)
 float v = 0.0;              // Velocity (m/s)
+bool free_running = false;
 
 float heading = 0.0;
 float dheading = 0.0;
@@ -334,8 +335,8 @@ void loop() {
     torque = torque_motor->getTorque();
 
     // Update orientation Kalman filter parameters
-    orientation_filter.A = bike_model.kalmanTransitionMatrix(v, dt);
-    orientation_filter.B = bike_model.kalmanControlsMatrix(v, dt);
+    orientation_filter.A = bike_model.kalmanTransitionMatrix(v, dt, free_running);
+    orientation_filter.B = bike_model.kalmanControlsMatrix(v, dt, free_running);
     orientation_filter.Q = {
             var_roll_accel / 4 * dt * dt * dt * dt, var_roll_accel / 2 * dt * dt * dt, 0, 0,
             var_roll_accel / 2 * dt * dt * dt, var_roll_accel * dt * dt, 0, 0,
@@ -705,6 +706,7 @@ void emergency_stop() {
 // State assertion
 void assert_idle() {
     state = IDLE;
+    free_running = false;
     while (!torque_motor->shutdown());
 
     indicator.disablePulse();
@@ -714,6 +716,7 @@ void assert_idle() {
 
 void assert_calibrate() {
     state = CALIB;
+    free_running = false;
 
     indicator.setPassiveRGB(RGB_CALIB_P);
     indicator.setBlinkRGB(RGB_CALIB_B);
@@ -722,6 +725,7 @@ void assert_calibrate() {
 
 void assert_manual() {
     state = MANUAL;
+    free_running = false;
 
     indicator.disablePulse();
     indicator.setPassiveRGB(RGB_MANUAL_P);
@@ -730,6 +734,7 @@ void assert_manual() {
 
 void assert_assist() {
     state = ASSIST;
+    free_running = false;
     torque_motor->setMode(OP_PROFILE_POSITION);
     while (!torque_motor->enableOperation());
 
@@ -740,6 +745,7 @@ void assert_assist() {
 
 void assert_automatic() {
     state = AUTO;
+    free_running = true;
     torque_motor->setMode(OP_PROFILE_TORQUE);
     while (!torque_motor->enableOperation());
 
@@ -751,6 +757,7 @@ void assert_automatic() {
 
 void assert_fallen() {
     state = FALLEN;
+    free_running = false;
     drive_motor->setSpeed(0);
     while (!torque_motor->shutdown());
 
@@ -761,6 +768,7 @@ void assert_fallen() {
 
 void assert_emergency_stop() {
     state = E_STOP;
+    free_running = false;
     drive_motor->setSpeed(0);
     while (!torque_motor->shutdown());
 

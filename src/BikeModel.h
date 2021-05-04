@@ -13,11 +13,11 @@ class BikeModel {
 public:
     BikeModel();
 
-    BLA::Matrix<4, 4> dynamicsMatrix(float v);
-    BLA::Matrix<4, 2> controlsMatrix(float v);
+    BLA::Matrix<4, 4> dynamicsMatrix(float v, bool free_running);
+    BLA::Matrix<4, 2> controlsMatrix(float v, bool free_running);
 
-    BLA::Matrix<4, 4> kalmanTransitionMatrix(float v, float dt);
-    BLA::Matrix<4, 2> kalmanControlsMatrix(float v, float dt);
+    BLA::Matrix<4, 4> kalmanTransitionMatrix(float v, float dt, bool free_running);
+    BLA::Matrix<4, 2> kalmanControlsMatrix(float v, float dt, bool free_running);
 
     BLA::Matrix<2, 2> M;    // Equivalent mass matrix
     BLA::Matrix<2, 2> M_inv;
