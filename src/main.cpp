@@ -145,9 +145,9 @@ void setup() {
 
     Serial.begin(115200);
 #ifdef RADIOCOMM
-    if(!radio.begin()){
+    if (!radio.begin()) {
         Serial.println("Radio not found");
-        while(1);
+        while (1);
     }
     radio.openWritingPipe(writeAddr);
     radio.openReadingPipe(1, readAddr);
@@ -157,7 +157,6 @@ void setup() {
 #else
     TELEMETRY.begin(115200);                    // Begin Main Serial (UART to USB) communication
 #endif
-
 
 
     Serial1.begin(1200);              // Begin Bafang Serial (UART) communication
@@ -263,14 +262,11 @@ void setup() {
 
     assert_idle();
 
-
     while (readBack(memSize, memSize) == memSize) {
         memSize += 256;
         //Serial.print("Block: #"); Serial.println(memSize/256);
     }
 
-    home_delta();
-    delay(250);
     assert_idle();
 
     Serial.println("Finished setup.");
@@ -509,6 +505,12 @@ void loop() {
                 timeout = millis() + *((uint32_t *) &(buffer[6]));
                 user_req |= R_TIMEOUT;
                 isRecording = true;
+                break;
+            case 'h':
+                assert_idle();
+                home_delta();
+                delay(250);
+                assert_idle();
                 break;
             case 'r':
                 isRecording = true;
