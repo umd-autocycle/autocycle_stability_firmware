@@ -23,6 +23,7 @@
 #include "FSFController.h"
 #include "KalmanFilter.h"
 #include "BikeModel.h"
+#include "ZSS.h"
 
 // States
 #define IDLE    0
@@ -124,9 +125,12 @@ float var_roll_accel = 0.01;    // Variance in (rad/s^2)^2
 float var_steer_accel = 0.01;   // Variance in (rad/s^2)^2
 float var_heading = 0.01;       // Variance in (rad/s^2)^2
 
-const int dirPin = 10;      // Placeholder values for pin numbers
-const int stepPin = 11;
-AccelStepper stepper(AccelStepper::DRIVER, 10, 11);
+const int enPin = A0;       // Information for brake stepper
+const int dirPin = A2;
+const int stepPin = A1;
+AccelStepper stepper(AccelStepper::DRIVER, stepPin, dirPin);
+
+ZSS zss(28, 26, 24, 22);
 
 
 void report();
@@ -149,6 +153,7 @@ bool isRecording = false;
 
 
 void setup() {
+    zss.start();
     Wire.begin();                               // Begin I2C interface
 //    SPI.begin();                                // Begin Serial Peripheral Interface (SPI)
 
@@ -281,8 +286,8 @@ void setup() {
 
     assert_idle();
 
-    pinMode(stepPin, OUTPUT);
-    pinMode(dirPin, OUTPUT);
+    pinMode(enPin, OUTPUT);
+    digitalWrite(enPin, LOW);
 
     Serial.println("Finished setup.");
 }
@@ -720,6 +725,7 @@ void assert_idle() {
     state = IDLE;
     free_running = false;
     physical_brake(false);
+    zss.deploy();
     while (!torque_motor->shutdown());
 
     indicator.disablePulse();
@@ -748,6 +754,7 @@ void assert_manual() {
 void assert_assist() {
     state = ASSIST;
     free_running = false;
+    zss.deploy();
     torque_motor->setMode(OP_PROFILE_POSITION);
     while (!torque_motor->enableOperation());
 
@@ -759,6 +766,7 @@ void assert_assist() {
 void assert_automatic() {
     state = AUTO;
     free_running = true;
+    zss.retract();
     torque_motor->setMode(OP_PROFILE_TORQUE);
     while (!torque_motor->enableOperation());
 
@@ -784,6 +792,7 @@ void assert_emergency_stop() {
     free_running = false;
     drive_motor->setSpeed(0);
     physical_brake(true);
+    zss.deploy();
     while (!torque_motor->shutdown());
 
     indicator.disablePulse();
