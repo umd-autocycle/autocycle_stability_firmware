@@ -76,7 +76,7 @@ void TorqueMotor::start() {
     // Reset communications
     motor_dev->networkCommand(0x81);
     motor_dev->waitForBoot();
-    delay(4000);
+    delay(1000);
 
 //    while (!disableVoltage());
 

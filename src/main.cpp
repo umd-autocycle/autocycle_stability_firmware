@@ -274,14 +274,11 @@ void setup() {
 
     assert_idle();
 
-
     while (readBack(memSize, memSize) == memSize) {
         memSize += 256;
         //Serial.print("Block: #"); Serial.println(memSize/256);
     }
 
-    home_delta();
-    delay(250);
     assert_idle();
 
     pinMode(stepPin, OUTPUT);
@@ -521,6 +518,12 @@ void loop() {
                 timeout = millis() + *((uint32_t *) &(buffer[6]));
                 user_req |= R_TIMEOUT;
                 isRecording = true;
+                break;
+            case 'h':
+                assert_idle();
+                home_delta();
+                delay(250);
+                assert_idle();
                 break;
             case 'r':
                 isRecording = true;
