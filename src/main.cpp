@@ -7,6 +7,7 @@
 #include <Wire.h>
 #include <SPI.h>
 #include <due_can.h>
+#include <AccelStepper.h>
 #include <Adafruit_FRAM_SPI.h>
 
 // Internal libraries
@@ -125,6 +126,8 @@ float var_heading = 0.01;       // Variance in (rad/s^2)^2
 
 const int dirPin = 10;      // Placeholder values for pin numbers
 const int stepPin = 11;
+AccelStepper stepper(AccelStepper::DRIVER, 10, 11);
+
 
 void report();
 
@@ -138,7 +141,7 @@ void storeTelemetry(int startAddress);
 
 void retrieveTelemetry(int startAddress);
 
-void physical_brake(bool engage, int timeInMill);
+void physical_brake(bool engage);
 
 int memSize = 0;
 int framAddress = 100;
@@ -151,9 +154,9 @@ void setup() {
 
     Serial.begin(115200);
 #ifdef RADIOCOMM
-    if(!radio.begin()){
+    if (!radio.begin()) {
         Serial.println("Radio not found");
-        while(1);
+        while (1);
     }
     radio.openWritingPipe(writeAddr);
     radio.openReadingPipe(1, readAddr);
@@ -163,7 +166,6 @@ void setup() {
 #else
     TELEMETRY.begin(115200);                    // Begin Main Serial (UART to USB) communication
 #endif
-
 
 
     Serial1.begin(1200);              // Begin Bafang Serial (UART) communication
@@ -178,6 +180,9 @@ void setup() {
 
     analogWriteResolution(12);              // Enable expanded PWM and ADC resolution
     analogReadResolution(12);
+
+    stepper.setAcceleration(1000.0);
+    stepper.setMaxSpeed(100.0);
 
     // Initialize indicator
     indicator.start();
@@ -449,7 +454,6 @@ void loop() {
 
             // Action
             fallen();
-            physical_brake(true,1000);
             break;
 
         case E_STOP:    // Emergency stop
@@ -463,7 +467,6 @@ void loop() {
 
             // Action
             emergency_stop();
-            physical_brake(true,1000);
             break;
 
         default:        // Invalid state, fatal error
@@ -713,6 +716,7 @@ void emergency_stop() {
 void assert_idle() {
     state = IDLE;
     free_running = false;
+    physical_brake(false);
     while (!torque_motor->shutdown());
 
     indicator.disablePulse();
@@ -776,6 +780,7 @@ void assert_emergency_stop() {
     state = E_STOP;
     free_running = false;
     drive_motor->setSpeed(0);
+    physical_brake(true);
     while (!torque_motor->shutdown());
 
     indicator.disablePulse();
@@ -944,14 +949,14 @@ void home_delta() {
     delay(3000);
 }
 
-void physical_brake(bool engage, int timeInMill){
-    digtalWrite(dirPin,engage);
-    int steps = floor(70/(20*3.1415)*200); // distance desired/circumfrence*stepsPerRe
-    for (int k;k>steps;k++){
-        digtalWrite(stepPin,HIGH);
-        delayMicroseconds(1000);
-        digitalWrite(stepPin, LOW);
-        delayMicroseconds(1000);
+void physical_brake(bool engage) {
+    int steps = floor(70 / (20 * 3.1415) * 200);
+
+    if(engage){
+        stepper.moveTo(steps);
+    } else{
+        stepper.moveTo(0);
     }
-    delay(timeInMill);
+
+    stepper.runToPosition();
 }
