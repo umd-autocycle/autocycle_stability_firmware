@@ -27,18 +27,18 @@ void ZSS::start() {
 }
 
 void ZSS::deploy() {
-    digitalWrite(p1, LOW);
     digitalWrite(p2, HIGH);
     digitalWrite(p3, HIGH);
+    digitalWrite(p1, LOW);
     digitalWrite(p4, LOW);
     down = true;
 }
 
 void ZSS::retract() {
     digitalWrite(p1, HIGH);
+    digitalWrite(p4, HIGH);
     digitalWrite(p2, LOW);
     digitalWrite(p3, LOW);
-    digitalWrite(p4, HIGH);
     down = false;
 }
 
