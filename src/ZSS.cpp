@@ -4,14 +4,14 @@
 
 #include "ZSS.h"
 
-ZSS::ZSS(uint8_t p1, uint8_t p2, uint8_t p3, uint8_t p4) {
+ZSS::ZSS(uint8_t p1, uint8_t p2, uint8_t p3, uint8_t p4, uint8_t l1, uint8_t l2) {
     down = false;
     this->p1 = p1;
     this->p2 = p2;
     this->p3 = p3;
     this->p4 = p4;
-
-
+    this->l1 = l1;
+    this->l2 = l2;
 }
 
 void ZSS::start() {
@@ -26,22 +26,31 @@ void ZSS::start() {
     digitalWrite(p4, HIGH);
 }
 
-void ZSS::deploy() {
+void ZSS::retract() {
     digitalWrite(p2, HIGH);
     digitalWrite(p3, HIGH);
     digitalWrite(p1, LOW);
     digitalWrite(p4, LOW);
-    down = true;
+    down = false;
 }
 
-void ZSS::retract() {
+void ZSS::deploy() {
     digitalWrite(p1, HIGH);
     digitalWrite(p4, HIGH);
     digitalWrite(p2, LOW);
     digitalWrite(p3, LOW);
-    down = false;
+    down = true;
+    if (!digitalRead(l1) || !digitalRead(l2))
+        halt();
 }
 
 bool ZSS::retracted() {
     return down;
+}
+
+void ZSS::halt() {
+    digitalWrite(p1, HIGH);
+    digitalWrite(p2, HIGH);
+    digitalWrite(p3, HIGH);
+    digitalWrite(p4, HIGH);
 }

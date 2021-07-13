@@ -10,7 +10,7 @@
 #define CALIB_DISCARD   50
 #define CALIB_SAMP      200
 #define CALIB_A_TOL     16
-#define CALIB_G_TOL     4
+#define CALIB_G_TOL     8
 
 #define GYRO_RANGE      32767
 #define ACCEL_RANGE     32767
@@ -20,7 +20,7 @@
 
 class IMU {
 public:
-    explicit IMU(uint8_t addr);
+    explicit IMU(int cs_pin);
 
     bool start();
     bool configure(uint8_t accel_res, uint8_t gyro_res, uint8_t filtering);
@@ -56,7 +56,7 @@ private:
     void read_registers(uint8_t reg, uint8_t val[], int n) const; // Read n single byte registers
     void read_registers(uint8_t reg, int16_t val[], int n) const; // Read n two byte signed int registers
 
-    uint8_t addr;
+    int cs_pin;
     int16_t a_x_raw, a_y_raw, a_z_raw;
     int16_t g_x_raw, g_y_raw, g_z_raw;
     int16_t temp_raw;
@@ -66,7 +66,7 @@ private:
     float last_gyro_x = 0;
     float last_gyro_z = 0;
     float temp;
-    float rotation = 16.0 *  PI / 180.0f;
+    float rotation = 0;//16.0 *  PI / 180.0f;
 
     // Gyroscope and accelerometer FS_SEL and AFS_SEL register resolution values
     uint8_t fs_sel;

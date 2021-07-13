@@ -4,12 +4,13 @@
 
 #include <Arduino.h>
 #include <Wire.h>
+#include <SPI.h>
 
 
 #include "IMU.h"
 
-IMU::IMU(uint8_t addr) {
-    this->addr = addr;
+IMU::IMU(int cs_pin) {
+    this->cs_pin = cs_pin;
 
     this->a_x = 0;
     this->a_y = 0;
@@ -36,9 +37,11 @@ IMU::IMU(uint8_t addr) {
 }
 
 bool IMU::start() {
+    pinMode(cs_pin, OUTPUT);
     set_register(0x6B, (uint8_t) 0x00); // Set reset and wait
     delay(100);
 
+    digitalWrite(cs_pin, HIGH);
     return true;
 }
 
@@ -60,9 +63,9 @@ bool IMU::configure(uint8_t accel_res, uint8_t gyro_res, uint8_t filtering) {
 bool IMU::calibrateGyroBias() {
     set_gyro_offsets(0, 0, 0);
 
-    int x_acc = 0;
-    int y_acc = 0;
-    int z_acc = 0;
+    long x_acc = 0;
+    long y_acc = 0;
+    long z_acc = 0;
 
     for (int i = 0; i < CALIB_DISCARD; i++) {
         update();
@@ -78,10 +81,21 @@ bool IMU::calibrateGyroBias() {
 
     int16_t x_g_offset, y_g_offset, z_g_offset;
     get_gyro_offsets(x_g_offset, y_g_offset, z_g_offset);
+    // Serial.println(x_g_offset);
+    // Serial.println(y_g_offset);
+    // Serial.println(z_g_offset);
+
+    // Serial.println(x_acc / CALIB_SAMP);
+    // Serial.println(y_acc / CALIB_SAMP);
+    // Serial.println(z_acc / CALIB_SAMP);
+
 
     x_g_offset -= x_acc / CALIB_SAMP;
     y_g_offset -= y_acc / CALIB_SAMP;
     z_g_offset -= z_acc / CALIB_SAMP;
+    // Serial.println(x_g_offset);
+    // Serial.println(y_g_offset);
+    // Serial.println(z_g_offset);
 
     set_gyro_offsets(x_g_offset, y_g_offset, z_g_offset);
 
@@ -100,6 +114,11 @@ bool IMU::calibrateGyroBias() {
         z_acc += g_z_raw;
         delay(2);
     }
+
+    get_gyro_offsets(x_g_offset, y_g_offset, z_g_offset);
+    // Serial.println(x_g_offset);
+    // Serial.println(y_g_offset);
+    // Serial.println(z_g_offset);
 
     return abs(x_acc / CALIB_SAMP) < CALIB_G_TOL &&
            abs(y_acc / CALIB_SAMP) < CALIB_G_TOL &&
@@ -126,18 +145,29 @@ bool IMU::calibrateAccelBias(float x_expected, float y_expected, float z_expecte
         delay(2);
     }
 
-    int16_t x_a_expected = x_expected / GRAV / (float) accel_fsr * ACCEL_RANGE;
-    int16_t y_a_expected = y_expected / GRAV / (float) accel_fsr * ACCEL_RANGE;
-    int16_t z_a_expected = z_expected / GRAV / (float) accel_fsr * ACCEL_RANGE;
+    int16_t x_a_expected = (x_expected / GRAV / (float) accel_fsr) * ACCEL_RANGE;
+    int16_t y_a_expected = (y_expected / GRAV / (float) accel_fsr) * ACCEL_RANGE;
+    int16_t z_a_expected = (z_expected / GRAV / (float) accel_fsr) * ACCEL_RANGE;
 
     int16_t x_a_offset, y_a_offset, z_a_offset;
     get_accel_offsets(x_a_offset, y_a_offset, z_a_offset);
+    // Serial.println(x_a_offset);
+    // Serial.println(y_a_offset);
+    // Serial.println(z_a_offset);
+
+    // Serial.println(x_acc / CALIB_SAMP);
+    // Serial.println(y_acc / CALIB_SAMP);
+    // Serial.println(z_acc / CALIB_SAMP);
 
     x_a_offset -= (x_acc / CALIB_SAMP - x_a_expected) / 2;
     y_a_offset -= (y_acc / CALIB_SAMP - y_a_expected) / 2;
     z_a_offset -= (z_acc / CALIB_SAMP - z_a_expected) / 2;
+    // Serial.println(x_a_offset);
+    // Serial.println(y_a_offset);
+    // Serial.println(z_a_offset);
 
     set_accel_offsets(x_a_offset, y_a_offset, z_a_offset);
+
 
     x_acc = 0;
     y_acc = 0;
@@ -155,21 +185,26 @@ bool IMU::calibrateAccelBias(float x_expected, float y_expected, float z_expecte
         delay(2);
     }
 
-    return abs(x_acc / CALIB_SAMP) < CALIB_A_TOL &&
-           abs(y_acc / CALIB_SAMP) < CALIB_A_TOL &&
-           abs(z_acc / CALIB_SAMP) < CALIB_A_TOL;
+    get_accel_offsets(x_a_offset, y_a_offset, z_a_offset);
+    // Serial.println(x_a_offset);
+    // Serial.println(y_a_offset);
+    // Serial.println(z_a_offset);
+
+    return abs(x_acc / CALIB_SAMP - x_a_expected) < CALIB_A_TOL &&
+           abs(y_acc / CALIB_SAMP - y_a_expected) < CALIB_A_TOL &&
+           abs(z_acc / CALIB_SAMP - z_a_expected) < CALIB_A_TOL;
 }
 
 float IMU::accelX() const {
-    return a_x * cos(rotation) - a_z * sin(rotation) + (gyroZ() * gyroZ()) * IMU_TO_ORIGIN_X;
+    return a_x * cos(rotation);// - a_z * sin(rotation) + (gyroZ() * gyroZ()) * IMU_TO_ORIGIN_X;
 }
 
 float IMU::accelY() const {
-    return a_y + alphaX * IMU_TO_ORIGIN_Z - alphaZ * IMU_TO_ORIGIN_X;
+    return a_y ;//+ alphaX * IMU_TO_ORIGIN_Z - alphaZ * IMU_TO_ORIGIN_X;
 }
 
 float IMU::accelZ() const {
-    return a_z * cos(rotation) + a_x * sin(rotation) + (gyroX() * gyroX()) * IMU_TO_ORIGIN_Z;
+    return a_z ;//* cos(rotation) + a_x * sin(rotation) + (gyroX() * gyroX()) * IMU_TO_ORIGIN_Z;
 }
 
 float IMU::gyroX() const {
@@ -223,54 +258,65 @@ void IMU::update() {
 }
 
 void IMU::set_register(uint8_t reg, uint8_t val) const {
-    Wire.beginTransmission(addr);
-    Wire.write(reg);
-    Wire.write(val);
-    Wire.endTransmission();
+    digitalWrite(cs_pin, LOW);
+    SPI.transfer(reg);
+    SPI.transfer(val);
+    digitalWrite(cs_pin, HIGH);
 }
 
 void IMU::set_register(uint8_t reg, int16_t val) const {
-    Wire.beginTransmission(addr);
-    Wire.write(reg);
-    Wire.write((uint8_t) (val >> 8));
-    Wire.write(val & 0xFF);
-    Wire.endTransmission();
+    digitalWrite(cs_pin, LOW);
+    SPI.transfer(reg);
+    SPI.transfer((uint8_t) (val >> 8));
+    SPI.transfer(val & 0xFF);
+    digitalWrite(cs_pin, HIGH);
 }
 
 void IMU::read_register(uint8_t reg, uint8_t *val) const {
-    Wire.beginTransmission(addr);
-    Wire.write(reg);
-    Wire.endTransmission(false);
-    Wire.requestFrom((int) addr, 1, true);
-    *val = Wire.read();
+    reg = reg | 0b10000000;
+    digitalWrite(cs_pin, LOW);
+    SPI.transfer(reg);
+    *val = SPI.transfer(0x00);
+    digitalWrite(cs_pin, HIGH);
 }
 
 void IMU::read_register(uint8_t reg, int16_t *val) const {
-    Wire.beginTransmission(addr);
-    Wire.write(reg);
-    Wire.endTransmission(false);
-    Wire.requestFrom((int) addr, 2, true);
-    *val = Wire.read() << 8U | Wire.read();
+    reg = reg | 0b10000000;
+
+    digitalWrite(cs_pin, LOW);
+    SPI.transfer(reg);
+    uint8_t v1 = SPI.transfer(0x00);
+    uint8_t v2 = SPI.transfer(0x00);
+    *val = (int16_t) ((v1 << 8U) | v2);
+    digitalWrite(cs_pin, HIGH);
 }
 
 void IMU::read_registers(uint8_t reg, uint8_t *val, int n) const {
-    Wire.beginTransmission(addr);
-    Wire.write(reg);
-    Wire.endTransmission(false);
-    Wire.requestFrom((int) addr, n, true);
+    reg = reg | 0b10000000;
+
+    digitalWrite(cs_pin, LOW);
+    SPI.transfer(reg);
 
     for (int i = 0; i < n; i++)
-        val[i] = Wire.read();
+        val[i] = SPI.transfer(0x00);
+
+    digitalWrite(cs_pin, HIGH);
+
 }
 
 void IMU::read_registers(uint8_t reg, int16_t *val, int n) const {
-    Wire.beginTransmission(addr);
-    Wire.write(reg);
-    Wire.endTransmission(false);
-    Wire.requestFrom((int) addr, 2 * n, true);
+    reg = reg | 0b10000000;
 
-    for (int i = 0; i < n; i++)
-        val[i] = Wire.read() << 8 | Wire.read();
+    digitalWrite(cs_pin, LOW);
+    SPI.transfer(reg);
+
+    for (int i = 0; i < n; i++){
+        uint8_t v1 = SPI.transfer(0x00);
+        uint8_t v2 = SPI.transfer(0x00);
+        val[i] = (int16_t) ((v1 << 8U) | v2);
+    }
+
+    digitalWrite(cs_pin, HIGH);
 }
 
 void IMU::set_gyro_offsets(int16_t gx_off, int16_t gy_off, int16_t gz_off) {

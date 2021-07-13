@@ -8,7 +8,7 @@
 #include <SPI.h>
 #include <due_can.h>
 #include <AccelStepper.h>
-#include <Adafruit_FRAM_SPI.h>
+//#include <Adafruit_FRAM_SPI.h>
 
 // Internal libraries
 #include "IMU.h"
@@ -25,6 +25,9 @@
 #include "BikeModel.h"
 #include "ZSS.h"
 
+#include <SPIMemory.h>
+
+
 // States
 #define IDLE    0
 #define CALIB   1
@@ -35,11 +38,14 @@
 #define E_STOP  6
 
 // User request bit flags
-#define R_CALIB     0b00000001U
-#define R_MANUAL    0b00000010U
-#define R_STOP      0b00000100U
-#define R_RESUME    0b00001000U
-#define R_TIMEOUT   0b00010000U
+#define R_CALIB_MODE        0b00000001U
+#define R_MANUAL            0b00000010U
+#define R_STOP              0b00000100U
+#define R_RESUME            0b00001000U
+#define R_TIMEOUT           0b00010000U
+#define R_CALIB_GYRO        0b00100000U
+#define R_CALIB_ACCEL       0b01000000U
+#define R_CALIB_VARIANCE    0b10000000U
 
 // Info for torque motor
 #define TM_NODE_ID          127
@@ -59,7 +65,8 @@
 #define STORE_UPDATE_FREQ   10
 
 
-#define RADIOCOMM
+//#define REQUIRE_ACTUATORS
+//#define RADIOCOMM
 
 #ifdef RADIOCOMM
 
@@ -76,11 +83,11 @@ uint8_t writeAddr[] = "DNODE";
 #endif
 
 // Device object definitions
-IMU imu(0x68);
+IMU imu(2);
 Indicator indicator(3, 4, 5, 11);
 TorqueMotor *torque_motor;
 DriveMotor *drive_motor;
-Adafruit_FRAM_SPI fram(50);
+SPIFlash flash(6);
 
 BikeModel bike_model;
 
@@ -130,7 +137,7 @@ const int dirPin = A2;
 const int stepPin = A1;
 AccelStepper stepper(AccelStepper::DRIVER, stepPin, dirPin);
 
-ZSS zss(28, 26, 24, 22);
+ZSS zss(28, 26, 24, 22, 52, 53);
 
 
 void report();
@@ -151,11 +158,15 @@ int memSize = 0;
 int framAddress = 100;
 bool isRecording = false;
 
+void haltZSS() {
+    if (!digitalRead(52) || !digitalRead(53))
+        zss.halt();
+}
 
 void setup() {
     zss.start();
     Wire.begin();                               // Begin I2C interface
-//    SPI.begin();                                // Begin Serial Peripheral Interface (SPI)
+    SPI.begin();                                // Begin Serial Peripheral Interface (SPI)
 
     Serial.begin(115200);
 #ifdef RADIOCOMM
@@ -181,7 +192,7 @@ void setup() {
     Can0.begin(CAN_BPS_1000K);                  // Begin 1M baud rate CAN interface, no enable pin
     Can0.watchFor();                            // Watch for all incoming CAN-Bus messages
 
-    fram.begin();                               // Begin SPI comm to ferroelectric RAM
+    flash.begin();                               // Begin SPI comm to ferroelectric RAM
 
     analogWriteResolution(12);              // Enable expanded PWM and ADC resolution
     analogReadResolution(12);
@@ -195,6 +206,7 @@ void setup() {
     indicator.setPassiveRGB(RGB_STARTUP_P);
     indicator.setBlinkRGB(RGB_STARTUP_B);
 
+#ifdef REQUIRE_ACTUATORS
     // Initialize torque control motor
     torque_motor = new TorqueMotor(&Can0, TM_NODE_ID, TM_CURRENT_MAX, TM_TORQUE_MAX, TM_TORQUE_SLOPE,
                                    8 * PI, 16 * PI, 10);
@@ -206,19 +218,22 @@ void setup() {
     drive_motor = new DriveMotor(DAC0);
     drive_motor->start();
     Serial.println("Initialized Drive Motor.");
+#endif
 
     imu.start();                                    // Initialize IMU
-    imu.configure(2, 2, 1);  // Set accelerometer and gyro resolution, on-chip low-pass filter
+    imu.configure(2, 2, 2);  // Set accelerometer and gyro resolution, on-chip low-pass filter
 
     Serial.println("Initializing controller.");
     // Initialize stability controller
     controller = new FSFController(&bike_model, 8.0, -2, -3, -4, -5);
 
     Serial.println("Initialized controller.");
+
+    Serial.println("Loading parameters from Flash.");
     // Load parameters from FRAM
     float stored_vars[6];
     float var_v, var_a, var_phi, var_del, var_dphi, var_ddel;
-    fram.read(0, (uint8_t *) stored_vars, sizeof stored_vars);
+    flash.readByteArray(0, (uint8_t *) stored_vars, sizeof stored_vars);
     var_v = 0.0004;//stored_vars[0];
     var_a = 0.02;//stored_vars[1];
     var_phi = 0.00265;//stored_vars[2];
@@ -228,17 +243,22 @@ void setup() {
 
     int16_t stored_offsets[6];
     int16_t ax_off, ay_off, az_off, gx_off, gy_off, gz_off;
-    fram.read(sizeof stored_vars, (uint8_t *) stored_offsets, sizeof stored_offsets);
-    ax_off = stored_offsets[0];
-    ay_off = stored_offsets[1];
-    az_off = stored_offsets[2];
-    gx_off = stored_offsets[3];
-    gy_off = stored_offsets[4];
-    gz_off = stored_offsets[5];
-    imu.set_accel_offsets(ax_off, ay_off, az_off);
-    imu.set_gyro_offsets(gx_off, gy_off, gz_off);
+    if (flash.readByteArray(sizeof stored_vars, (uint8_t *) stored_offsets, sizeof stored_offsets)) {
+        ax_off = stored_offsets[0];
+        ay_off = stored_offsets[1];
+        az_off = stored_offsets[2];
+        gx_off = stored_offsets[3];
+        gy_off = stored_offsets[4];
+        gz_off = stored_offsets[5];
+        imu.set_accel_offsets(ax_off, ay_off, az_off);
+        imu.set_gyro_offsets(gx_off, gy_off, gz_off);
 
+        Serial.println("Loaded parameters from FLash.");
+    } else {
+        Serial.println("Failed to load parameters from Flash.");
+    }
 
+    Serial.println("Initializing Kalman filter.");
     // Initialize velocity Kalman filter
     velocity_filter.x = {0, 0};                     // Initial state estimate
     velocity_filter.P = BLA::Identity<2, 2>() * 0.1;     // Initial estimate covariance
@@ -270,19 +290,24 @@ void setup() {
     heading_filter.R = {                            // Sensor covariance matrix
             var_gyro_z
     };
+    Serial.println("Initialized Kalman filter.");
 
-    if (imu.calibrateGyroBias()) {
-        indicator.beepstring((uint8_t) 0b01110111);
-    } else {
-        indicator.beepstring((uint8_t) 0b10001000);
-    }
-
+    pinMode(52, INPUT_PULLUP);
+    pinMode(53, INPUT_PULLUP);
+    pinMode(50, OUTPUT);
+    pinMode(51, OUTPUT);
+    digitalWrite(50, HIGH);
+    digitalWrite(51, HIGH);
+    Serial.println("Attaching ZSS interrupts.");
+    attachInterrupt(digitalPinToInterrupt(52), haltZSS, FALLING);
+    attachInterrupt(digitalPinToInterrupt(53), haltZSS, FALLING);
+    Serial.println("Attached ZSS interrupts.");
     assert_idle();
 
-    while (readBack(memSize, memSize) == memSize) {
-        memSize += 256;
-        //Serial.print("Block: #"); Serial.println(memSize/256);
-    }
+//    while (readBack(memSize, memSize) == memSize) {
+//        memSize += 256;
+//        //Serial.print("Block: #"); Serial.println(memSize/256);
+//    }
 
     assert_idle();
 
@@ -290,6 +315,8 @@ void setup() {
     digitalWrite(enPin, LOW);
 
     Serial.println("Finished setup.");
+
+    delay(1000);
 }
 
 void loop() {
@@ -303,8 +330,9 @@ void loop() {
 
     // Update sensor information
     imu.update();
+#ifdef REQUIRE_ACTUATORS
     torque_motor->update();
-
+#endif
 
     // Update heading Kalman filter parameters
     heading_filter.A = {
@@ -335,7 +363,9 @@ void loop() {
 
     // Update velocity state measurement
     if (millis() - last_speed_time >= 1000 / SPEED_UPDATE_FREQ) {
+#ifdef REQUIRE_ACTUATORS
         v_y = drive_motor->getSpeed();
+#endif
 //        v = v_y;
         float a_y = imu.accelX();
         last_speed_time = millis();
@@ -348,10 +378,12 @@ void loop() {
     float g_mag = imu.accelY() * imu.accelY() +
                   imu.accelZ() * imu.accelZ();    // Check if measured orientation gravity vector exceeds feasibility
     phi_y = g_mag <= 10 * 10 ? atan2(imu.accelY(), imu.accelZ()) : phi_y;
-    del_y = torque_motor->getPosition();
     dphi_y = imu.gyroX();
+#ifdef REQUIRE_ACTUATORS
+    del_y = torque_motor->getPosition();
     ddel_y = torque_motor->getVelocity();
     torque = torque_motor->getTorque();
+#endif
 
     // Update orientation Kalman filter parameters
     orientation_filter.A = bike_model.kalmanTransitionMatrix(v, dt, free_running);
@@ -371,6 +403,9 @@ void loop() {
     dphi = orientation_filter.x(2);
     ddel = orientation_filter.x(3);
 
+    //!!!! DEBUG ONLY !!!!//
+    v = 0.0;
+//    phi = 0;
 
     // Update indicator
     indicator.update();
@@ -384,10 +419,12 @@ void loop() {
                 assert_fallen();
             if (v > 0.6)
                 assert_assist();
-            if (user_req & R_CALIB)
+            if (user_req & R_CALIB_MODE)
                 assert_calibrate();
             if (user_req & R_MANUAL)
                 assert_manual();
+            if (user_req & R_STOP)
+                assert_emergency_stop();
 
             // Action
             idle();
@@ -396,8 +433,8 @@ void loop() {
 
         case CALIB:     // Sensor calibration
             // Transitions
-            if (true) {
-                user_req &= ~R_CALIB;
+            if (user_req & R_RESUME) {
+                user_req &= ~R_CALIB_MODE;
                 assert_idle();
             }
 
@@ -479,7 +516,9 @@ void loop() {
     if ((user_req & R_TIMEOUT) && millis() > timeout) {
         user_req &= ~R_TIMEOUT;
         v_r = 0;
+#ifdef REQUIRE_ACTUATORS
         drive_motor->setSpeed(0);
+#endif
         Serial.println("Timed out!");
     }
 
@@ -542,17 +581,21 @@ void loop() {
         }
 #else
         uint8_t c = TELEMETRY.read();
+        delay(20);
 
         switch (c) {
             case 's':
                 v_r = Serial.parseFloat();
+#ifdef REQUIRE_ACTUATORS
                 drive_motor->setSpeed(v_r);
+#endif
                 break;
             case 'd':
                 del_r = Serial.parseFloat();
+//                Serial.println(del_r);
                 break;
             case 'c':
-                user_req |= Serial.read();
+                user_req |= Serial.parseInt();
                 break;
             case 't':
                 v_r = Serial.parseFloat();
@@ -572,6 +615,8 @@ void loop() {
             default:
                 break;
         }
+        while (Serial.available() > 0)
+            Serial.read();
 #endif
         indicator.boop(100);
     }
@@ -588,77 +633,87 @@ void idle() {
 }
 
 void calibrate() {
-
-    if (imu.calibrateGyroBias()) {
-        indicator.beepstring((uint8_t) 0b01110111);
-    } else {
-        indicator.beepstring((uint8_t) 0b10001000);
-    }
-
-    if (imu.calibrateAccelBias(0, 0, GRAV)) {
-        indicator.beepstring((uint8_t) 0b10101010);
-    } else {
-        indicator.beepstring((uint8_t) 0b00110011);
-    }
-
-    delay(100);
-
-    float var_v, var_a, var_phi, var_del, var_dphi, var_ddel;
-    find_variances(var_v, var_a, var_phi, var_del, var_dphi, var_ddel);
-    velocity_filter.R = {
-            var_v, 0,
-            0, var_a
-    };
-    orientation_filter.R = {
-            var_phi, 0, 0, 0,
-            0, var_del, 0, 0,
-            0, 0, var_dphi, 0,
-            0, 0, 0, var_ddel
-    };
-
-    // Save parameters from FRAM
     float stored_vars[6];
-    stored_vars[0] = var_v;
-    stored_vars[1] = var_a;
-    stored_vars[2] = var_phi;
-    stored_vars[3] = var_del;
-    stored_vars[4] = var_dphi;
-    stored_vars[5] = var_ddel;
-    fram.writeEnable(true);
-    fram.write(0, (uint8_t *) stored_vars, sizeof stored_vars);
-    fram.writeEnable(false);
-
-
     int16_t stored_offsets[6];
     int16_t ax_off, ay_off, az_off, gx_off, gy_off, gz_off;
-    imu.get_accel_offsets(ax_off, ay_off, az_off);
-    imu.get_gyro_offsets(gx_off, gy_off, gz_off);
-    stored_offsets[0] = ax_off;
-    stored_offsets[1] = ay_off;
-    stored_offsets[2] = az_off;
-    stored_offsets[3] = gx_off;
-    stored_offsets[4] = gy_off;
-    stored_offsets[5] = gz_off;
-    fram.writeEnable(true);
-    fram.write(sizeof stored_vars, (uint8_t *) stored_offsets, sizeof stored_offsets);
-    fram.writeEnable(false);
 
 
-    indicator.beepstring((uint8_t) 0b11101110);
+    if (user_req & R_CALIB_GYRO) {
+        if (imu.calibrateGyroBias()) {
+            indicator.beepstring((uint8_t) 0b11101110);
+        } else {
+            indicator.beepstring((uint8_t) 0b10001000);
+        }
+        imu.get_gyro_offsets(gx_off, gy_off, gz_off);
+
+        stored_offsets[3] = gx_off;
+        stored_offsets[4] = gy_off;
+        stored_offsets[5] = gz_off;
+
+        if (flash.writeByteArray(sizeof stored_vars + 3 * (sizeof(int16_t)), (uint8_t *) (&(stored_offsets[3])),
+                                 3 * (sizeof(int16_t)))) {
+            Serial.println("Stored gyro offsets on Flash.");
+        } else {
+            Serial.println("Failed to store gyro offsets on Flash.");
+            Serial.println(flash.error());
+        }
+        user_req = user_req & ~R_CALIB_GYRO;
+    }
+
+    if (user_req & R_CALIB_ACCEL) {
+        if (imu.calibrateAccelBias(0, 0, GRAV)) {
+            indicator.beepstring((uint8_t) 0b10101010);
+            imu.get_accel_offsets(ax_off, ay_off, az_off);
+            stored_offsets[0] = ax_off;
+            stored_offsets[1] = ay_off;
+            stored_offsets[2] = az_off;
+            if (flash.writeByteArray(sizeof stored_vars, (uint8_t *) stored_offsets, 3 * (sizeof(int16_t)))) {
+                Serial.println("Stored accelerometer offsets on Flash.");
+            } else {
+                Serial.println("Failed to store accelerometer offsets on Flash.");
+            }
+        } else {
+            indicator.beepstring((uint8_t) 0b00110011);
+        }
+        user_req = user_req & ~R_CALIB_ACCEL;
+    }
+
+    if (user_req & R_CALIB_VARIANCE) {
+        delay(100);
+
+        float var_v, var_a, var_phi, var_del, var_dphi, var_ddel;
+        find_variances(var_v, var_a, var_phi, var_del, var_dphi, var_ddel);
+        velocity_filter.R = {
+                var_v, 0,
+                0, var_a
+        };
+        orientation_filter.R = {
+                var_phi, 0, 0, 0,
+                0, var_del, 0, 0,
+                0, 0, var_dphi, 0,
+                0, 0, 0, var_ddel
+        };
+
+        // Save parameters from FRAM
+        stored_vars[0] = var_v;
+        stored_vars[1] = var_a;
+        stored_vars[2] = var_phi;
+        stored_vars[3] = var_del;
+        stored_vars[4] = var_dphi;
+        stored_vars[5] = var_ddel;
+        flash.writeByteArray(0, (uint8_t *) stored_vars, sizeof stored_vars);
+        user_req = user_req & ~R_CALIB_VARIANCE;
+    }
 }
 
 int32_t readBack(uint32_t addr, int32_t data) {
     int32_t check = !data;
     int32_t wrapCheck, backup;
-    fram.read(addr, (uint8_t *) &backup, sizeof(int32_t));
-    fram.writeEnable(true);
-    fram.write(addr, (uint8_t *) &data, sizeof(int32_t));
-    fram.writeEnable(false);
-    fram.read(addr, (uint8_t *) &check, sizeof(int32_t));
-    fram.read(0, (uint8_t *) &wrapCheck, sizeof(int32_t));
-    fram.writeEnable(true);
-    fram.write(addr, (uint8_t *) &backup, sizeof(int32_t));
-    fram.writeEnable(false);
+    flash.readByteArray(addr, (uint8_t *) &backup, sizeof(int32_t));
+    flash.writeByteArray(addr, (uint8_t *) &data, sizeof(int32_t));
+    flash.readByteArray(addr, (uint8_t *) &check, sizeof(int32_t));
+    flash.readByteArray(0, (uint8_t *) &wrapCheck, sizeof(int32_t));
+    flash.writeByteArray(addr, (uint8_t *) &backup, sizeof(int32_t));
     // Check for wraparound, address 0 will work anyway
     if (wrapCheck == check)
         check = 0;
@@ -669,13 +724,10 @@ int32_t readBack(uint32_t addr, int32_t data) {
 void storeTelemetry(int startAddress) {
     Serial.print(startAddress);
     Serial.print("\t");
-    fram.writeEnable(true);
     float valuesToStore[13] = {millis() / 1000.0f, phi, del, dphi, ddel, v, torque, heading, dheading,
                                phi_y, del_y, dphi_y, ddel_y};
-    fram.write8((uint16_t) startAddress, state);
-    fram.writeEnable(true);
-    fram.write((uint16_t) (startAddress + 1), (uint8_t *) valuesToStore, sizeof valuesToStore);
-    fram.writeEnable(false);
+    flash.writeByte((uint16_t) startAddress, state);
+    flash.writeByteArray((uint16_t) (startAddress + 1), (uint8_t *) valuesToStore, sizeof valuesToStore);
 }
 
 
@@ -686,9 +738,9 @@ void retrieveTelemetry(int startAddress) {
     float floats[13] = {};
 
     for (uint16_t i = startAddress; i < 8000 - 53; i += 53) {
-        Serial.print(fram.read8(i));
+        Serial.print(flash.readByte(i));
         Serial.print("\t");
-        fram.read(i + 1, (uint8_t *) floats, sizeof floats);
+        flash.readByteArray(i + 1, (uint8_t *) floats, sizeof floats);
         for (float j : floats) {
             Serial.print(j);
             Serial.print("\t");
@@ -704,12 +756,16 @@ void manual() {
 
 void assist() {
     float er = del_r;
+#ifdef REQUIRE_ACTUATORS
     torque_motor->setPosition(er);
+#endif
 }
 
 void automatic() {
     float u = controller->control(phi, del, dphi, ddel, phi_r, del_r, v, dt);
+#ifdef REQUIRE_ACTUATORS
     torque_motor->setTorque(u);
+#endif
 }
 
 void fallen() {
@@ -726,7 +782,9 @@ void assert_idle() {
     free_running = false;
     physical_brake(false);
     zss.deploy();
+#ifdef REQUIRE_ACTUATORS
     while (!torque_motor->shutdown());
+#endif
 
     indicator.disablePulse();
     indicator.setPassiveRGB(RGB_IDLE_P);
@@ -739,7 +797,7 @@ void assert_calibrate() {
 
     indicator.setPassiveRGB(RGB_CALIB_P);
     indicator.setBlinkRGB(RGB_CALIB_B);
-    indicator.setPulse(250, 250);
+//    indicator.setPulse(250, 250);
 }
 
 void assert_manual() {
@@ -755,8 +813,10 @@ void assert_assist() {
     state = ASSIST;
     free_running = false;
     zss.deploy();
+#ifdef REQUIRE_ACTUATORS
     torque_motor->setMode(OP_PROFILE_POSITION);
     while (!torque_motor->enableOperation());
+#endif
 
     indicator.disablePulse();
     indicator.setPassiveRGB(RGB_ASSIST_P);
@@ -767,8 +827,10 @@ void assert_automatic() {
     state = AUTO;
     free_running = true;
     zss.retract();
+#ifdef REQUIRE_ACTUATORS
     torque_motor->setMode(OP_PROFILE_TORQUE);
     while (!torque_motor->enableOperation());
+#endif
 
     indicator.disablePulse();
     indicator.setPassiveRGB(RGB_AUTO_P);
@@ -779,8 +841,10 @@ void assert_automatic() {
 void assert_fallen() {
     state = FALLEN;
     free_running = false;
+#ifdef REQUIRE_ACTUATORS
     drive_motor->setSpeed(0);
     while (!torque_motor->shutdown());
+#endif
 
     indicator.setPassiveRGB(RGB_FALLEN_P);
     indicator.setBlinkRGB(RGB_FALLEN_B);
@@ -790,10 +854,12 @@ void assert_fallen() {
 void assert_emergency_stop() {
     state = E_STOP;
     free_running = false;
-    drive_motor->setSpeed(0);
     physical_brake(true);
     zss.deploy();
+#ifdef REQUIRE_ACTUATORS
+    drive_motor->setSpeed(0);
     while (!torque_motor->shutdown());
+#endif
 
     indicator.disablePulse();
     indicator.setPassiveRGB(RGB_E_STOP_P);
@@ -894,6 +960,20 @@ void report() {
     Serial.print(dheading);
     Serial.print('\t');
     Serial.print(millis() / 1000.0f);
+
+    Serial.print('\t');
+    Serial.print(imu.accelX());
+    Serial.print('\t');
+    Serial.print(imu.accelY());
+    Serial.print('\t');
+    Serial.print(imu.accelZ());
+    Serial.print('\t');
+    Serial.print(imu.gyroX());
+    Serial.print('\t');
+    Serial.print(imu.gyroY());
+    Serial.print('\t');
+    Serial.print(imu.gyroZ());
+
     Serial.println();
     Serial.flush();
 #endif
@@ -951,6 +1031,7 @@ void find_variances(float &var_v, float &var_a, float &var_phi, float &var_del, 
 }
 
 void home_delta() {
+#ifdef REQUIRE_ACTUATORS
     torque_motor->calibrate();
     Serial.println("Successfully calibrated torque motor.");
     delay(1000);
@@ -959,14 +1040,15 @@ void home_delta() {
     torque_motor->setPosition(0);
     Serial.println("Succesfully reset to zero position.");
     delay(3000);
+#endif
 }
 
 void physical_brake(bool engage) {
     int steps = floor(70 / (20 * 3.1415) * 200);
 
-    if(engage){
+    if (engage) {
         stepper.moveTo(steps);
-    } else{
+    } else {
         stepper.moveTo(0);
     }
 
