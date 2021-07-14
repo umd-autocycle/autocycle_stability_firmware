@@ -66,7 +66,7 @@ private:
     float last_gyro_x = 0;
     float last_gyro_z = 0;
     float temp;
-    float rotation = 0;//16.0 *  PI / 180.0f;
+    float rotation = 0;//16.0 *  PI / 180.0f; //TODO remove once back on bike
 
     // Gyroscope and accelerometer FS_SEL and AFS_SEL register resolution values
     uint8_t fs_sel;
@@ -79,6 +79,8 @@ private:
     // Tables of gyro and accelerometer FSRs corresponding to FS_SEL and AFS_SEL register values (0-3)
     const int GYRO_FSR[4] = {250, 500, 1000, 2000};     // in +/- g
     const int ACCEL_FSR[4] = {2, 4, 8, 16};             // in +/- deg/s
+
+    SPISettings imuSettings;
 };
 
 

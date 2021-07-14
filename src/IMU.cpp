@@ -34,6 +34,8 @@ IMU::IMU(int cs_pin) {
 
     this->fs_sel = 0;
     this->afs_sel = 0;
+
+    imuSettings = SPISettings(1000000, MSBFIRST, SPI_MODE0);
 }
 
 bool IMU::start() {
@@ -62,6 +64,7 @@ bool IMU::configure(uint8_t accel_res, uint8_t gyro_res, uint8_t filtering) {
 
 bool IMU::calibrateGyroBias() {
     set_gyro_offsets(0, 0, 0);
+    delay(150);
 
     long x_acc = 0;
     long y_acc = 0;
@@ -81,23 +84,15 @@ bool IMU::calibrateGyroBias() {
 
     int16_t x_g_offset, y_g_offset, z_g_offset;
     get_gyro_offsets(x_g_offset, y_g_offset, z_g_offset);
-    // Serial.println(x_g_offset);
-    // Serial.println(y_g_offset);
-    // Serial.println(z_g_offset);
-
-    // Serial.println(x_acc / CALIB_SAMP);
-    // Serial.println(y_acc / CALIB_SAMP);
-    // Serial.println(z_acc / CALIB_SAMP);
-
+            
+            
 
     x_g_offset -= x_acc / CALIB_SAMP;
     y_g_offset -= y_acc / CALIB_SAMP;
     z_g_offset -= z_acc / CALIB_SAMP;
-    // Serial.println(x_g_offset);
-    // Serial.println(y_g_offset);
-    // Serial.println(z_g_offset);
-
+            
     set_gyro_offsets(x_g_offset, y_g_offset, z_g_offset);
+    delay(150);
 
     x_acc = 0;
     y_acc = 0;
@@ -116,10 +111,7 @@ bool IMU::calibrateGyroBias() {
     }
 
     get_gyro_offsets(x_g_offset, y_g_offset, z_g_offset);
-    // Serial.println(x_g_offset);
-    // Serial.println(y_g_offset);
-    // Serial.println(z_g_offset);
-
+            
     return abs(x_acc / CALIB_SAMP) < CALIB_G_TOL &&
            abs(y_acc / CALIB_SAMP) < CALIB_G_TOL &&
            abs(z_acc / CALIB_SAMP) < CALIB_G_TOL;
@@ -135,14 +127,14 @@ bool IMU::calibrateAccelBias(float x_expected, float y_expected, float z_expecte
 
     for (int i = 0; i < CALIB_DISCARD; i++) {
         update();
-        delay(2);
+        delay(10);
     }
     for (int i = 0; i < CALIB_SAMP; i++) {
         update();
         x_acc += a_x_raw;
         y_acc += a_y_raw;
         z_acc += a_z_raw;
-        delay(2);
+        delay(10);
     }
 
     int16_t x_a_expected = (x_expected / GRAV / (float) accel_fsr) * ACCEL_RANGE;
@@ -151,22 +143,14 @@ bool IMU::calibrateAccelBias(float x_expected, float y_expected, float z_expecte
 
     int16_t x_a_offset, y_a_offset, z_a_offset;
     get_accel_offsets(x_a_offset, y_a_offset, z_a_offset);
-    // Serial.println(x_a_offset);
-    // Serial.println(y_a_offset);
-    // Serial.println(z_a_offset);
-
-    // Serial.println(x_acc / CALIB_SAMP);
-    // Serial.println(y_acc / CALIB_SAMP);
-    // Serial.println(z_acc / CALIB_SAMP);
-
+            
+            
     x_a_offset -= (x_acc / CALIB_SAMP - x_a_expected) / 2;
     y_a_offset -= (y_acc / CALIB_SAMP - y_a_expected) / 2;
     z_a_offset -= (z_acc / CALIB_SAMP - z_a_expected) / 2;
-    // Serial.println(x_a_offset);
-    // Serial.println(y_a_offset);
-    // Serial.println(z_a_offset);
-
+            
     set_accel_offsets(x_a_offset, y_a_offset, z_a_offset);
+    delay(150);
 
 
     x_acc = 0;
@@ -175,36 +159,33 @@ bool IMU::calibrateAccelBias(float x_expected, float y_expected, float z_expecte
 
     for (int i = 0; i < CALIB_DISCARD; i++) {
         update();
-        delay(2);
+        delay(10);
     }
     for (int i = 0; i < CALIB_SAMP; i++) {
         update();
         x_acc += a_x_raw;
         y_acc += a_y_raw;
         z_acc += a_z_raw;
-        delay(2);
+        delay(10);
     }
 
     get_accel_offsets(x_a_offset, y_a_offset, z_a_offset);
-    // Serial.println(x_a_offset);
-    // Serial.println(y_a_offset);
-    // Serial.println(z_a_offset);
-
+            
     return abs(x_acc / CALIB_SAMP - x_a_expected) < CALIB_A_TOL &&
            abs(y_acc / CALIB_SAMP - y_a_expected) < CALIB_A_TOL &&
            abs(z_acc / CALIB_SAMP - z_a_expected) < CALIB_A_TOL;
 }
 
 float IMU::accelX() const {
-    return a_x * cos(rotation);// - a_z * sin(rotation) + (gyroZ() * gyroZ()) * IMU_TO_ORIGIN_X;
+    return a_x * cos(rotation) - a_z * sin(rotation) + (gyroZ() * gyroZ()) * IMU_TO_ORIGIN_X;
 }
 
 float IMU::accelY() const {
-    return a_y ;//+ alphaX * IMU_TO_ORIGIN_Z - alphaZ * IMU_TO_ORIGIN_X;
+    return a_y + alphaX * IMU_TO_ORIGIN_Z - alphaZ * IMU_TO_ORIGIN_X;
 }
 
 float IMU::accelZ() const {
-    return a_z ;//* cos(rotation) + a_x * sin(rotation) + (gyroX() * gyroX()) * IMU_TO_ORIGIN_Z;
+    return a_z * cos(rotation) + a_x * sin(rotation) + (gyroX() * gyroX()) * IMU_TO_ORIGIN_Z;
 }
 
 float IMU::gyroX() const {
@@ -259,24 +240,30 @@ void IMU::update() {
 
 void IMU::set_register(uint8_t reg, uint8_t val) const {
     digitalWrite(cs_pin, LOW);
+    SPI.beginTransaction(imuSettings);
     SPI.transfer(reg);
     SPI.transfer(val);
+    SPI.endTransaction();
     digitalWrite(cs_pin, HIGH);
 }
 
 void IMU::set_register(uint8_t reg, int16_t val) const {
     digitalWrite(cs_pin, LOW);
+    SPI.beginTransaction(imuSettings);
     SPI.transfer(reg);
     SPI.transfer((uint8_t) (val >> 8));
     SPI.transfer(val & 0xFF);
+    SPI.endTransaction();
     digitalWrite(cs_pin, HIGH);
 }
 
 void IMU::read_register(uint8_t reg, uint8_t *val) const {
     reg = reg | 0b10000000;
     digitalWrite(cs_pin, LOW);
+    SPI.beginTransaction(imuSettings);
     SPI.transfer(reg);
     *val = SPI.transfer(0x00);
+    SPI.endTransaction();
     digitalWrite(cs_pin, HIGH);
 }
 
@@ -284,9 +271,11 @@ void IMU::read_register(uint8_t reg, int16_t *val) const {
     reg = reg | 0b10000000;
 
     digitalWrite(cs_pin, LOW);
+    SPI.beginTransaction(imuSettings);
     SPI.transfer(reg);
     uint8_t v1 = SPI.transfer(0x00);
     uint8_t v2 = SPI.transfer(0x00);
+    SPI.endTransaction();
     *val = (int16_t) ((v1 << 8U) | v2);
     digitalWrite(cs_pin, HIGH);
 }
@@ -295,11 +284,13 @@ void IMU::read_registers(uint8_t reg, uint8_t *val, int n) const {
     reg = reg | 0b10000000;
 
     digitalWrite(cs_pin, LOW);
+    SPI.beginTransaction(imuSettings);
     SPI.transfer(reg);
 
     for (int i = 0; i < n; i++)
         val[i] = SPI.transfer(0x00);
 
+    SPI.endTransaction();
     digitalWrite(cs_pin, HIGH);
 
 }
@@ -308,6 +299,7 @@ void IMU::read_registers(uint8_t reg, int16_t *val, int n) const {
     reg = reg | 0b10000000;
 
     digitalWrite(cs_pin, LOW);
+    SPI.beginTransaction(imuSettings);
     SPI.transfer(reg);
 
     for (int i = 0; i < n; i++){
@@ -316,6 +308,7 @@ void IMU::read_registers(uint8_t reg, int16_t *val, int n) const {
         val[i] = (int16_t) ((v1 << 8U) | v2);
     }
 
+    SPI.endTransaction();
     digitalWrite(cs_pin, HIGH);
 }
 
