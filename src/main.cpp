@@ -66,7 +66,7 @@
 
 
 //#define REQUIRE_ACTUATORS
-//#define RADIOCOMM
+#define RADIOCOMM
 
 #ifdef RADIOCOMM
 
@@ -127,8 +127,8 @@ float v_r = 0.0;            // Required velocity (m/s)
 float torque = 0.0;         // Current torque (Nm)
 
 // Filter tuning parameters
-float var_drive_motor = 0.04;   // Variance in (m/s^2)^2
-float var_roll_accel = 0.64;    // Variance in (rad/s^2)^2
+float var_drive_motor = 0.16;   // Variance in (m/s^2)^2
+float var_roll_accel = 0.81;    // Variance in (rad/s^2)^2
 float var_steer_accel = 0.16;   // Variance in (rad/s^2)^2
 float var_heading = 0.01;       // Variance in (rad/s^2)^2
 
