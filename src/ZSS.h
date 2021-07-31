@@ -18,10 +18,11 @@ public:
     void halt();
     bool retracted();
 
+    bool down;
+
 private:
     uint8_t p1, p2, p3, p4;
     uint8_t l1, l2;
-    bool down;
 };
 
 

@@ -56,8 +56,8 @@
 // State transition constants
 #define FTHRESH (PI/4.0)      // Threshold for being fallen over
 #define UTHRESH (PI/20.0)     // Threshold for being back upright
-#define HIGH_V_THRESH 2.2
-#define LOW_V_THRESH 1.8
+#define HIGH_V_THRESH 2.8
+#define LOW_V_THRESH 2.5
 
 // Loop timing constants (frequencies in Hz)
 #define SPEED_UPDATE_FREQ   5
@@ -65,7 +65,7 @@
 #define STORE_UPDATE_FREQ   50
 
 
-//#define REQUIRE_ACTUATORS
+#define REQUIRE_ACTUATORS
 #define RADIOCOMM
 
 #ifdef RADIOCOMM
@@ -184,7 +184,7 @@ struct TelemetyFramePage {
 } t_frame_page;
 
 void haltZSS() {
-    if (!digitalRead(52) || !digitalRead(53))
+    if ((!digitalRead(52) || !digitalRead(53)) && zss.down)
         zss.halt();
 }
 
@@ -328,6 +328,7 @@ void setup() {
     Serial.println("Finished setup.");
 
     delay(1000);
+
 }
 
 void loop() {
@@ -415,7 +416,7 @@ void loop() {
     ddel = orientation_filter.x(3);
 
     //!!!! DEBUG ONLY !!!!//
-    v = 0.0;
+//    v = 0.0;
 //    phi = 0;
 
     // Update indicator
@@ -632,8 +633,12 @@ void loop() {
     }
 
     if (Serial.available()) {
-        if (Serial.read() == 'f') {
+        char c = Serial.read();
+        if (c == 'f') {
             retrieveTelemetry();
+        }
+        else if (c == 'z') {
+            clearTelemetry();
         }
     }
 }
