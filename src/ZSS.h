@@ -18,7 +18,7 @@ public:
     void halt();
     bool retracted();
 
-    bool down;
+    bool deploying;
 
 private:
     uint8_t p1, p2, p3, p4;

@@ -5,7 +5,7 @@
 #include "ZSS.h"
 
 ZSS::ZSS(uint8_t p1, uint8_t p2, uint8_t p3, uint8_t p4, uint8_t l1, uint8_t l2) {
-    down = false;
+    deploying = false;
     this->p1 = p1;
     this->p2 = p2;
     this->p3 = p3;
@@ -31,7 +31,7 @@ void ZSS::retract() {
     digitalWrite(p3, HIGH);
     digitalWrite(p1, LOW);
     digitalWrite(p4, LOW);
-    down = false;
+    deploying = false;
 }
 
 void ZSS::deploy() {
@@ -39,13 +39,13 @@ void ZSS::deploy() {
     digitalWrite(p4, HIGH);
     digitalWrite(p2, LOW);
     digitalWrite(p3, LOW);
-    down = true;
+    deploying = true;
     if (!digitalRead(l1) || !digitalRead(l2))
         halt();
 }
 
 bool ZSS::retracted() {
-    return down;
+    return !deploying;
 }
 
 void ZSS::halt() {

@@ -8,7 +8,6 @@
 #include <SPI.h>
 #include <due_can.h>
 #include <AccelStepper.h>
-//#include <Adafruit_FRAM_SPI.h>
 
 // Internal libraries
 #include "IMU.h"
@@ -58,6 +57,7 @@
 #define UTHRESH (PI/20.0)     // Threshold for being back upright
 #define HIGH_V_THRESH 2.8
 #define LOW_V_THRESH 2.5
+#define OVERSTEER_THRESH (PI/4.0)  // Threshold for steering angle before initiating E_STOP
 
 // Loop timing constants (frequencies in Hz)
 #define SPEED_UPDATE_FREQ   5
@@ -65,8 +65,9 @@
 #define STORE_UPDATE_FREQ   50
 
 
-#define REQUIRE_ACTUATORS
-#define RADIOCOMM
+//#define REQUIRE_ACTUATORS
+//#define RADIOCOMM
+//#define KALMAN_CALIB
 
 #ifdef RADIOCOMM
 
@@ -110,13 +111,12 @@ float phi_y = 0.0;          // Roll angle measurement (rad)
 float del_y = 0.0;          // Steering angle measurement (rad)
 float dphi_y = 0.0;         // Roll angle rate measurement (rad/s)
 float ddel_y = 0.0;         // Steering angle rate measurement (rad/s)
+float v_y = 0.0;            // Raw velocity measurement
 float v = 0.0;              // Velocity (m/s)
 bool free_running = false;
 
 float heading = 0.0;
 float dheading = 0.0;
-
-float v_y = 0.0;            // Raw velocity measurement
 
 // Reference variables
 float phi_r = 0.0;          // Required roll angle (rad)
@@ -128,7 +128,7 @@ float torque = 0.0;         // Current torque (Nm)
 
 // Filter tuning parameters
 float var_drive_motor = 0.16;   // Variance in (m/s^2)^2
-float var_roll_accel = 0.81;    // Variance in (rad/s^2)^2
+float var_roll_accel = 0.57;    // Variance in (rad/s^2)^2
 float var_steer_accel = 0.16;   // Variance in (rad/s^2)^2
 float var_heading = 0.01;       // Variance in (rad/s^2)^2
 
@@ -154,7 +154,6 @@ void clearTelemetry();
 
 void physical_brake(bool engage);
 
-int framAddress = 100;
 bool isRecording = false;
 
 #define PARAMETER_ADDR  0x000000
@@ -184,8 +183,13 @@ struct TelemetyFramePage {
 } t_frame_page;
 
 void haltZSS() {
-    if ((!digitalRead(52) || !digitalRead(53)) && zss.down)
+#ifdef KALMAN_CALIB
+    isRecording = true;
+#else
+    if (zss.deploying) {
         zss.halt();
+    }
+#endif
 }
 
 void setup() {
@@ -331,12 +335,14 @@ void setup() {
 
 }
 
+
 void loop() {
     static unsigned long last_time = millis();
     static unsigned long last_speed_time = millis();
     static unsigned long last_report_time = millis();
     static unsigned long last_store_time = millis();
     static unsigned long timeout = 0;
+
     dt = (float) (millis() - last_time) / 1000.0f;
     last_time = millis();
 
@@ -378,7 +384,6 @@ void loop() {
 #ifdef REQUIRE_ACTUATORS
         v_y = drive_motor->getSpeed();
 #endif
-//        v = v_y;
         float a_y = imu.accelX();
         last_speed_time = millis();
 
@@ -400,12 +405,11 @@ void loop() {
     // Update orientation Kalman filter parameters
     orientation_filter.A = bike_model.kalmanTransitionMatrix(v, dt, free_running);
     orientation_filter.B = bike_model.kalmanControlsMatrix(v, dt, free_running);
-    orientation_filter.Q = {
-            var_roll_accel / 4 * dt * dt * dt * dt, var_roll_accel / 2 * dt * dt * dt, 0, 0,
-            var_roll_accel / 2 * dt * dt * dt, var_roll_accel * dt * dt, 0, 0,
-            0, 0, var_steer_accel / 4 * dt * dt * dt * dt, var_steer_accel / 2 * dt * dt * dt,
-            0, 0, var_steer_accel / 2 * dt * dt * dt, var_steer_accel * dt * dt,
-    };
+    BLA::Matrix<4, 1> w_orr = {0.5 * var_roll_accel * dt * dt,
+                               0.5 * var_steer_accel * dt * dt,
+                               var_roll_accel * dt,
+                               var_steer_accel * dt,};
+    orientation_filter.Q = w_orr * (~w_orr);
 
     // Update orientation state estimate
     orientation_filter.predict({0, torque});
@@ -415,9 +419,6 @@ void loop() {
     dphi = orientation_filter.x(2);
     ddel = orientation_filter.x(3);
 
-    //!!!! DEBUG ONLY !!!!//
-//    v = 0.0;
-//    phi = 0;
 
     // Update indicator
     indicator.update();
@@ -492,6 +493,8 @@ void loop() {
                 assert_assist();
             if (user_req & R_STOP)
                 assert_emergency_stop();
+            if (fabs(del) > OVERSTEER_THRESH)
+                assert_emergency_stop();
 
             // Action
             automatic();
@@ -531,7 +534,6 @@ void loop() {
 #ifdef REQUIRE_ACTUATORS
         drive_motor->setSpeed(0);
 #endif
-        Serial.println("Timed out!");
     }
 
     // Report state, reference, and control values
@@ -636,8 +638,7 @@ void loop() {
         char c = Serial.read();
         if (c == 'f') {
             retrieveTelemetry();
-        }
-        else if (c == 'z') {
+        } else if (c == 'z') {
             clearTelemetry();
         }
     }

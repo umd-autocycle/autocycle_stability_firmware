@@ -41,9 +41,10 @@ IMU::IMU(int cs_pin) {
 bool IMU::start() {
     pinMode(cs_pin, OUTPUT);
     set_register(0x6B, (uint8_t) 0x00); // Set reset and wait
+    delay(300);
+    set_register(0x6A, (uint8_t) 0b00010000); // Disable I2C interface
     delay(100);
 
-    digitalWrite(cs_pin, HIGH);
     return true;
 }
 
