@@ -53,11 +53,11 @@
 #define TM_TORQUE_SLOPE     10000   // Thousandths of max torque per second
 
 // State transition constants
-#define FTHRESH (PI/4.0)      // Threshold for being fallen over
-#define UTHRESH (PI/20.0)     // Threshold for being back upright
-#define HIGH_V_THRESH 2.8
-#define LOW_V_THRESH 2.5
-#define OVERSTEER_THRESH (PI/4.0)  // Threshold for steering angle before initiating E_STOP
+#define FTHRESH             (PI/4.0)    // Threshold for being fallen over
+#define UTHRESH             (PI/20.0)   // Threshold for being back upright
+#define HIGH_V_THRESH       3.5         // Velocity threshold at which to enter automatic mode (torque control)
+#define LOW_V_THRESH        3.2         // Velocity threshold at which to leave automatic mode (torque control)
+#define OVERSTEER_THRESH    (PI/4.0)    // Threshold for steering angle before initiating E_STOP
 
 // Loop timing constants (frequencies in Hz)
 #define SPEED_UPDATE_FREQ   5
@@ -277,7 +277,7 @@ void setup() {
     parameters.var_dphi = 0.0000002117716535; // From averaging data
     parameters.var_ddel = 0.0000001;
 
-    Serial.println("Initializing Kalman filter.");
+    Serial.println("Initializing Kalman filters.");
     // Initialize velocity Kalman filter
     velocity_filter.x = {0, 0};                     // Initial state estimate
     velocity_filter.P = BLA::Identity<2, 2>() * 0.1;     // Initial estimate covariance
