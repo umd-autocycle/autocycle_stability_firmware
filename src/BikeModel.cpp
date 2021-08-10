@@ -127,7 +127,10 @@ BLA::Matrix<4, 4> BikeModel::dynamicsMatrix(float v, bool free_running) {
 }
 
 BLA::Matrix<4, 2> BikeModel::controlsMatrix(float v, bool free_running) {
-    return BLA::Zeros<2, 2>() && M_inv;
+    if (free_running)
+        return BLA::Zeros<2, 2>() && M_inv;
+    else
+        return BLA::Zeros<2, 2>() && BLA::Zeros<2, 2>();
 }
 
 BLA::Matrix<4, 4> BikeModel::kalmanTransitionMatrix(float v, float dt, bool free_running) {

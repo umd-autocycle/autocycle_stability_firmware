@@ -15,10 +15,10 @@
 #define GYRO_RANGE      32767
 #define ACCEL_RANGE     32767
 
-//#define IMU_TO_ORIGIN_X .62f
-//#define IMU_TO_ORIGIN_Z .76f
-#define IMU_TO_ORIGIN_X .0f
-#define IMU_TO_ORIGIN_Z .03f
+#define IMU_TO_ORIGIN_X .62f
+#define IMU_TO_ORIGIN_Z .76f
+//#define IMU_TO_ORIGIN_X .0f
+//#define IMU_TO_ORIGIN_Z .03f
 
 class IMU {
 public:
@@ -68,7 +68,7 @@ private:
     float last_gyro_x = 0;
     float last_gyro_z = 0;
     float temp;
-    float rotation = 0;//-12.0 *  PI / 180.0f;
+    float rotation = -12.0 *  PI / 180.0f;
 
     // Gyroscope and accelerometer FS_SEL and AFS_SEL register resolution values
     uint8_t fs_sel;

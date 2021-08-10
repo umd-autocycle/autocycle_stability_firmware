@@ -65,8 +65,8 @@
 #define STORE_UPDATE_FREQ   50
 
 
-//#define REQUIRE_ACTUATORS
-//#define RADIOCOMM
+#define REQUIRE_ACTUATORS
+#define RADIOCOMM
 //#define KALMAN_CALIB
 
 #ifdef RADIOCOMM
@@ -128,7 +128,7 @@ float torque = 0.0;         // Current torque (Nm)
 
 // Filter tuning parameters
 float var_drive_motor = 0.16;   // Variance in (m/s^2)^2
-float var_roll_accel = 0.57;    // Variance in (rad/s^2)^2
+float var_roll_accel = 0.58;    // Variance in (rad/s^2)^2
 float var_steer_accel = 0.16;   // Variance in (rad/s^2)^2
 float var_heading = 0.01;       // Variance in (rad/s^2)^2
 
@@ -273,9 +273,9 @@ void setup() {
     parameters.var_v = 0.0004;
     parameters.var_a = 0.02;
     parameters.var_phi = 0.00002629879368; // From averaging data
-    parameters.var_del = 0.0000001;
+    parameters.var_del = 0.00001;
     parameters.var_dphi = 0.0000002117716535; // From averaging data
-    parameters.var_ddel = 0.0000001;
+    parameters.var_ddel = 0.000001;
 
     Serial.println("Initializing Kalman filters.");
     // Initialize velocity Kalman filter
