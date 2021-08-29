@@ -57,7 +57,7 @@
 #define UTHRESH             (PI/20.0)   // Threshold for being back upright
 #define HIGH_V_THRESH       3.5         // Velocity threshold at which to enter automatic mode (torque control)
 #define LOW_V_THRESH        3.2         // Velocity threshold at which to leave automatic mode (torque control)
-#define OVERSTEER_THRESH    (PI/4.0)    // Threshold for steering angle before initiating E_STOP
+#define OVERSTEER_THRESH    (PI/3.0)    // Threshold for steering angle before initiating E_STOP
 
 // Loop timing constants (frequencies in Hz)
 #define SPEED_UPDATE_FREQ   5
@@ -280,9 +280,9 @@ void setup() {
     Serial.println("Initializing Kalman filters.");
     // Initialize velocity Kalman filter
     velocity_filter.x = {0, 0};                     // Initial state estimate
-    velocity_filter.P = BLA::Identity<2, 2>() * 0.1;     // Initial estimate covariance
+    velocity_filter.P = BLA::Identity<2, 2, double>() * 0.1;     // Initial estimate covariance
     velocity_filter.B = {0, 1};                     // Control matrix
-    velocity_filter.C = BLA::Identity<2, 2>();      // Sensor matrix
+    velocity_filter.C = BLA::Identity<2, 2, double>();      // Sensor matrix
     velocity_filter.R = {                           // Sensor covariance matrix
             parameters.var_v, 0,
             0, parameters.var_a
@@ -290,8 +290,8 @@ void setup() {
 
     // Initialize local orientation Kalman filter
     orientation_filter.x = {0, 0, 0, 0};            // Initial state estimate
-    orientation_filter.P = BLA::Identity<4, 4>() * 0.1;      // Initial estimate covariance
-    orientation_filter.C = BLA::Identity<4, 4>();   // Sensor matrix
+    orientation_filter.P = BLA::Identity<4, 4, double>() * 0.1;      // Initial estimate covariance
+    orientation_filter.C = BLA::Identity<4, 4, double>();   // Sensor matrix
     orientation_filter.R = {                        // Sensor covariance matrix
             parameters.var_phi, 0, 0, 0,
             0, parameters.var_del, 0, 0,
@@ -303,7 +303,7 @@ void setup() {
 
     // Initialize heading Kalman filter
     heading_filter.x = {0, 0};                      // Initial state estimate
-    heading_filter.P = BLA::Identity<2, 2>() * 0.1; // Initial estimate covariance
+    heading_filter.P = BLA::Identity<2, 2, double>() * 0.1; // Initial estimate covariance
     heading_filter.B = {0, 1};
     heading_filter.C = {0, 1};                      // Sensor matrix
     heading_filter.R = {                            // Sensor covariance matrix
@@ -405,7 +405,7 @@ void loop() {
     // Update orientation Kalman filter parameters
     orientation_filter.A = bike_model.kalmanTransitionMatrix(v, dt, free_running);
     orientation_filter.B = bike_model.kalmanControlsMatrix(v, dt, free_running);
-    BLA::Matrix<4, 1> w_orr = {0.5 * var_roll_accel * dt * dt,
+    BLA::Matrix<4, 1, Array<4, 1, double>> w_orr = {0.5 * var_roll_accel * dt * dt,
                                0.5 * var_steer_accel * dt * dt,
                                var_roll_accel * dt,
                                var_steer_accel * dt,};
