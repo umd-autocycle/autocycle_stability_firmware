@@ -222,14 +222,14 @@ void IMU::update() {
     g_y_raw = buffer[5];
     g_z_raw = buffer[6];
 
-    a_x = GRAV * (float) (a_x_raw * accel_fsr) / ACCEL_RANGE;
+    a_x = -GRAV * (float) (a_x_raw * accel_fsr) / ACCEL_RANGE;
     a_y = GRAV * (float) (a_y_raw * accel_fsr) / ACCEL_RANGE;
-    a_z = GRAV * (float) (a_z_raw * accel_fsr) / ACCEL_RANGE;
+    a_z = -GRAV * (float) (a_z_raw * accel_fsr) / ACCEL_RANGE;
 
     temp = (float) temp_raw / 340.0f + 36.53f;
-    g_x = (float) (g_x_raw * gyro_fsr) / GYRO_RANGE * (float) PI / 180.0f;
+    g_x = (float) (-1 * g_x_raw * gyro_fsr) / GYRO_RANGE * (float) PI / 180.0f;
     g_y = (float) (g_y_raw * gyro_fsr) / GYRO_RANGE * (float) PI / 180.0f;
-    g_z = (float) (g_z_raw * gyro_fsr) / GYRO_RANGE * (float) PI / 180.0f;
+    g_z = (float) (-1 * g_z_raw * gyro_fsr) / GYRO_RANGE * (float) PI / 180.0f;
 
     alphaX = ((gyroX() - last_gyro_x)) / dt;
     alphaZ = ((gyroZ() - last_gyro_z)) / dt;
