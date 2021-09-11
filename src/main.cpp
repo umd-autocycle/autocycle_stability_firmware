@@ -66,7 +66,7 @@
 
 
 #define REQUIRE_ACTUATORS
-#define RADIOCOMM
+//#define RADIOCOMM
 //#define KALMAN_CALIB
 
 #ifdef RADIOCOMM
