@@ -27,18 +27,20 @@ void ZSS::start() {
 }
 
 void ZSS::retract() {
-    digitalWrite(p2, HIGH);
-    digitalWrite(p3, HIGH);
-    digitalWrite(p1, LOW);
-    digitalWrite(p4, LOW);
-    deploying = false;
-}
-
-void ZSS::deploy() {
     digitalWrite(p1, HIGH);
     digitalWrite(p4, HIGH);
     digitalWrite(p2, LOW);
     digitalWrite(p3, LOW);
+
+    deploying = false;
+}
+
+void ZSS::deploy() {
+    digitalWrite(p2, HIGH);
+    digitalWrite(p3, HIGH);
+    digitalWrite(p1, LOW);
+    digitalWrite(p4, LOW);
+
     deploying = true;
     if (!digitalRead(l1) || !digitalRead(l2))
         halt();

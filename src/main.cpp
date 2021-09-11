@@ -66,7 +66,7 @@
 
 
 #define REQUIRE_ACTUATORS
-#define RADIOCOMM
+//#define RADIOCOMM
 //#define KALMAN_CALIB
 
 #ifdef RADIOCOMM
@@ -430,7 +430,7 @@ void loop() {
             // Transitions
             if (fabs(phi) > FTHRESH)
                 assert_fallen();
-            if (v > 0.6)
+            if (v > 0.6 || v_r > 0)
                 assert_assist();
             if (user_req & R_CALIB_MODE)
                 assert_calibrate();
@@ -475,7 +475,7 @@ void loop() {
                 assert_fallen();
             if (v > HIGH_V_THRESH)
                 assert_automatic();
-            if (v < 0.5)
+            if (v < 0.5 && v_r == 0)
                 assert_idle();
             if (user_req & R_STOP)
                 assert_emergency_stop();
