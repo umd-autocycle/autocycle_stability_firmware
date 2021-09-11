@@ -124,6 +124,7 @@ float del_r = 0.0;          // Required steering angle (rad)
 float v_r = 0.0;            // Required velocity (m/s)
 
 // Control variables
+float u = 0.0;              // Control commanded torque (Nm)
 float torque = 0.0;         // Current torque (Nm)
 
 // Filter tuning parameters
@@ -169,7 +170,7 @@ struct StoredParameters {
 
 struct TelemetryFrame {
     uint8_t state;
-    float time, phi, del, dphi, ddel, v, torque, heading, dheading, phi_y, del_y, dphi_y, ddel_y;
+    float time, phi, del, dphi, ddel, v_r, v, u, torque, heading, dheading, phi_y, del_y, dphi_y, ddel_y;
 } t_frame;
 static uint32_t storeAddress = TELEMETRY_ADDR;
 
@@ -723,7 +724,9 @@ void storeTelemetry() {
         t_frame_page.frames[i].del = del;
         t_frame_page.frames[i].dphi = dphi;
         t_frame_page.frames[i].ddel = ddel;
+        t_frame_page.frames[i].v_r = v_r;
         t_frame_page.frames[i].v = v;
+        t_frame_page.frames[i].u = u;
         t_frame_page.frames[i].torque = torque;
         t_frame_page.frames[i].heading = heading;
         t_frame_page.frames[i].dheading = dheading;
@@ -797,7 +800,11 @@ void printTelemetryFrame(TelemetryFrame &telemetryFrame) {
     Serial.print('\t');
     Serial.print(telemetryFrame.ddel, 4);
     Serial.print('\t');
+    Serial.print(telemetryFrame.v_r, 4);
+    Serial.print('\t');
     Serial.print(telemetryFrame.v, 4);
+    Serial.print('\t');
+    Serial.print(telemetryFrame.u, 4);
     Serial.print('\t');
     Serial.print(telemetryFrame.torque, 4);
     Serial.print('\t');
@@ -828,7 +835,7 @@ void assist() {
 }
 
 void automatic() {
-    float u = controller->control(phi, del, dphi, ddel, phi_r, del_r, v, dt);
+    u = controller->control(phi, del, dphi, ddel, phi_r, del_r, v, dt);
 #ifdef REQUIRE_ACTUATORS
     torque_motor->setTorque(u);
 #endif
