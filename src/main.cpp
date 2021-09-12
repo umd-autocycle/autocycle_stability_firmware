@@ -395,7 +395,7 @@ void loop() {
     // Update orientation state measurement
     float g_mag = imu.accelY() * imu.accelY() +
                   imu.accelZ() * imu.accelZ();    // Check if measured orientation gravity vector exceeds feasibility
-    phi_y = g_mag <= 10 * 10 ? atan2(imu.accelY(), imu.accelZ()) : phi_y;
+    phi_y = g_mag <= 10 * 10 ? atan2(-imu.accelY(), -imu.accelZ()) : phi_y;
     dphi_y = imu.gyroX();
 #ifdef REQUIRE_ACTUATORS
     del_y = torque_motor->getPosition();
