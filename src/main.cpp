@@ -227,8 +227,8 @@ void setup() {
     analogWriteResolution(12);              // Enable expanded PWM and ADC resolution
     analogReadResolution(12);
 
-    stepper.setAcceleration(1000.0);
-    stepper.setMaxSpeed(100.0);
+    stepper.setAcceleration(2000.0);
+    stepper.setMaxSpeed(1000.0);
 
     // Initialize indicator
     indicator.start();
@@ -610,6 +610,9 @@ void loop() {
                 break;
             case 't':
                 v_r = Serial.parseFloat();
+#ifdef REQUIRE_ACTUATORS
+                drive_motor->setSpeed(v_r);
+#endif
                 timeout = millis() + Serial.parseInt();
                 user_req |= R_TIMEOUT;
                 break;
@@ -831,6 +834,8 @@ void assist() {
     float er = del_r;
 #ifdef REQUIRE_ACTUATORS
     torque_motor->setPosition(er);
+    if (v_r == 0)
+        physical_brake(true);
 #endif
 }
 
@@ -1111,10 +1116,10 @@ void home_delta() {
 }
 
 void physical_brake(bool engage) {
-    int steps = floor(70 / (20 * 3.1415) * 200);
+    int steps = floor(74 / (11 * PI) * 200);
 
     if (engage) {
-        stepper.moveTo(steps);
+        stepper.moveTo(-steps);
     } else {
         stepper.moveTo(0);
     }
