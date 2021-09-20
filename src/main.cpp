@@ -53,7 +53,7 @@
 #define TM_TORQUE_SLOPE     10000   // Thousandths of max torque per second
 
 // State transition constants
-#define FTHRESH             (PI/4.0)    // Threshold for being fallen over
+#define FTHRESH             (PI/9.0)    //(PI/4.0)    // Threshold for being fallen over
 #define UTHRESH             (PI/20.0)   // Threshold for being back upright
 #define HIGH_V_THRESH       3.5         // Velocity threshold at which to enter automatic mode (torque control)
 #define LOW_V_THRESH        3.2         // Velocity threshold at which to leave automatic mode (torque control)
@@ -66,7 +66,7 @@
 
 
 #define REQUIRE_ACTUATORS
-//#define RADIOCOMM
+#define RADIOCOMM
 //#define KALMAN_CALIB
 
 #ifdef RADIOCOMM
@@ -187,8 +187,10 @@ void haltZSS() {
 #ifdef KALMAN_CALIB
     isRecording = true;
 #else
-    if (zss.deploying) {
-        zss.halt();
+    if (!digitalRead(52) || !digitalRead(53)) {
+        if (zss.deploying) {
+            zss.halt();
+        }
     }
 #endif
 }
@@ -255,7 +257,7 @@ void setup() {
 
     Serial.println("Initializing controller.");
     // Initialize stability controller
-    controller = new FSFController(&bike_model, 8.0, -2, -3, -4, -5);
+    controller = new FSFController(&bike_model, 8.0, -2, -2.5, -3, -3.5);
 
     Serial.println("Initialized controller.");
 
@@ -407,9 +409,9 @@ void loop() {
     orientation_filter.A = bike_model.kalmanTransitionMatrix(v, dt, free_running);
     orientation_filter.B = bike_model.kalmanControlsMatrix(v, dt, free_running);
     BLA::Matrix<4, 1, Array<4, 1, double>> w_orr = {0.5 * var_roll_accel * dt * dt,
-                               0.5 * var_steer_accel * dt * dt,
-                               var_roll_accel * dt,
-                               var_steer_accel * dt,};
+                                                    0.5 * var_steer_accel * dt * dt,
+                                                    var_roll_accel * dt,
+                                                    var_steer_accel * dt,};
     orientation_filter.Q = w_orr * (~w_orr);
 
     // Update orientation state estimate
@@ -840,7 +842,7 @@ void assist() {
 }
 
 void automatic() {
-    u = controller->control(phi, del, dphi, ddel, phi_r, del_r, v, dt);
+    u = 0; //TODO: TEMP //controller->control(phi, del, dphi, ddel, phi_r, del_r, v, dt);
 #ifdef REQUIRE_ACTUATORS
     torque_motor->setTorque(u);
 #endif
