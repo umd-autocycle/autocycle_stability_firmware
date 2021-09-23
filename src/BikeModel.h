@@ -19,11 +19,11 @@ public:
     BLA::Matrix<4, 4> kalmanTransitionMatrix(float v, float dt, bool free_running);
     BLA::Matrix<4, 2> kalmanControlsMatrix(float v, float dt, bool free_running);
 
-    BLA::Matrix<2, 2> M;    // Equivalent mass matrix
-    BLA::Matrix<2, 2> M_inv;
-    BLA::Matrix<2, 2> C1;   // Linear-velocity equivalent damping matrix
-    BLA::Matrix<2, 2> K0;   // Constant equivalent stiffness matrix
-    BLA::Matrix<2, 2> K2;   // Velocity-squared equivalent stiffness matrix
+    BLA::Matrix<2, 2> M{};    // Equivalent mass matrix
+    BLA::Matrix<2, 2> M_inv{};
+    BLA::Matrix<2, 2> C1{};   // Linear-velocity equivalent damping matrix
+    BLA::Matrix<2, 2> K0{};   // Constant equivalent stiffness matrix
+    BLA::Matrix<2, 2> K2{};   // Velocity-squared equivalent stiffness matrix
 };
 
 

@@ -17,15 +17,41 @@ BikeModel::BikeModel() {
     BLA::Matrix<3, 1> A = {0.177, 0.354, 0.177};   // Rear wheel moment of inertia
 
     // Rear frame parameters
-    float x_rf = 0.4;
-    float y_rf = 0;
-    float z_rf = -0.605;
-    float m_rf = 28.65;                          // Rear frame mass
-    BLA::Matrix<3, 3> B = {                     // Rear frame moment of inertia
+    float x_arf = 0.4;
+    float y_arf = 0;
+    float z_arf = -0.605;
+    float m_arf = 28.65;                          // Rear frame mass
+    BLA::Matrix<3, 3> B_arf = {                     // Rear frame moment of inertia
             3.124, 0, -0.877,
             0, 4.150, 0,
             -0.877, 0, 3.398,
     };
+
+    // ZSS parameters
+    float x_zss = 0;
+    float y_zss = 0;
+    float z_zss = -0.45; // GUESS
+    float m_zss = 6.352;
+    BLA::Matrix<3, 3> B_zss = {
+            0.223, -0.045, -0.001,
+            -0.045, 0.252, 0.002,
+            -0.001, 0.002, 0.473
+    };
+
+    BLA::Matrix<3, 1> com_arf = {x_arf, y_arf, z_arf};
+    BLA::Matrix<3, 1> com_zss = {x_zss, y_zss, z_zss};
+
+    // Combine ZSS and Rear Frame MOI, COM, and Mass
+    float m_rf = m_arf + m_zss;
+    auto com_rf = (com_arf * m_arf + com_zss * m_zss) / m_rf;
+    auto d_zss = com_zss - com_rf;
+    auto d_arf = com_arf - com_rf;
+    auto dd_zss = BLA::Identity<3, 3>() * BLA::Norm(d_zss) * BLA::Norm(d_zss) - d_zss * (~d_zss);
+    auto dd_arf = BLA::Identity<3, 3>() * BLA::Norm(d_arf) * BLA::Norm(d_arf) - d_arf * (~d_arf);
+    auto B = B_arf + B_zss - dd_arf * m_arf - dd_zss * m_zss;
+    float x_rf = com_rf(0);
+    float y_rf = com_rf(1);
+    float z_rf = com_rf(2);
 
     // Front frame parameters
     float x_ff = 0.92;
@@ -106,8 +132,7 @@ BikeModel::BikeModel() {
             -(f * s_t + s_f * cos(lam)), f_lz * cos(lam) / w + f * (s_u + t_zz * cos(lam) / w),
     };
 
-    M_inv = M.Inverse();
-
+    M_inv = BLA::Inverse(M);
 }
 
 BLA::Matrix<4, 4> BikeModel::dynamicsMatrix(float v, bool free_running) {

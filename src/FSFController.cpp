@@ -20,17 +20,17 @@ FSFController::FSFController(BikeModel *model, float torque_max, float l1, float
     K0_det = BLA::Determinant(model->K0);
     K2_det = BLA::Determinant(model->K2);
     BLA::Matrix<2, 2> t1 = model->C1 - model->M;
-    C1_M_det = t1.Det();
+    C1_M_det = BLA::Determinant(t1);
     BLA::Matrix<2, 2> t2 = model->K2 - model->M;
-    K2_M_det = t2.Det();
+    K2_M_det = BLA::Determinant(t2);
     BLA::Matrix<2, 2> t3 = model->K0 - model->M;
-    K0_M_det = t3.Det();
+    K0_M_det = BLA::Determinant(t3);
     BLA::Matrix<2, 2> t4 = model->C1 - model->K2;
-    C1_K2_det = t4.Det();
+    C1_K2_det = BLA::Determinant(t4);
     BLA::Matrix<2, 2> t5 = model->C1 - model->K0;
-    C1_K0_det = t5.Det();
+    C1_K0_det = BLA::Determinant(t5);
     BLA::Matrix<2, 2> t6 = model->K0 - model->K2;
-    K0_K2_det = t6.Det();
+    K0_K2_det = BLA::Determinant(t6);
 }
 
 float
@@ -49,7 +49,7 @@ FSFController::control(float phi, float del, float dphi, float ddel, float phi_r
             -RHSe(l4, v)
     };
 
-    BLA::Matrix<4, 1> K = LHS.Inverse() * RHS;
+    BLA::Matrix<4, 1> K = BLA::Inverse(LHS) * RHS;
 
     return -((~K) * x)(0, 0);
 }
