@@ -182,7 +182,7 @@ float IMU::accelX() const {
 }
 
 float IMU::accelY() const {
-    return a_y + alphaX * IMU_TO_ORIGIN_Z - alphaZ * IMU_TO_ORIGIN_X;
+    return a_y;// + alphaX * IMU_TO_ORIGIN_Z - alphaZ * IMU_TO_ORIGIN_X;
 }
 
 float IMU::accelZ() const {
