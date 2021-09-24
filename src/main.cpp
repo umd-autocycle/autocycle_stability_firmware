@@ -66,7 +66,7 @@
 
 
 #define REQUIRE_ACTUATORS
-#define RADIOCOMM
+//#define RADIOCOMM
 //#define KALMAN_CALIB
 
 #ifdef RADIOCOMM
@@ -257,7 +257,7 @@ void setup() {
 
     Serial.println("Initializing controller.");
     // Initialize stability controller
-    controller = new FSFController(&bike_model, 8.0, -2, -2.5, -3, -3.5);
+    controller = new FSFController(&bike_model, 10.0, -2, -3, -3.5, -4);
 
     Serial.println("Initialized controller.");
 
