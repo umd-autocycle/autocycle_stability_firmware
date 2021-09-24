@@ -168,7 +168,7 @@ struct StoredParameters {
     int16_t ax_off, ay_off, az_off, gx_off, gy_off, gz_off;
 } parameters;
 
-struct TelemetryFrame {
+struct __attribute__((__packed__)) TelemetryFrame {
     uint8_t state;
     float time, phi, del, dphi, ddel, v_r, v, u, torque, heading, dheading, phi_y, del_y, dphi_y, ddel_y;
 } t_frame;
