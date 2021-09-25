@@ -45,6 +45,7 @@
 #define R_CALIB_GYRO        0b00100000U
 #define R_CALIB_ACCEL       0b01000000U
 #define R_CALIB_VARIANCE    0b10000000U
+#define R_CALIB_TILT        0b0000000100000000U
 
 // Info for torque motor
 #define TM_NODE_ID          127
@@ -53,7 +54,7 @@
 #define TM_TORQUE_SLOPE     10000   // Thousandths of max torque per second
 
 // State transition constants
-#define FTHRESH             (PI/9.0)    //(PI/4.0)    // Threshold for being fallen over
+#define FTHRESH             (PI/9.0)    // (PI/4.0)    // Threshold for being fallen over
 #define UTHRESH             (PI/20.0)   // Threshold for being back upright
 #define HIGH_V_THRESH       3.5         // Velocity threshold at which to enter automatic mode (torque control)
 #define LOW_V_THRESH        3.2         // Velocity threshold at which to leave automatic mode (torque control)
@@ -100,7 +101,7 @@ Controller *controller;
 
 
 // State variables
-uint8_t user_req = 0;       // User request binary flags
+uint16_t user_req = 0;       // User request binary flags
 uint8_t state = IDLE;
 float dt;
 float phi = 0.0;            // Roll angle (rad)
@@ -166,6 +167,7 @@ bool isRecording = false;
 struct StoredParameters {
     float var_v, var_a, var_phi, var_del, var_dphi, var_ddel;
     int16_t ax_off, ay_off, az_off, gx_off, gy_off, gz_off;
+    float imu_tilt;
 } parameters;
 
 struct __attribute__((__packed__)) TelemetryFrame {
@@ -253,7 +255,7 @@ void setup() {
 #endif
 
     imu.start();                                    // Initialize IMU
-    imu.configure(2, 2, 2);  // Set accelerometer and gyro resolution, on-chip low-pass filter
+    imu.configure(2, 2, 2, parameters.imu_tilt);  // Set accelerometer and gyro resolution, on-chip low-pass filter
 
     Serial.println("Initializing controller.");
     // Initialize stability controller
@@ -568,7 +570,7 @@ void loop() {
                 del_r = *((float *) &(buffer[2]));
                 break;
             case 'c':
-                user_req = buffer[2];
+                user_req = *((uint16_t *) &(buffer[2]));
                 break;
             case 't':
                 v_r = *((float *) &(buffer[2]));
@@ -701,6 +703,19 @@ void calibrate() {
 
         calibrated = true;
         user_req = user_req & ~R_CALIB_VARIANCE;
+    }
+
+    if (user_req * R_CALIB_TILT) {
+        delay(100);
+
+        if (imu.calibrateXZRotation()) {
+            indicator.beepstring((uint8_t) 0b10101010);
+
+            parameters.imu_tilt = imu.rotation;
+            calibrated = true;
+        } else {
+            indicator.beepstring((uint8_t) 0b00110011);
+        }
     }
 
     if (calibrated) {
@@ -1112,7 +1127,7 @@ void home_delta() {
     torque_motor->setMode(OP_PROFILE_POSITION);
     while (!torque_motor->enableOperation());
     torque_motor->setPosition(0);
-    Serial.println("Succesfully reset to zero position.");
+    Serial.println("Successfully reset to zero position.");
     delay(3000);
 #endif
 }

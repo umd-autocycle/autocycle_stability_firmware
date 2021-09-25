@@ -25,9 +25,10 @@ public:
     explicit IMU(int cs_pin);
 
     bool start();
-    bool configure(uint8_t accel_res, uint8_t gyro_res, uint8_t filtering);
+    bool configure(uint8_t accel_res, uint8_t gyro_res, uint8_t filtering, float _rotation = -14.0 *  PI / 180.0f);
     bool calibrateGyroBias();
     bool calibrateAccelBias(float x_expected, float y_expected, float z_expected);
+    bool calibrateXZRotation();
 
     // Retrieve corrected accelerometer values in m/s
     float accelX() const;
@@ -50,6 +51,8 @@ public:
     void set_gyro_offsets(int16_t gx_off, int16_t gy_off, int16_t gz_off);
     void set_accel_offsets(int16_t ax_off, int16_t ay_off, int16_t az_off);
 
+    float rotation;
+
 private:
     void set_register(uint8_t reg, uint8_t val) const;
     void set_register(uint8_t reg, int16_t val) const;
@@ -68,7 +71,6 @@ private:
     float last_gyro_x = 0;
     float last_gyro_z = 0;
     float temp;
-    float rotation = -14.0 *  PI / 180.0f;
 
     // Gyroscope and accelerometer FS_SEL and AFS_SEL register resolution values
     uint8_t fs_sel;

@@ -48,11 +48,12 @@ bool IMU::start() {
     return true;
 }
 
-bool IMU::configure(uint8_t accel_res, uint8_t gyro_res, uint8_t filtering) {
+bool IMU::configure(uint8_t accel_res, uint8_t gyro_res, uint8_t filtering, float _rotation) {
     this->fs_sel = gyro_res;                // Record FS_SEL and AFS_SEL values, look up FSR for each from table
     this->afs_sel = accel_res;
     this->gyro_fsr = GYRO_FSR[gyro_res];
     this->accel_fsr = ACCEL_FSR[accel_res];
+    rotation = _rotation;
 
     set_register(0x1A, filtering);      // Set DLPF_CFG (low pass filtering) register
 
@@ -335,5 +336,23 @@ void IMU::get_accel_offsets(int16_t &ax_off, int16_t &ay_off, int16_t &az_off) {
     read_register(0x06, (int16_t *) &ax_off);
     read_register(0x08, (int16_t *) &ay_off);
     read_register(0x0A, (int16_t *) &az_off);
+}
+
+bool IMU::calibrateXZRotation() {
+    float a_z_acc, a_x_acc;
+    a_x_acc = a_z_acc = 0;
+
+    for (int i = 0; i < CALIB_SAMP; i++) {
+        update();
+        a_z_acc += a_z;
+        a_x_acc += a_x;
+    }
+
+    a_z_acc /= CALIB_SAMP;
+    a_x_acc /= CALIB_SAMP;
+
+    rotation = -atan2f(a_x_acc, a_z_acc);
+
+    return true;
 }
 
