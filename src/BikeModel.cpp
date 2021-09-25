@@ -48,7 +48,7 @@ BikeModel::BikeModel() {
     auto d_arf = com_arf - com_rf;
     auto dd_zss = BLA::Identity<3, 3>() * BLA::Norm(d_zss) * BLA::Norm(d_zss) - d_zss * (~d_zss);
     auto dd_arf = BLA::Identity<3, 3>() * BLA::Norm(d_arf) * BLA::Norm(d_arf) - d_arf * (~d_arf);
-    auto B = B_arf + B_zss - dd_arf * m_arf - dd_zss * m_zss;
+    auto B = B_arf + B_zss + dd_arf * m_arf + dd_zss * m_zss;
     float x_rf = com_rf(0);
     float y_rf = com_rf(1);
     float z_rf = com_rf(2);

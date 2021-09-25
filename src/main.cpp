@@ -383,7 +383,7 @@ void loop() {
             var_drive_motor * dt * dt, var_drive_motor * dt,
             var_drive_motor * dt, var_drive_motor
     };
-//    velocity_filter.x(1) = imu.accelX();
+    velocity_filter.x(1) = imu.accelX();
     velocity_filter.predict({0.0f});
 
     // Update velocity state measurement
