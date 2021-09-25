@@ -69,7 +69,7 @@
 
 
 #define REQUIRE_ACTUATORS
-#define RADIOCOMM
+//#define RADIOCOMM
 //#define KALMAN_CALIB
 
 #ifdef RADIOCOMM
@@ -256,14 +256,6 @@ void setup() {
     Serial.println("Initialized Drive Motor.");
 #endif
 
-    imu.start();                                    // Initialize IMU
-    imu.configure(2, 2, 2, parameters.imu_tilt);  // Set accelerometer and gyro resolution, on-chip low-pass filter
-
-    Serial.println("Initializing controller.");
-    // Initialize stability controller
-    controller = new FSFController(&bike_model, 10.0, -3, -3.25, -3.5, -4);
-
-    Serial.println("Initialized controller.");
 
     Serial.println("Loading parameters from Flash.");
     // Load parameters from Flash
@@ -271,6 +263,7 @@ void setup() {
         Serial.println("Loaded parameters from FLash.");
         imu.set_accel_offsets(parameters.ax_off, parameters.ay_off, parameters.az_off);
         imu.set_gyro_offsets(parameters.gx_off, parameters.gy_off, parameters.gz_off);
+        Serial.println(parameters.imu_tilt);
     } else {
         Serial.print("Failed to load parameters from Flash, error code: 0x");
         Serial.println(flash.error(), HEX);
@@ -283,6 +276,15 @@ void setup() {
     parameters.var_del = 0.00001;
     parameters.var_dphi = 0.0000002117716535; // From averaging data
     parameters.var_ddel = 0.000001;
+
+    imu.start();                                    // Initialize IMU
+    imu.configure(2, 2, 2, parameters.imu_tilt);  // Set accelerometer and gyro resolution, on-chip low-pass filter
+
+    Serial.println("Initializing controller.");
+    // Initialize stability controller
+    controller = new FSFController(&bike_model, 10.0, -3, -3.25, -3.5, -4);
+
+    Serial.println("Initialized controller.");
 
     Serial.println("Initializing Kalman filters.");
     // Initialize velocity Kalman filter
@@ -426,6 +428,7 @@ void loop() {
     dphi = orientation_filter.x(2);
     ddel = orientation_filter.x(3);
 
+    phi = 0; // TODO remove
 
     // Update indicator
     indicator.update();
@@ -719,7 +722,7 @@ void calibrate() {
         user_req = user_req & ~R_CALIB_VARIANCE;
     }
 
-    if (user_req * R_CALIB_TILT) {
+    if (user_req & R_CALIB_TILT) {
         delay(100);
 
         if (imu.calibrateXZRotation()) {
@@ -730,6 +733,8 @@ void calibrate() {
         } else {
             indicator.beepstring((uint8_t) 0b00110011);
         }
+
+        user_req = user_req & ~R_CALIB_TILT;
     }
 
     if (calibrated) {

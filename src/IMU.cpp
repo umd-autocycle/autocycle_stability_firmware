@@ -53,7 +53,7 @@ bool IMU::configure(uint8_t accel_res, uint8_t gyro_res, uint8_t filtering, floa
     this->afs_sel = accel_res;
     this->gyro_fsr = GYRO_FSR[gyro_res];
     this->accel_fsr = ACCEL_FSR[accel_res];
-    rotation = _rotation;
+    rotation = _rotation - PI;
 
     set_register(0x1A, filtering);      // Set DLPF_CFG (low pass filtering) register
 
@@ -351,7 +351,7 @@ bool IMU::calibrateXZRotation() {
     a_z_acc /= CALIB_SAMP;
     a_x_acc /= CALIB_SAMP;
 
-    rotation = -atan2f(a_x_acc, a_z_acc);
+    rotation = atan2f(a_x_acc, a_z_acc);
 
     return true;
 }
