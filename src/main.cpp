@@ -46,6 +46,8 @@
 #define R_CALIB_ACCEL       0b01000000U
 #define R_CALIB_VARIANCE    0b10000000U
 #define R_CALIB_TILT        0b0000000100000000U
+#define R_RETRACT_ZSS       0b0000001000000000U
+#define R_DEPLOY_ZSS        0b0000010000000000U
 
 // Info for torque motor
 #define TM_NODE_ID          127
@@ -653,6 +655,18 @@ void loop() {
 }
 
 void idle() {
+
+    if (user_req & R_RETRACT_ZSS) {
+        zss.retract();
+
+        user_req = user_req & ~R_RETRACT_ZSS;
+    }
+
+    if (user_req & R_DEPLOY_ZSS) {
+        zss.deploy();
+
+        user_req = user_req & ~R_DEPLOY_ZSS;
+    }
 
 }
 
