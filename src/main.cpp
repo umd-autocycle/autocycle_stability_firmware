@@ -652,6 +652,9 @@ void loop() {
             clearTelemetry();
         }
     }
+
+    // Run stepper
+    stepper.run();
 }
 
 void idle() {
@@ -1154,6 +1157,4 @@ void physical_brake(bool engage) {
     } else {
         stepper.moveTo(0);
     }
-
-    stepper.runToPosition();
 }
