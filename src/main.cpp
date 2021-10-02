@@ -59,8 +59,8 @@
 // State transition constants
 #define FTHRESH             (PI/9.0)    // (PI/4.0)    // Threshold for being fallen over
 #define UTHRESH             (PI/20.0)   // Threshold for being back upright
-#define HIGH_V_THRESH       3.5         // Velocity threshold at which to enter automatic mode (torque control)
-#define LOW_V_THRESH        3.2         // Velocity threshold at which to leave automatic mode (torque control)
+#define HIGH_V_THRESH       3.7         // Velocity threshold at which to enter automatic mode (torque control)
+#define LOW_V_THRESH        3.4         // Velocity threshold at which to leave automatic mode (torque control)
 #define OVERSTEER_THRESH    (PI/3.0)    // Threshold for steering angle before initiating E_STOP
 
 // Loop timing constants (frequencies in Hz)
@@ -114,7 +114,6 @@ float phi_y = 0.0;          // Roll angle measurement (rad)
 float del_y = 0.0;          // Steering angle measurement (rad)
 float dphi_y = 0.0;         // Roll angle rate measurement (rad/s)
 float ddel_y = 0.0;         // Steering angle rate measurement (rad/s)
-float v_y = 0.0;            // Raw velocity measurement
 float v = 0.0;              // Velocity (m/s)
 bool free_running = false;
 
@@ -286,7 +285,7 @@ void setup() {
 
     Serial.println("Initializing controller.");
     // Initialize stability controller
-    controller = new FSFController(&bike_model, 10.0, -3, -3.25, -3.5, -4);
+    controller = new FSFController(&bike_model, 10.0, -2, -3, -3.5, -4);
 
     Serial.println("Initialized controller.");
 
@@ -933,6 +932,7 @@ void assert_automatic() {
 void assert_fallen() {
     state = FALLEN;
     free_running = false;
+    physical_brake(true);
 #ifdef REQUIRE_ACTUATORS
     drive_motor->setSpeed(0);
     while (!torque_motor->shutdown());

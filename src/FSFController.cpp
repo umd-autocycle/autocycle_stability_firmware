@@ -51,7 +51,9 @@ FSFController::control(float phi, float del, float dphi, float ddel, float phi_r
 
     BLA::Matrix<4, 1> K = BLA::Inverse(LHS) * RHS;
 
-    return -((~K) * x)(0, 0);
+    float u = -((~K) * x)(0, 0);
+
+    return constrain(u, -torque_max, torque_max);
 }
 
 float FSFController::Qk1(float l, float v) {
