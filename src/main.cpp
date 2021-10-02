@@ -115,7 +115,7 @@ float del_y = 0.0;          // Steering angle measurement (rad)
 float dphi_y = 0.0;         // Roll angle rate measurement (rad/s)
 float ddel_y = 0.0;         // Steering angle rate measurement (rad/s)
 float v = 0.0;              // Velocity (m/s)
-bool free_running = false;
+bool free_running = false;  // Is rotation constrained by the ZSS being deployed?
 
 float heading = 0.0;
 float dheading = 0.0;
@@ -207,7 +207,7 @@ void setup() {
     Wire.begin();                               // Begin I2C interface
     SPI.begin();                                // Begin Serial Peripheral Interface (SPI)
 
-    Serial.begin(115200);
+    Serial.begin(115200);             // Begin Main Serial (UART to USB) communication
 #ifdef RADIOCOMM
     if (!radio.begin()) {
         Serial.println("Radio not found");
@@ -217,14 +217,10 @@ void setup() {
     radio.openReadingPipe(1, readAddr);
     radio.setPALevel(RF24_PA_HIGH);
     radio.startListening();
-
-#else
-    TELEMETRY.begin(115200);                    // Begin Main Serial (UART to USB) communication
 #endif
 
 
     Serial1.begin(1200);              // Begin Bafang Serial (UART) communication
-//    Serial2.begin(1200);
     delay(1000);                          // Wait for Serial interfaces to initialize
 
 
@@ -339,8 +335,7 @@ void setup() {
 
     Serial.println("Finished setup.");
 
-    delay(1000);
-
+    delay(200);
 }
 
 
@@ -534,7 +529,7 @@ void loop() {
     }
 
     if (TELEMETRY.available()) {
-        delay(100);
+        delay(2);
 #ifdef RADIOCOMM
         uint8_t buffer[32];
         TELEMETRY.read(buffer, 32);
@@ -579,7 +574,7 @@ void loop() {
         }
 #else
         uint8_t c = TELEMETRY.read();
-        delay(20);
+        delay(5);
 
         switch (c) {
             case 's':
