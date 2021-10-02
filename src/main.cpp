@@ -22,6 +22,7 @@
 #include "FSFController.h"
 #include "KalmanFilter.h"
 #include "BikeModel.h"
+#include "Encoder.h"
 #include "ZSS.h"
 
 #include <SPIMemory.h>
@@ -63,7 +64,6 @@
 #define OVERSTEER_THRESH    (PI/3.0)    // Threshold for steering angle before initiating E_STOP
 
 // Loop timing constants (frequencies in Hz)
-#define SPEED_UPDATE_FREQ   5
 #define REPORT_UPDATE_FREQ  2
 #define STORE_UPDATE_FREQ   50
 
@@ -91,12 +91,12 @@ IMU imu(2);
 Indicator indicator(3, 4, 5, 11);
 TorqueMotor *torque_motor;
 DriveMotor *drive_motor;
+Encoder encoder(16, 17);
 SPIFlash flash(6);
 
 BikeModel bike_model;
 
 KalmanFilter<4, 4, 2> orientation_filter;
-KalmanFilter<2, 2, 1> velocity_filter;
 KalmanFilter<2, 1, 1> heading_filter;
 
 Controller *controller;
@@ -131,7 +131,6 @@ float u = 0.0;              // Control commanded torque (Nm)
 float torque = 0.0;         // Current torque (Nm)
 
 // Filter tuning parameters
-float var_drive_motor = 0.16;   // Variance in (m/s^2)^2
 float var_roll_accel = 0.58;    // Variance in (rad/s^2)^2
 float var_steer_accel = 0.58;   // Variance in (rad/s^2)^2
 float var_heading = 0.01;       // Variance in (rad/s^2)^2
@@ -187,6 +186,7 @@ struct TelemetyFramePage {
     TelemetryFrame frames[FRAMES_PER_PAGE];
 } t_frame_page;
 
+// ISRs
 void haltZSS() {
 #ifdef KALMAN_CALIB
     isRecording = true;
@@ -197,6 +197,10 @@ void haltZSS() {
         }
     }
 #endif
+}
+
+void countPulse() {
+    encoder.countPulse();
 }
 
 void setup() {
@@ -221,7 +225,7 @@ void setup() {
 
 
     Serial1.begin(1200);              // Begin Bafang Serial (UART) communication
-    Serial2.begin(1200);
+//    Serial2.begin(1200);
     delay(1000);                          // Wait for Serial interfaces to initialize
 
 
@@ -287,15 +291,6 @@ void setup() {
     Serial.println("Initialized controller.");
 
     Serial.println("Initializing Kalman filters.");
-    // Initialize velocity Kalman filter
-    velocity_filter.x = {0, 0};                     // Initial state estimate
-    velocity_filter.P = BLA::Identity<2, 2>() * 0.1;     // Initial estimate covariance
-    velocity_filter.B = {0, 1};                     // Control matrix
-    velocity_filter.C = BLA::Identity<2, 2>();      // Sensor matrix
-    velocity_filter.R = {                           // Sensor covariance matrix
-            parameters.var_v, 0,
-            0, parameters.var_a
-    };
 
     // Initialize local orientation Kalman filter
     orientation_filter.x = {0, 0, 0, 0};            // Initial state estimate
@@ -333,6 +328,11 @@ void setup() {
     attachInterrupt(digitalPinToInterrupt(53), haltZSS, FALLING);
     Serial.println("Attached ZSS interrupts.");
 
+    Serial.println("Initializing encoder and interrupts.");
+    encoder.start();
+    attachInterrupt(digitalPinToInterrupt(16), countPulse, CHANGE);
+    Serial.println("Initialized encoder and interrupts.");
+
     assert_idle();
 
     pinMode(enPin, OUTPUT);
@@ -347,7 +347,6 @@ void setup() {
 
 void loop() {
     static unsigned long last_time = millis();
-    static unsigned long last_speed_time = millis();
     static unsigned long last_report_time = millis();
     static unsigned long last_store_time = millis();
     static unsigned long timeout = 0;
@@ -357,6 +356,7 @@ void loop() {
 
     // Update sensor information
     imu.update();
+    encoder.update();
 #ifdef REQUIRE_ACTUATORS
     torque_motor->update();
 #endif
@@ -375,30 +375,8 @@ void loop() {
     heading = heading_filter.x(0);
     dheading = heading_filter.x(1);
 
-
-    // Update velocity Kalman filter parameters
-    velocity_filter.A = {
-            1, dt,
-            0, 1
-    };
-    velocity_filter.Q = {
-            var_drive_motor * dt * dt, var_drive_motor * dt,
-            var_drive_motor * dt, var_drive_motor
-    };
-    velocity_filter.x(1) = imu.accelX();
-    velocity_filter.predict({0.0f});
-
-    // Update velocity state measurement
-    if (millis() - last_speed_time >= 1000 / SPEED_UPDATE_FREQ) {
-#ifdef REQUIRE_ACTUATORS
-        v_y = drive_motor->getSpeed();
-#endif
-        float a_y = imu.accelX();
-        last_speed_time = millis();
-
-        velocity_filter.update({v_y, a_y});
-    }
-    v = velocity_filter.x(0);
+    // Get current speed
+    v = encoder.getSpeed();
 
     // Update orientation state measurement
     float g_mag = imu.accelY() * imu.accelY() +
@@ -414,10 +392,10 @@ void loop() {
     // Update orientation Kalman filter parameters
     orientation_filter.A = bike_model.kalmanTransitionMatrix(v, dt, free_running);
     orientation_filter.B = bike_model.kalmanControlsMatrix(v, dt, free_running);
-    BLA::Matrix<4, 1, Array<4, 1>> w_orr = {   0.5f * var_roll_accel * dt * dt,
-                                               0.5f * var_steer_accel * dt * dt,
-                                               var_roll_accel * dt,
-                                               var_steer_accel * dt};
+    BLA::Matrix<4, 1, Array<4, 1>> w_orr = {0.5f * var_roll_accel * dt * dt,
+                                            0.5f * var_steer_accel * dt * dt,
+                                            var_roll_accel * dt,
+                                            var_steer_accel * dt};
     orientation_filter.Q = w_orr * (~w_orr);
 
     // Update orientation state estimate
@@ -428,7 +406,7 @@ void loop() {
     dphi = orientation_filter.x(2);
     ddel = orientation_filter.x(3);
 
-    phi = 0; // TODO remove
+    phi = 0; // TODO remove after Nav testing
 
     // Update indicator
     indicator.update();
@@ -624,6 +602,7 @@ void loop() {
 #endif
                 timeout = millis() + Serial.parseInt();
                 user_req |= R_TIMEOUT;
+                isRecording = true;
                 break;
             case 'f':
                 retrieveTelemetry();
@@ -710,10 +689,6 @@ void calibrate() {
 
         find_variances(parameters.var_v, parameters.var_a, parameters.var_phi, parameters.var_del,
                        parameters.var_dphi, parameters.var_ddel);
-        velocity_filter.R = {
-                parameters.var_v, 0,
-                0, parameters.var_a
-        };
         orientation_filter.R = {
                 parameters.var_phi, 0, 0, 0,
                 0, parameters.var_del, 0, 0,
@@ -805,7 +780,7 @@ void retrieveTelemetry() {
         if (t_frame_page.frames[0].state == 255)
             break;
 
-        for (auto &frame : t_frame_page.frames) {
+        for (auto &frame: t_frame_page.frames) {
             printTelemetryFrame(frame);
             delay(1);
         }
@@ -1096,7 +1071,7 @@ void find_variances(float &var_v, float &var_a, float &var_phi, float &var_del, 
     float v_acc, a_acc, phi_acc, del_acc, dphi_acc, ddel_acc;
     v_acc = a_acc = phi_acc = del_acc = dphi_acc = ddel_acc = 0;
 
-    for (auto &i : data) {
+    for (auto &i: data) {
         i[0] = drive_motor->getSpeed();
         i[1] = imu.accelX();
         i[2] = atan2(imu.accelY(), imu.accelZ());
@@ -1124,7 +1099,7 @@ void find_variances(float &var_v, float &var_a, float &var_phi, float &var_del, 
     float v_var_acc, a_var_acc, phi_var_acc, del_var_acc, dphi_var_acc, ddel_var_acc;
     v_var_acc = a_var_acc = phi_var_acc = del_var_acc = dphi_var_acc = ddel_var_acc = 0;
 
-    for (auto &i : data) {
+    for (auto &i: data) {
         v_var_acc += (i[0] - v_mean) * (i[0] - v_mean);
         a_var_acc += (i[1] - a_mean) * (i[1] - a_mean);
         phi_var_acc += (i[2] - phi_mean) * (i[2] - phi_mean);
