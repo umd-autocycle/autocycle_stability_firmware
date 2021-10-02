@@ -7,13 +7,14 @@
 Encoder::Encoder(int aPin, int bPin) {
     this->aPin = aPin;
     this->bPin = bPin;
-    prevA = 0;
-    prevB = 0;
+    curA = prevA = 0;
+    curB = prevB = 0;
+    combined = 0;
 }
 
 void Encoder::start() {
-    pinMode(aPin, INPUT);
-    pinMode(bPin, INPUT);
+    pinMode(aPin, INPUT_PULLUP);
+    pinMode(bPin, INPUT_PULLUP);
 
     curA = prevA = digitalRead(aPin);
     curB = prevB = digitalRead(bPin);
@@ -38,8 +39,8 @@ void Encoder::update() {
 
 int Encoder::sum_counter() {
     int acc = 0;
-    for (int i = 0; i++; i < ENC_BIN_COUNT)
-        acc += counter[i];
+    for (short i : counter)
+        acc += i;
 
     return acc;
 }
@@ -47,21 +48,21 @@ int Encoder::sum_counter() {
 void Encoder::countPulse() {
     curA = digitalRead(aPin);
     curB = digitalRead(bPin);
-    byte combined = (curA << 3) | (curB << 2) | (prevA << 1) || prevB;
+    combined = (curA << 3) | (curB << 2) | (prevA << 1) | prevB;
 
     switch (combined) {
         case 0b1100:    // Clockwise
         case 0b0011:
         case 0b1000:
         case 0b0111:
-            counter[current_bin]--;
+            counter[current_bin]++;
             break;
 
         case 0b1001:    // Counter-clockwise
         case 0b0110:
         case 0b0010:
         case 0b1101:
-            counter[current_bin]++;
+            counter[current_bin]--;
             break;
 
         default:        // All other cases invalid

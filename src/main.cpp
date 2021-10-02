@@ -529,7 +529,7 @@ void loop() {
     }
 
     if (TELEMETRY.available()) {
-        delay(2);
+        delay(20);
 #ifdef RADIOCOMM
         uint8_t buffer[32];
         TELEMETRY.read(buffer, 32);

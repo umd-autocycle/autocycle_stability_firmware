@@ -31,8 +31,10 @@ private:
     int aPin, bPin;
     volatile int prevA, prevB;
     volatile int curA, curB;
+    volatile byte combined;
 
     int sum_counter();
+    int c = 0;
 
 };
 
