@@ -181,7 +181,7 @@ void printTelemetryFrame(TelemetryFrame &telemetryFrame);
 
 #define FRAMES_PER_PAGE (PAGE_SIZE / (sizeof t_frame))
 
-struct TelemetyFramePage {
+struct TelemetryFramePage {
     TelemetryFrame frames[FRAMES_PER_PAGE];
 } t_frame_page;
 
