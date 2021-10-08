@@ -7,15 +7,17 @@
 
 #include "Indicator.h"
 
-Indicator::Indicator(uint8_t r_pin, uint8_t g_pin, uint8_t b_pin, uint8_t buzz_pin) {
+Indicator::Indicator(uint8_t r_pin, uint8_t g_pin, uint8_t b_pin, uint8_t buzz_pin, uint8_t loud_buzz_pin) {
     this->r_pin = r_pin;
     this->g_pin = g_pin;
     this->b_pin = b_pin;
     this->buzz_pin = buzz_pin;
+    this->loud_buzz_pin = loud_buzz_pin;
 
     pr = pb = pg = br = bg = bb = 0;
     pulse_duration = pulse_interval = 0;
-    pulse_on = pulsed = false;
+    yell_duration = yell_start = 0;
+    pulse_on = pulsed = yelling = false;
     pulse_ref = 0;
 }
 
@@ -24,6 +26,8 @@ void Indicator::start() {
     pinMode(g_pin, OUTPUT);
     pinMode(b_pin, OUTPUT);
     pinMode(buzz_pin, OUTPUT);
+    pinMode(loud_buzz_pin, OUTPUT);
+    digitalWrite(loud_buzz_pin, HIGH);
 
     analogWrite(r_pin, PWM_MAX);
     analogWrite(g_pin, PWM_MAX);
@@ -56,6 +60,11 @@ void Indicator::cycle() {
 }
 
 void Indicator::update() {
+    if(yelling && millis() - yell_start > yell_duration){
+        yelling = false;
+        digitalWrite(loud_buzz_pin, HIGH);
+    }
+
     if (pulse_on) {
         unsigned long t = (millis() - pulse_ref) % (pulse_duration + pulse_interval);
 
@@ -106,7 +115,7 @@ void Indicator::beepstring(uint8_t bitstring, int bitrate) {
     unsigned int duration = 4 * 1000 / bitrate / 5;
     unsigned int wait = 1000 / bitrate;
 
-    for (int i = 0; i < sizeof(uint8_t) * 8; i++) {
+    for (unsigned int i = 0; i < sizeof(uint8_t) * 8; i++) {
         if (bitstring & 0x80U)
             beep(duration);
         else
@@ -121,7 +130,7 @@ void Indicator::beepstring(uint16_t bitstring, int bitrate) {
     unsigned int duration = 4 * 1000 / bitrate / 5;
     unsigned int wait = 1000 / bitrate;
 
-    for (int i = 0; i < sizeof(uint16_t) * 8; i++) {
+    for (unsigned int i = 0; i < sizeof(uint16_t) * 8; i++) {
         if (bitstring & 0x8000U)
             beep(duration);
         else
@@ -136,7 +145,7 @@ void Indicator::beepstring(uint32_t bitstring, int bitrate) {
     unsigned int duration = 4 * 1000 / bitrate / 5;
     unsigned int wait = 1000 / bitrate;
 
-    for (int i = 0; i < sizeof(uint32_t) * 8; i++) {
+    for (unsigned int i = 0; i < sizeof(uint32_t) * 8; i++) {
         if (bitstring & 0x80000000UL)
             beep(duration);
         else
@@ -151,7 +160,7 @@ void Indicator::beepstring(uint64_t bitstring, int bitrate) {
     unsigned int duration = 4 * 1000 / bitrate / 5;
     unsigned int wait = 1000 / bitrate;
 
-    for (int i = 0; i < sizeof(uint64_t) * 8; i++) {
+    for (unsigned int i = 0; i < sizeof(uint64_t) * 8; i++) {
         if (bitstring & 0x8000000000000000UL)
             beep(duration);
         else
@@ -160,5 +169,11 @@ void Indicator::beepstring(uint64_t bitstring, int bitrate) {
 
         bitstring <<= 1U;
     }
+}
+
+void Indicator::yell(unsigned int duration) {
+    yell_start = millis();
+    digitalWrite(loud_buzz_pin, LOW);
+    yelling = true;
 }
 

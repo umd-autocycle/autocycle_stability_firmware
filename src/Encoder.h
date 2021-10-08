@@ -8,8 +8,8 @@
 #include <Arduino.h>
 #include "DriveMotor.h"
 
-#define ENC_BIN_COUNT   10
-#define AVG_PERIOD_MS   100
+#define ENC_BIN_COUNT   125
+#define AVG_PERIOD_MS   250
 #define SPROCKET_TEETH  14
 #define PPR             360
 
@@ -26,16 +26,14 @@ public:
     void countPulse();
 
 private:
+    int sum_counter();
+
     volatile int16_t counter[ENC_BIN_COUNT]{};
-    int current_bin = 0;
+    volatile int current_bin = 0;
     int aPin, bPin;
     volatile int prevA, prevB;
     volatile int curA, curB;
     volatile byte combined;
-
-    int sum_counter();
-    int c = 0;
-
 };
 
 

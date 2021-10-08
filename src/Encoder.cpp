@@ -39,13 +39,19 @@ void Encoder::update() {
 
 int Encoder::sum_counter() {
     int acc = 0;
-    for (short i : counter)
+    for (int i : counter)
         acc += i;
 
     return acc;
 }
 
 void Encoder::countPulse() {
+    int bin = (int) (millis() % AVG_PERIOD_MS) / (AVG_PERIOD_MS / ENC_BIN_COUNT);
+    if (bin != current_bin) {
+        current_bin = bin;
+        counter[current_bin] = 0;
+    }
+
     curA = digitalRead(aPin);
     curB = digitalRead(bPin);
     combined = (curA << 3) | (curB << 2) | (prevA << 1) | prevB;

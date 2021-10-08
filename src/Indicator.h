@@ -15,7 +15,7 @@
 
 class Indicator {
 public:
-    Indicator(uint8_t r_pin, uint8_t g_pin, uint8_t b_pin, uint8_t buzz_pin);
+    Indicator(uint8_t r_pin, uint8_t g_pin, uint8_t b_pin, uint8_t buzz_pin, uint8_t loud_buzz_pin);
 
     void start();
 
@@ -37,12 +37,14 @@ public:
     void beepstring(uint32_t bitstring, int bitrate = 2);
     void beepstring(uint64_t bitstring, int bitrate = 2);
 
+    void yell(unsigned int duration);
+
 private:
-    uint8_t r_pin, g_pin, b_pin, buzz_pin;
+    uint8_t r_pin, g_pin, b_pin, buzz_pin, loud_buzz_pin;
     uint16_t pr, pg, pb, br, bg, bb;
-    bool pulse_on, pulsed;
-    unsigned int pulse_duration, pulse_interval;
-    unsigned long pulse_ref;
+    bool pulse_on, pulsed, yelling;
+    unsigned int pulse_duration, pulse_interval, yell_duration;
+    unsigned long pulse_ref, yell_start;
 };
 
 

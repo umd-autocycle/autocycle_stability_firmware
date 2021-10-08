@@ -88,7 +88,7 @@ uint8_t writeAddr[] = "DNODE";
 
 // Device object definitions
 IMU imu(2);
-Indicator indicator(3, 4, 5, 11);
+Indicator indicator(3, 4, 5, 11, 22);
 TorqueMotor *torque_motor;
 DriveMotor *drive_motor;
 Encoder encoder(16, 17);
@@ -400,8 +400,6 @@ void loop() {
     dphi = orientation_filter.x(2);
     ddel = orientation_filter.x(3);
 
-    phi = 0; // TODO remove after Nav testing
-
     // Update indicator
     indicator.update();
 
@@ -555,6 +553,7 @@ void loop() {
                 timeout = millis() + *((uint32_t *) &(buffer[6]));
                 user_req |= R_TIMEOUT;
                 isRecording = true;
+                indicator.yell(500);
                 break;
             case 'h':
                 assert_idle();
@@ -597,6 +596,7 @@ void loop() {
                 timeout = millis() + Serial.parseInt();
                 user_req |= R_TIMEOUT;
                 isRecording = true;
+                indicator.yell(500);
                 break;
             case 'f':
                 retrieveTelemetry();
@@ -711,6 +711,7 @@ void calibrate() {
 
     if (calibrated) {
         if (flash.eraseSector(PARAMETER_ADDR)) {
+            delay(10);
             if (flash.writeAnything(PARAMETER_ADDR, parameters)) {
                 Serial.println("Recorded new parameters.");
             } else {
@@ -912,11 +913,11 @@ void assert_assist() {
 void assert_automatic() {
     state = AUTO;
     free_running = true;
-    zss.retract();
 #ifdef REQUIRE_ACTUATORS
     torque_motor->setMode(OP_PROFILE_TORQUE);
     while (!torque_motor->enableOperation());
 #endif
+    zss.retract();
 
     indicator.disablePulse();
     indicator.setPassiveRGB(RGB_AUTO_P);
