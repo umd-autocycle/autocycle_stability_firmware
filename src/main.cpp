@@ -69,7 +69,7 @@
 
 
 #define REQUIRE_ACTUATORS
-//#define RADIOCOMM
+#define RADIOCOMM
 //#define KALMAN_CALIB
 
 #ifdef RADIOCOMM
@@ -526,9 +526,9 @@ void loop() {
         last_store_time = millis();
     }
 
+#ifdef RADIOCOMM
     if (TELEMETRY.available()) {
         delay(20);
-#ifdef RADIOCOMM
         uint8_t buffer[32];
         TELEMETRY.read(buffer, 32);
         uint8_t c = buffer[0];
@@ -571,8 +571,11 @@ void loop() {
             default:
                 break;
         }
-#else
-        uint8_t c = TELEMETRY.read();
+    }
+#endif
+
+    if (Serial.available()) {
+        uint8_t c = Serial.read();
         delay(5);
 
         switch (c) {
@@ -616,17 +619,7 @@ void loop() {
         }
         while (Serial.available() > 0)
             Serial.read();
-#endif
         indicator.boop(100);
-    }
-
-    if (Serial.available()) {
-        char c = Serial.read();
-        if (c == 'f') {
-            retrieveTelemetry();
-        } else if (c == 'z') {
-            clearTelemetry();
-        }
     }
 
     // Run stepper
