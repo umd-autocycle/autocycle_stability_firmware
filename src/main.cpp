@@ -624,6 +624,8 @@ void loop() {
 
     // Run stepper
     stepper.run();
+
+    zss.update();
 }
 
 void idle() {

@@ -7,6 +7,7 @@
 
 #include <Arduino.h>
 
+#define ZSS_CURRENT_TIMEOUT 4000ul
 
 class ZSS {
 public:
@@ -16,6 +17,7 @@ public:
     void deploy();
     void retract();
     void halt();
+    void update();
     bool retracted();
 
     bool deploying;
@@ -23,6 +25,8 @@ public:
 private:
     uint8_t p1, p2, p3, p4;
     uint8_t l1, l2;
+    unsigned long timeout_ref;
+    bool current_active;
 };
 
 
