@@ -31,10 +31,10 @@ void ZSS::start() {
 }
 
 void ZSS::retract() {
-    digitalWrite(p1, HIGH);
-    digitalWrite(p4, HIGH);
-    digitalWrite(p2, LOW);
-    digitalWrite(p3, LOW);
+    digitalWrite(p2, HIGH);
+    digitalWrite(p3, HIGH);
+    digitalWrite(p1, LOW);
+    digitalWrite(p4, LOW);
 
     deploying = false;
     current_active = true;
@@ -42,10 +42,10 @@ void ZSS::retract() {
 }
 
 void ZSS::deploy() {
-    digitalWrite(p2, HIGH);
-    digitalWrite(p3, HIGH);
-    digitalWrite(p1, LOW);
-    digitalWrite(p4, LOW);
+    digitalWrite(p1, HIGH);
+    digitalWrite(p4, HIGH);
+    digitalWrite(p2, LOW);
+    digitalWrite(p3, LOW);
 
     deploying = true;
     current_active = true;

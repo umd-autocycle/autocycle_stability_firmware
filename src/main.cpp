@@ -202,6 +202,8 @@ void countPulse() {
     encoder.countPulse();
 }
 
+unsigned long mstart = 0;
+
 void setup() {
     zss.start();
     Wire.begin();                               // Begin I2C interface
@@ -403,6 +405,7 @@ void loop() {
     // Update indicator
     indicator.update();
 
+//    phi = 0; // TODO: REMOVE
 
     // Act based on machine state, transition if necessary
     switch (state) {
@@ -453,7 +456,7 @@ void loop() {
             // Transitions
             if (fabs(phi) > FTHRESH)
                 assert_fallen();
-            if (v > HIGH_V_THRESH)
+            if (v > HIGH_V_THRESH && millis() - mstart > 1000)
                 assert_automatic();
             if (v < 0.5 && v_r == 0)
                 assert_idle();
@@ -554,6 +557,7 @@ void loop() {
                 user_req |= R_TIMEOUT;
                 isRecording = true;
                 indicator.yell(500);
+                mstart = millis();
                 break;
             case 'h':
                 assert_idle();
@@ -600,6 +604,7 @@ void loop() {
                 user_req |= R_TIMEOUT;
                 isRecording = true;
                 indicator.yell(500);
+                mstart = millis();
                 break;
             case 'f':
                 retrieveTelemetry();
