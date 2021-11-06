@@ -69,7 +69,7 @@
 #define STORE_UPDATE_FREQ   50
 
 
-#define REQUIRE_ACTUATORS
+//#define REQUIRE_ACTUATORS
 //#define RADIOCOMM
 //#define KALMAN_CALIB
 
@@ -165,7 +165,7 @@ bool isRecording = false;
 #define SECTOR_SIZE     4096
 #define PAGE_SIZE       256
 
-struct StoredParameters {
+struct __attribute__((__packed__)) StoredParameters {
     float var_v, var_a, var_phi, var_del, var_dphi, var_ddel;
     int16_t ax_off, ay_off, az_off, gx_off, gy_off, gz_off;
     float imu_tilt;
@@ -258,11 +258,13 @@ void setup() {
     Serial.println("Initialized Drive Motor.");
 #endif
 
+    imu.start();                                    // Initialize IMU
 
     Serial.println("Loading parameters from Flash.");
     // Load parameters from Flash
     if (flash.readAnything(PARAMETER_ADDR, parameters)) {
         Serial.println("Loaded parameters from FLash.");
+        imu.configure(2, 2, 2, parameters.imu_tilt);  // Set accelerometer and gyro resolution, on-chip low-pass filter
         imu.set_accel_offsets(parameters.ax_off, parameters.ay_off, parameters.az_off);
         imu.set_gyro_offsets(parameters.gx_off, parameters.gy_off, parameters.gz_off);
         Serial.println(parameters.imu_tilt);
@@ -278,9 +280,6 @@ void setup() {
     parameters.var_del = 0.00001;
     parameters.var_dphi = 0.0000002117716535; // From averaging data
     parameters.var_ddel = 0.000001;
-
-    imu.start();                                    // Initialize IMU
-    imu.configure(2, 2, 2, parameters.imu_tilt);  // Set accelerometer and gyro resolution, on-chip low-pass filter
 
     Serial.println("Initializing controller.");
     // Initialize stability controller
@@ -378,7 +377,7 @@ void loop() {
     // Update orientation state measurement
     float g_mag = imu.accelY() * imu.accelY() +
                   imu.accelZ() * imu.accelZ();    // Check if measured orientation gravity vector exceeds feasibility
-    phi_y = g_mag <= 10 * 10 ? atan2(-imu.accelY(), -imu.accelZ()) : phi_y;
+    phi_y = g_mag <= 10 * 10 ? atan2(-imu.accelY(), imu.accelZ()) : phi_y;
     dphi_y = imu.gyroX();
 #ifdef REQUIRE_ACTUATORS
     del_y = torque_motor->getPosition();
@@ -652,12 +651,16 @@ void idle() {
 
 void calibrate() {
     bool calibrated = false;
+    int16_t off1, off2, off3;
 
     if (user_req & R_CALIB_GYRO) {
         if (imu.calibrateGyroBias()) {
             indicator.beepstring((uint8_t) 0b11101110);
 
-            imu.get_gyro_offsets(parameters.gx_off, parameters.gy_off, parameters.gz_off);
+            imu.get_gyro_offsets(off1, off2, off3);
+            parameters.gx_off = off1;
+            parameters.gy_off = off2;
+            parameters.gz_off = off3;
             calibrated = true;
         } else {
             indicator.beepstring((uint8_t) 0b10001000);
@@ -670,7 +673,10 @@ void calibrate() {
         if (imu.calibrateAccelBias(0, 0, GRAV)) {
             indicator.beepstring((uint8_t) 0b10101010);
 
-            imu.get_accel_offsets(parameters.ax_off, parameters.ay_off, parameters.az_off);
+            imu.get_accel_offsets(off1, off2, off3);
+            parameters.ax_off = off1;
+            parameters.ay_off = off2;
+            parameters.az_off = off3;
             calibrated = true;
         } else {
             indicator.beepstring((uint8_t) 0b00110011);
@@ -679,21 +685,21 @@ void calibrate() {
         user_req = user_req & ~R_CALIB_ACCEL;
     }
 
-    if (user_req & R_CALIB_VARIANCE) {
-        delay(100);
-
-        find_variances(parameters.var_v, parameters.var_a, parameters.var_phi, parameters.var_del,
-                       parameters.var_dphi, parameters.var_ddel);
-        orientation_filter.R = {
-                parameters.var_phi, 0, 0, 0,
-                0, parameters.var_del, 0, 0,
-                0, 0, parameters.var_dphi, 0,
-                0, 0, 0, parameters.var_ddel
-        };
-
-        calibrated = true;
-        user_req = user_req & ~R_CALIB_VARIANCE;
-    }
+//    if (user_req & R_CALIB_VARIANCE) {
+//        delay(100);
+//
+//        find_variances(parameters.var_v, parameters.var_a, parameters.var_phi, parameters.var_del,
+//                       parameters.var_dphi, parameters.var_ddel);
+//        orientation_filter.R = {
+//                parameters.var_phi, 0, 0, 0,
+//                0, parameters.var_del, 0, 0,
+//                0, 0, parameters.var_dphi, 0,
+//                0, 0, 0, parameters.var_ddel
+//        };
+//
+//        calibrated = true;
+//        user_req = user_req & ~R_CALIB_VARIANCE;
+//    }
 
     if (user_req & R_CALIB_TILT) {
         delay(100);

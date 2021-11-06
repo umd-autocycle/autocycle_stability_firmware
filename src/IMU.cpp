@@ -53,7 +53,7 @@ bool IMU::configure(uint8_t accel_res, uint8_t gyro_res, uint8_t filtering, floa
     this->afs_sel = accel_res;
     this->gyro_fsr = GYRO_FSR[gyro_res];
     this->accel_fsr = ACCEL_FSR[accel_res];
-    rotation = _rotation - PI;
+    rotation = _rotation;
 
     set_register(0x1A, filtering);      // Set DLPF_CFG (low pass filtering) register
 
@@ -92,7 +92,7 @@ bool IMU::calibrateGyroBias() {
     x_g_offset -= x_acc / CALIB_SAMP;
     y_g_offset -= y_acc / CALIB_SAMP;
     z_g_offset -= z_acc / CALIB_SAMP;
-            
+
     set_gyro_offsets(x_g_offset, y_g_offset, z_g_offset);
     delay(150);
 
@@ -113,7 +113,7 @@ bool IMU::calibrateGyroBias() {
     }
 
     get_gyro_offsets(x_g_offset, y_g_offset, z_g_offset);
-            
+
     return abs(x_acc / CALIB_SAMP) < CALIB_G_TOL &&
            abs(y_acc / CALIB_SAMP) < CALIB_G_TOL &&
            abs(z_acc / CALIB_SAMP) < CALIB_G_TOL;
@@ -225,10 +225,10 @@ void IMU::update() {
 
     a_x = -GRAV * (float) (a_x_raw * accel_fsr) / ACCEL_RANGE;
     a_y = GRAV * (float) (a_y_raw * accel_fsr) / ACCEL_RANGE;
-    a_z = -GRAV * (float) (a_z_raw * accel_fsr) / ACCEL_RANGE;
+    a_z = GRAV * (float) (a_z_raw * accel_fsr) / ACCEL_RANGE;
 
     temp = (float) temp_raw / 340.0f + 36.53f;
-    g_x = (float) (-1 * g_x_raw * gyro_fsr) / GYRO_RANGE * (float) PI / 180.0f;
+    g_x = (float) (g_x_raw * gyro_fsr) / GYRO_RANGE * (float) PI / 180.0f;
     g_y = (float) (g_y_raw * gyro_fsr) / GYRO_RANGE * (float) PI / 180.0f;
     g_z = (float) (-1 * g_z_raw * gyro_fsr) / GYRO_RANGE * (float) PI / 180.0f;
 
