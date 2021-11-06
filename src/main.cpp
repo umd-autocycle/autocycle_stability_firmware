@@ -140,7 +140,7 @@ const int dirPin = A2;
 const int stepPin = A1;
 AccelStepper stepper(AccelStepper::DRIVER, stepPin, dirPin);
 
-ZSS zss(28, 26, 24, 22, 52, 53);
+ZSS zss(28, 26, 1900, 1900);
 
 
 void report();
@@ -187,18 +187,6 @@ struct TelemetryFramePage {
 } t_frame_page;
 
 // ISRs
-void haltZSS() {
-#ifdef KALMAN_CALIB
-    isRecording = true;
-#else
-    if (!digitalRead(52) || !digitalRead(53)) {
-        if (zss.deploying) {
-            zss.halt();
-        }
-    }
-#endif
-}
-
 void countPulse() {
     encoder.countPulse();
 }
@@ -311,19 +299,6 @@ void setup() {
             var_gyro_z
     };
     Serial.println("Initialized Kalman filter.");
-
-    // Set up ZSS stop pins
-    pinMode(52, INPUT_PULLUP);
-    pinMode(53, INPUT_PULLUP);
-    pinMode(50, OUTPUT);
-    pinMode(51, OUTPUT);
-    digitalWrite(50, HIGH);
-    digitalWrite(51, HIGH);
-
-    Serial.println("Attaching ZSS interrupts.");
-    attachInterrupt(digitalPinToInterrupt(52), haltZSS, FALLING);
-    attachInterrupt(digitalPinToInterrupt(53), haltZSS, FALLING);
-    Serial.println("Attached ZSS interrupts.");
 
     Serial.println("Initializing encoder and interrupts.");
     encoder.start();
@@ -629,8 +604,6 @@ void loop() {
 
     // Run stepper
     stepper.run();
-
-    zss.update();
 }
 
 void idle() {

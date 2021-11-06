@@ -6,27 +6,23 @@
 #define AUTOCYCLE_STABILITY_FIRMWARE_ZSS_H
 
 #include <Arduino.h>
+#include <Servo.h>
 
-#define ZSS_CURRENT_TIMEOUT 4000ul
+#define ZSS_RETRACT_US      1000
 
 class ZSS {
 public:
-    ZSS(uint8_t p1, uint8_t p2, uint8_t p3, uint8_t p4, uint8_t l1, uint8_t l2);
+    ZSS(uint8_t p1, uint8_t p2, int a1_offset, int a2_offset);
 
     void start();
     void deploy();
     void retract();
     void halt();
-    void update();
-    bool retracted();
-
-    bool deploying;
 
 private:
-    uint8_t p1, p2, p3, p4;
-    uint8_t l1, l2;
-    unsigned long timeout_ref;
-    bool current_active;
+    uint8_t p1, p2;
+    int a1_offset, a2_offset;
+    Servo *serv1, *serv2;
 };
 
 
