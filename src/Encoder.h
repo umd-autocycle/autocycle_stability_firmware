@@ -11,7 +11,7 @@
 #define ENC_BIN_COUNT   125
 #define AVG_PERIOD_MS   250
 #define SPROCKET_TEETH  14
-#define PPR             360
+#define PPR             720
 
 class Encoder {
 public:

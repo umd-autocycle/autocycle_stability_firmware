@@ -24,9 +24,9 @@ float Encoder::getSpeed() {
     int pulses = sum_counter();
     float pulse_per_s = ((float) pulses / ((float) AVG_PERIOD_MS / 1000.0f));
     float rps = pulse_per_s / ((float) PPR);
-    float rear_per_sprocket =  (float) REAR_TEETH / (float) SPROCKET_TEETH;
+    float rear_per_sprocket =  (float) SPROCKET_TEETH / (float) REAR_TEETH;
 
-    return rps * rear_per_sprocket * WHEEL_CIRCUMFERENCE / 3.57f; // TODO: Very Dirty fix
+    return rps * rear_per_sprocket * WHEEL_CIRCUMFERENCE;
 }
 
 void Encoder::update() {

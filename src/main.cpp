@@ -49,6 +49,7 @@
 #define R_CALIB_TILT        0b0000000100000000U
 #define R_RETRACT_ZSS       0b0000001000000000U
 #define R_DEPLOY_ZSS        0b0000010000000000U
+#define R_CALIB_TORQUE      0b0000100000000000U
 
 // Info for torque motor
 #define TM_NODE_ID          127
@@ -69,7 +70,7 @@
 
 
 #define REQUIRE_ACTUATORS
-#define RADIOCOMM
+//#define RADIOCOMM
 //#define KALMAN_CALIB
 
 #ifdef RADIOCOMM
@@ -707,6 +708,25 @@ void calibrate() {
         }
 
         user_req = user_req & ~R_CALIB_TILT;
+    }
+
+    if (user_req & R_CALIB_TORQUE) {
+        bool in_loop = true;
+        float t;
+        torque_motor->setMode(OP_PROFILE_TORQUE);
+        while (!torque_motor->enableOperation());
+
+        while (in_loop) {
+
+            if(Serial.available()) {
+                t = Serial.parseFloat();
+                while (Serial.available()) Serial.read();
+                torque_motor->setTorque(t);
+            }
+
+            torque_motor->update();
+            Serial.println(torque_motor->getTorque());
+        }
     }
 
     if (calibrated) {
