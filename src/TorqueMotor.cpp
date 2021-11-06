@@ -12,9 +12,11 @@
 #define RATED_CURRENT_MA        5330
 #define MAX_CURRENT_DUR_MS      100
 #define BLDC_MOTOR              0x0000000041U
-#define RATED_TORQUE_NM         0.5f
-#define GEARING                 33.0f
+#define RATED_TORQUE_NM         0.5f                // Actually 0.533?
+#define GEARING                 33.0f               // Actually 32.72?
 #define EFFICIENCY              0.93f
+
+#define TORQUE_CORRECTION_COEFFICIENT   2.114f          // TODO Experimentally determined. Probably a result of misunderstanding the profile torque register definitions plus inaccuracies in parameters above
 
 // Position control word flags
 #define CTRW_POSITION_MOVE_COMMAND  0b0000000000010000U
@@ -299,7 +301,7 @@ void TorqueMotor::calibrate(){
 }
 
 void TorqueMotor::setTorque(float torque) {
-    int16_t torque_thou = -1.0f * 1000.0 * torque / GEARING / EFFICIENCY / RATED_TORQUE_NM;
+    int16_t torque_thou = -1.0f * 1000.0 * torque / GEARING / EFFICIENCY / RATED_TORQUE_NM / TORQUE_CORRECTION_COEFFICIENT;
     outgoing.s0 = torque_thou;
     outgoing.s1 = 0;
     outgoing.s2 = 0;
@@ -331,7 +333,7 @@ float TorqueMotor::getTorque() {
     motor_dev->readPDO(TORQUE_TX_PDO_NUM, incoming);
     int16_t torque_thou = incoming.s0;
 
-    return -1.0f * (1 / 1000.0f) * GEARING * EFFICIENCY * RATED_TORQUE_NM * (float) torque_thou;
+    return -1.0f * (1 / 1000.0f) * GEARING * EFFICIENCY * RATED_TORQUE_NM * (float) torque_thou * TORQUE_CORRECTION_COEFFICIENT;
 }
 
 float TorqueMotor::getVelocity() {
