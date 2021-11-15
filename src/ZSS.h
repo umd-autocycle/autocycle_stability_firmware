@@ -8,7 +8,7 @@
 #include <Arduino.h>
 #include <Servo.h>
 
-#define ZSS_RETRACT_US      1000
+#define ZSS_RETRACT_US      2000
 
 class ZSS {
 public:

@@ -69,7 +69,7 @@
 #define STORE_UPDATE_FREQ   50
 
 
-//#define REQUIRE_ACTUATORS
+#define REQUIRE_ACTUATORS
 //#define RADIOCOMM
 //#define KALMAN_CALIB
 
@@ -140,7 +140,7 @@ const int dirPin = A2;
 const int stepPin = A1;
 AccelStepper stepper(AccelStepper::DRIVER, stepPin, dirPin);
 
-ZSS zss(28, 26, 1900, 1900);
+ZSS zss(28, 26, 1220, 1420);
 
 
 void report();
@@ -195,6 +195,7 @@ unsigned long mstart = 0;
 
 void setup() {
     zss.start();
+    zss.deploy();
     Wire.begin();                               // Begin I2C interface
     SPI.begin();                                // Begin Serial Peripheral Interface (SPI)
 
@@ -374,6 +375,7 @@ void loop() {
     del = orientation_filter.x(1);
     dphi = orientation_filter.x(2);
     ddel = orientation_filter.x(3);
+    phi = 0; // todo: remove
 
     // Update indicator
     indicator.update();
@@ -838,7 +840,7 @@ void manual() {
 
 void assist() {
 #ifdef REQUIRE_ACTUATORS
-    torque_motor->setPosition(er);
+    torque_motor->setPosition(del_r);
     if (v_r == 0)
         physical_brake(true);
 #endif
