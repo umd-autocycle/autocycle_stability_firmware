@@ -58,10 +58,10 @@
 #define TM_TORQUE_SLOPE     10000   // Thousandths of max torque per second
 
 // State transition constants
-#define FTHRESH             (PI/9.0)    // (PI/4.0)    // Threshold for being fallen over
+#define FTHRESH             (PI/5.0)    // Threshold for being fallen over
 #define UTHRESH             (PI/20.0)   // Threshold for being back upright
 #define HIGH_V_THRESH       3.7         // Velocity threshold at which to enter automatic mode (torque control)
-#define LOW_V_THRESH        3.4         // Velocity threshold at which to leave automatic mode (torque control)
+#define LOW_V_THRESH        3.0         // Velocity threshold at which to leave automatic mode (torque control)
 #define OVERSTEER_THRESH    (PI/3.0)    // Threshold for steering angle before initiating E_STOP
 
 // Loop timing constants (frequencies in Hz)
@@ -70,7 +70,7 @@
 
 
 #define REQUIRE_ACTUATORS
-//#define RADIOCOMM
+#define RADIOCOMM
 //#define KALMAN_CALIB
 
 #ifdef RADIOCOMM
@@ -140,7 +140,7 @@ const int dirPin = A2;
 const int stepPin = A1;
 AccelStepper stepper(AccelStepper::DRIVER, stepPin, dirPin);
 
-ZSS zss(28, 26, 1220, 1420);
+ZSS zss(28, 26, 1250, 1410);
 
 
 void report();
@@ -354,7 +354,7 @@ void loop() {
     float g_mag = imu.accelY() * imu.accelY() +
                   imu.accelZ() * imu.accelZ();    // Check if measured orientation gravity vector exceeds feasibility
     phi_y = g_mag <= 10 * 10 ? atan2(-imu.accelY(), imu.accelZ()) : phi_y;
-    dphi_y = imu.gyroX();
+    dphi_y = -imu.gyroX();
 #ifdef REQUIRE_ACTUATORS
     del_y = torque_motor->getPosition();
     ddel_y = torque_motor->getVelocity();
@@ -374,10 +374,12 @@ void loop() {
     orientation_filter.predict({0, torque});
     orientation_filter.update({phi_y, del_y, dphi_y, ddel_y});
     phi = orientation_filter.x(0);
+    orientation_filter.x(1) = del_y;
     del = orientation_filter.x(1);
     dphi = orientation_filter.x(2);
+    orientation_filter.x(3) = ddel_y;
     ddel = orientation_filter.x(3);
-    phi = 0; // todo: remove
+//    phi = 0; // todo: remove
 
     // Update indicator
     indicator.update();
