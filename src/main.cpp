@@ -280,24 +280,24 @@ void setup() {
 
     // Initialize local orientation Kalman filter
     orientation_filter.x = {0, 0, 0, 0};            // Initial state estimate
-    orientation_filter.P_2 = BLA::Identity<4, 4>() * (float) sqrt(0.1);      // Initial estimate covariance
+    orientation_filter.P = BLA::Identity<4, 4>() * 0.1;      // Initial estimate covariance
     orientation_filter.C = BLA::Identity<4, 4>();   // Sensor matrix
-    orientation_filter.R_2 = {                        // Sensor covariance matrix
-            sqrt(parameters.var_phi), 0, 0, 0,
-            0, sqrt(parameters.var_del), 0, 0,
-            0, 0, sqrt(parameters.var_dphi), 0,
-            0, 0, 0, sqrt(parameters.var_ddel)
+    orientation_filter.R = {                        // Sensor covariance matrix
+            parameters.var_phi, 0, 0, 0,
+            0, parameters.var_del, 0, 0,
+            0, 0, parameters.var_dphi, 0,
+            0, 0, 0, parameters.var_ddel
     };
 
     float var_gyro_z = 0.01;
 
     // Initialize heading Kalman filter
     heading_filter.x = {0, 0};                      // Initial state estimate
-    heading_filter.P_2 = BLA::Identity<2, 2>() * (float) sqrt(0.1); // Initial estimate covariance
+    heading_filter.P = BLA::Identity<2, 2>() * 0.1; // Initial estimate covariance
     heading_filter.B = {0, 1};
     heading_filter.C = {0, 1};                      // Sensor matrix
-    heading_filter.R_2 = {                            // Sensor covariance matrix
-            sqrt(var_gyro_z)
+    heading_filter.R = {                            // Sensor covariance matrix
+            var_gyro_z
     };
     Serial.println("Initialized Kalman filter.");
 
@@ -338,8 +338,10 @@ void loop() {
             1, dt,
             0, 1
     };
-    BLA::Matrix<2, 1, BLA::Array<2, 1>> w_heading = {var_heading * dt, var_heading};
-    heading_filter.Q_2 = w_heading || BLA::Zeros<2, 1>();
+    heading_filter.Q = {
+            var_heading * dt * dt, var_heading * dt,
+            var_heading * dt, var_heading
+    };
     heading_filter.predict({0.0f});
     heading_filter.update({imu.gyroZ()});
     heading = heading_filter.x(0);
@@ -362,11 +364,11 @@ void loop() {
     // Update orientation Kalman filter parameters
     orientation_filter.A = bike_model.kalmanTransitionMatrix(v, dt, free_running);
     orientation_filter.B = bike_model.kalmanControlsMatrix(v, dt, free_running);
-    BLA::Matrix<4, 1, BLA::Array<4, 1>> w_orr = {0.5f * var_roll_accel * dt * dt,
+    BLA::Matrix<4, 1, Array<4, 1>> w_orr = {0.5f * var_roll_accel * dt * dt,
                                             0.5f * var_steer_accel * dt * dt,
                                             var_roll_accel * dt,
                                             var_steer_accel * dt};
-    orientation_filter.Q_2 = w_orr || BLA::Zeros<4, 3>();
+    orientation_filter.Q = w_orr * (~w_orr);
 
     // Update orientation state estimate
     orientation_filter.predict({0, torque});
@@ -726,7 +728,7 @@ void calibrate() {
 
 
 void storeTelemetry() {
-    static unsigned int i = 0;
+    static int i = 0;
 
     if (storeAddress + PAGE_SIZE < FLASH_SIZE) {
         t_frame_page.frames[i].state = state;
@@ -839,6 +841,7 @@ void manual() {
 }
 
 void assist() {
+    float er = del_r;
 #ifdef REQUIRE_ACTUATORS
     torque_motor->setPosition(del_r);
     if (v_r == 0)
