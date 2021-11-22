@@ -58,10 +58,10 @@
 #define TM_TORQUE_SLOPE     10000   // Thousandths of max torque per second
 
 // State transition constants
-#define FTHRESH             (PI/5.0)    // Threshold for being fallen over
+#define FTHRESH             (PI * 38.0/180.0)    // Threshold for being fallen over
 #define UTHRESH             (PI/20.0)   // Threshold for being back upright
-#define HIGH_V_THRESH       3.7         // Velocity threshold at which to enter automatic mode (torque control)
-#define LOW_V_THRESH        3.0         // Velocity threshold at which to leave automatic mode (torque control)
+#define HIGH_V_THRESH       4.0         // Velocity threshold at which to enter automatic mode (torque control)
+#define LOW_V_THRESH        3.3         // Velocity threshold at which to leave automatic mode (torque control)
 #define OVERSTEER_THRESH    (PI/3.0)    // Threshold for steering angle before initiating E_STOP
 
 // Loop timing constants (frequencies in Hz)
@@ -140,7 +140,7 @@ const int dirPin = A2;
 const int stepPin = A1;
 AccelStepper stepper(AccelStepper::DRIVER, stepPin, dirPin);
 
-ZSS zss(28, 26, 1250, 1410);
+ZSS zss(28, 26, 1260, 1430);
 
 
 void report();
@@ -272,7 +272,7 @@ void setup() {
 
     Serial.println("Initializing controller.");
     // Initialize stability controller
-    controller = new FSFController(&bike_model, 10.0, -2, -3, -3.5, -4);
+    controller = new FSFController(&bike_model, 10.0, -3, -4, -5, -6);
 
     Serial.println("Initialized controller.");
 
@@ -379,7 +379,6 @@ void loop() {
     dphi = orientation_filter.x(2);
     orientation_filter.x(3) = ddel_y;
     ddel = orientation_filter.x(3);
-//    phi = 0; // todo: remove
 
     // Update indicator
     indicator.update();
