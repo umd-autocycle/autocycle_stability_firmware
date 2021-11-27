@@ -272,7 +272,7 @@ void setup() {
 
     Serial.println("Initializing controller.");
     // Initialize stability controller
-    controller = new FSFController(&bike_model, 10.0, -3, -4, -5, -6);
+    controller = new FSFController(&bike_model, 16.0, -3, -4, -5, -6);
 
     Serial.println("Initialized controller.");
 
@@ -382,8 +382,6 @@ void loop() {
 
     // Update indicator
     indicator.update();
-
-//    phi = 0; // TODO: REMOVE
 
     // Act based on machine state, transition if necessary
     switch (state) {
@@ -700,7 +698,7 @@ void calibrate() {
 
         while (in_loop) {
 
-            if(Serial.available()) {
+            if (Serial.available()) {
                 t = Serial.parseFloat();
                 while (Serial.available()) Serial.read();
                 torque_motor->setTorque(t);
