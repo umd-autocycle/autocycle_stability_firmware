@@ -157,6 +157,8 @@ void clearTelemetry();
 
 void physical_brake(bool engage);
 
+void reset_filters();
+
 bool isRecording = false;
 
 #define PARAMETER_ADDR  0x000000
@@ -734,6 +736,8 @@ void calibrate() {
             Serial.print("Failed to erase parameter sector, error: ");
             Serial.println(flash.error(), HEX);
         }
+
+        reset_filters();
     }
 }
 
@@ -797,6 +801,7 @@ void retrieveTelemetry() {
     Serial.println();
     Serial.println();
     storeAddress = TELEMETRY_ADDR;
+    reset_filters();
 }
 
 void clearTelemetry() {
@@ -809,6 +814,8 @@ void clearTelemetry() {
             Serial.println(i, HEX);
         }
     }
+
+    reset_filters();
 }
 
 void printTelemetryFrame(TelemetryFrame &telemetryFrame) {
@@ -1145,4 +1152,12 @@ void physical_brake(bool engage) {
     } else {
         stepper.moveTo(0);
     }
+}
+
+void reset_filters() {
+    orientation_filter.x = {0, 0, 0, 0};                // Initial state estimate
+    orientation_filter.P = BLA::Identity<4, 4>() * 0.1;      // Initial estimate covariance
+
+    heading_filter.x = {0, 0};                          // Initial state estimate
+    heading_filter.P = BLA::Identity<2, 2>() * 0.1;          // Initial estimate covariance
 }
