@@ -60,7 +60,7 @@
 // State transition constants
 #define FTHRESH             (PI * 38.0/180.0)    // Threshold for being fallen over
 #define UTHRESH             (PI/20.0)   // Threshold for being back upright
-#define HIGH_V_THRESH       4.0         // Velocity threshold at which to enter automatic mode (torque control)
+#define HIGH_V_THRESH       4.2         // Velocity threshold at which to enter automatic mode (torque control)
 #define LOW_V_THRESH        3.3         // Velocity threshold at which to leave automatic mode (torque control)
 #define OVERSTEER_THRESH    (PI/3.0)    // Threshold for steering angle before initiating E_STOP
 
@@ -195,9 +195,9 @@ void countPulse() {
 
 unsigned long mstart = 0;
 
-#define DDELAVG 100
-float ddelbox[DDELAVG];
-int ddelc = 0;
+//#define DDELAVG 100
+//float ddelbox[DDELAVG];
+//int ddelc = 0;
 
 void setup() {
     zss.start();
@@ -274,11 +274,11 @@ void setup() {
     parameters.var_phi = 0.00002629879368; // From averaging data
     parameters.var_del = 0.00001;
     parameters.var_dphi = 0.0000002117716535; // From averaging data
-    parameters.var_ddel = 0.000001;
+    parameters.var_ddel = 0.01;
 
     Serial.println("Initializing controller.");
     // Initialize stability controller
-    controller = new FSFController(&bike_model, 16.0, -5.25, -6.25, -7.25, -8.25);
+    controller = new FSFController(&bike_model, 18.0, -3, -3.5, -4, -10);
 
     Serial.println("Initialized controller.");
 
@@ -368,12 +368,12 @@ void loop() {
 #endif
 
     // ddel moving avg
-    ddelbox[ddelc] = ddel_y;
-    float ddel_f = 0;
-    for (float i: ddelbox)
-        ddel_f += i;
-    ddel_f /= DDELAVG;
-    ddelc = (ddelc + 1) % DDELAVG;
+//    ddelbox[ddelc] = ddel_y;
+//    float ddel_f = 0;
+//    for (float i: ddelbox)
+//        ddel_f += i;
+//    ddel_f /= DDELAVG;
+//    ddelc = (ddelc + 1) % DDELAVG;
 
     // Update orientation Kalman filter parameters
     orientation_filter.A = bike_model.kalmanTransitionMatrix(v, dt, free_running);
@@ -391,7 +391,7 @@ void loop() {
     orientation_filter.x(1) = del_y;
     del = orientation_filter.x(1);
     dphi = orientation_filter.x(2);
-    orientation_filter.x(3) = ddel_f;
+//    orientation_filter.x(3) = ddel_f;
     ddel = orientation_filter.x(3);
 
     // Update indicator
