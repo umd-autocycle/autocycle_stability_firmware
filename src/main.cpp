@@ -278,7 +278,7 @@ void setup() {
 
     Serial.println("Initializing controller.");
     // Initialize stability controller
-    controller = new FSFController(&bike_model, 18.0, -3, -3.5, -4, -10);
+    controller = new FSFController(&bike_model, 18.0, -6, -7, -8, -9);
 
     Serial.println("Initialized controller.");
 
@@ -391,7 +391,7 @@ void loop() {
     orientation_filter.x(1) = del_y;
     del = orientation_filter.x(1);
     dphi = orientation_filter.x(2);
-//    orientation_filter.x(3) = ddel_f;
+    orientation_filter.x(3) = ddel_y;
     ddel = orientation_filter.x(3);
 
     // Update indicator

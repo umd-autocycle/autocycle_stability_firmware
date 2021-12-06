@@ -50,6 +50,7 @@ FSFController::control(float phi, float del, float dphi, float ddel, float phi_r
     };
 
     BLA::Matrix<4, 1> K = BLA::Inverse(LHS) * RHS;
+    K(3,0) = 0;
 
     float u = -((~K) * x)(0, 0);
 
