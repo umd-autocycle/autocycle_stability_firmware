@@ -446,7 +446,7 @@ void loop() {
             // Transitions
             if (fabs(phi) > FTHRESH)
                 assert_fallen();
-            if (v > HIGH_V_THRESH && millis() - mstart > 1000)
+            if (v > HIGH_V_THRESH && v_r > HIGH_V_THRESH && millis() - mstart > 1000)
                 assert_automatic();
             if (v < 0.5 && v_r == 0)
                 assert_idle();
