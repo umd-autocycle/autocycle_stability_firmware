@@ -501,10 +501,18 @@ void loop() {
             break;
     }
 
+    if ((user_req & R_TIMEOUT) && !zss.deploying && millis() + ZSS_DEPLOY_MS > timeout) {
+        zss.deploy();
+    }
+
     if ((user_req & R_TIMEOUT) && millis() > timeout) {
         user_req &= ~R_TIMEOUT;
-        v_r = 0;
 #ifdef REQUIRE_ACTUATORS
+        if(state == AUTO) {
+            torque_motor->setTorque(0);
+            assert_assist();
+        }
+        v_r = 0;
         drive_motor->setSpeed(0);
 #endif
     }

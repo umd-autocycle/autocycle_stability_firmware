@@ -10,6 +10,8 @@
 
 #define ZSS_RETRACT_US      2000
 
+#define ZSS_DEPLOY_MS       4000
+
 class ZSS {
 public:
     ZSS(uint8_t p1, uint8_t p2, int a1_offset, int a2_offset);
@@ -18,6 +20,8 @@ public:
     void deploy();
     void retract();
     void halt();
+
+    bool deploying;
 
 private:
     uint8_t p1, p2;

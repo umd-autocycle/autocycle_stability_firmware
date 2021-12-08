@@ -9,6 +9,7 @@ ZSS::ZSS(uint8_t p1, uint8_t p2, int a1_offset, int a2_offset) {
     this->p2 = p2;
     this->a1_offset = a1_offset;
     this->a2_offset = a2_offset;
+    deploying = true;
 
     serv1 = new Servo();
     serv2 = new Servo();
@@ -22,11 +23,13 @@ void ZSS::start() {
 }
 
 void ZSS::retract() {
+    deploying = false;
     serv1->writeMicroseconds(ZSS_RETRACT_US);
     serv2->writeMicroseconds(ZSS_RETRACT_US);
 }
 
 void ZSS::deploy() {
+    deploying = true;
     serv1->writeMicroseconds(a1_offset);
     serv2->writeMicroseconds(a2_offset);
 }
