@@ -175,7 +175,7 @@ struct __attribute__((__packed__)) StoredParameters {
 
 struct __attribute__((__packed__)) TelemetryFrame {
     uint8_t state;
-    float time, phi, del, dphi, ddel, v_r, v, u, torque, heading, dheading, phi_y, del_y, dphi_y, ddel_y;
+    float time, phi, del, dphi, ddel, v_r, v, u, torque, heading, dheading, phi_y, del_y, dphi_y, ddel_y, phi_r, del_r;
 } t_frame;
 static uint32_t storeAddress = TELEMETRY_ADDR;
 
@@ -770,6 +770,8 @@ void storeTelemetry() {
         t_frame_page.frames[i].del_y = del_y;
         t_frame_page.frames[i].dphi_y = dphi_y;
         t_frame_page.frames[i].ddel_y = ddel_y;
+        t_frame_page.frames[i].phi_r = phi_r;
+        t_frame_page.frames[i].del_r = del_r;
 
         i++;
 
@@ -858,6 +860,10 @@ void printTelemetryFrame(TelemetryFrame &telemetryFrame) {
     Serial.print(telemetryFrame.dphi_y, 4);
     Serial.print('\t');
     Serial.print(telemetryFrame.ddel_y, 4);
+    Serial.print('\t');
+    Serial.print(telemetryFrame.phi_r, 4);
+    Serial.print('\t');
+    Serial.print(telemetryFrame.del_r, 4);
     Serial.println();
 }
 
