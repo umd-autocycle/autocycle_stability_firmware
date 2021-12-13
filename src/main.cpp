@@ -508,7 +508,7 @@ void loop() {
     if ((user_req & R_TIMEOUT) && millis() > timeout) {
         user_req &= ~R_TIMEOUT;
 #ifdef REQUIRE_ACTUATORS
-        if(state == AUTO) {
+        if (state == AUTO) {
             torque_motor->setTorque(0);
             assert_assist();
         }
@@ -876,6 +876,8 @@ void assist() {
 }
 
 void automatic() {
+    auto k = bike_model.K0 + bike_model.K2 * v * v;
+    phi_r = -k(0, 1) * del_r / k(0, 0);
     u = controller->control(phi, del, dphi, ddel, phi_r, del_r, v, dt);
 #ifdef REQUIRE_ACTUATORS
     torque_motor->setTorque(u);

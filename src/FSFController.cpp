@@ -35,7 +35,7 @@ FSFController::FSFController(BikeModel *model, float torque_max, float l1, float
 
 float
 FSFController::control(float phi, float del, float dphi, float ddel, float phi_r, float del_r, float v, float dt) {
-    BLA::Matrix<4, 1> x = {phi, del, dphi, ddel};
+    BLA::Matrix<4, 1> dx = {phi - phi_r, del - del_r, dphi, ddel};
     BLA::Matrix<4, 4> LHS = {
             Qk1(l1, v), Qk2(l1, v), Qk3(l1, v), Qk4(l1, v),
             Qk1(l2, v), Qk2(l2, v), Qk3(l2, v), Qk4(l2, v),
@@ -49,10 +49,16 @@ FSFController::control(float phi, float del, float dphi, float ddel, float phi_r
             -RHSe(l4, v)
     };
 
-    BLA::Matrix<4, 1> K = BLA::Inverse(LHS) * RHS;
-    K(3,0) = 0;
+    // Linear equilibrium setpoint tracking
+    auto k = model->K0 + model->K2 * v * v;
+    float u0 = k(1, 0) * phi_r + k(1, 1) * del_r;
 
-    float u = -((~K) * x)(0, 0);
+    BLA::Matrix<4, 1> K = BLA::Inverse(LHS) * RHS;
+    K(3, 0) = 0;
+
+    float du = -((~K) * dx)(0, 0);
+
+    float u = u0 + du;
 
     return constrain(u, -torque_max, torque_max);
 }
