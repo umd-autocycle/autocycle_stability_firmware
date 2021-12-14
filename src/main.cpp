@@ -188,6 +188,13 @@ struct TelemetryFramePage {
     TelemetryFrame frames[FRAMES_PER_PAGE];
 } t_frame_page;
 
+
+struct SteeringCommand {
+    struct SteeringCommand *next;
+    float delta;
+    unsigned long time;
+} *head, *tail;
+
 // ISRs
 void countPulse() {
     encoder.countPulse();
@@ -316,6 +323,8 @@ void setup() {
 
     pinMode(enPin, OUTPUT);
     digitalWrite(enPin, LOW);
+
+    head = tail = nullptr;
 
     Serial.println("Finished setup.");
 
@@ -517,6 +526,16 @@ void loop() {
 #endif
     }
 
+    if (mstart > 0 && head != nullptr && millis() - mstart >= head->time) {
+        del_r = head->delta;
+        auto temp = head;
+        head = head->next;
+        free(temp);
+
+        if (head == nullptr)
+            tail = nullptr;
+    }
+
     // Report state, reference, and control values
     if (millis() - last_report_time >= 1000 / REPORT_UPDATE_FREQ) {
         report();
@@ -538,7 +557,7 @@ void loop() {
 
 
         switch (c) {
-            case 's':
+            case 'v':
                 v_r = *((float *) &(buffer[2]));
                 drive_motor->setSpeed(v_r);
                 break;
@@ -566,8 +585,23 @@ void loop() {
             case 'r':
                 isRecording = true;
                 break;
-            case 'q':
+            case 's':
                 isRecording = false;
+                break;
+            case 'q':
+                if (head == nullptr) {
+                    head = tail = new struct SteeringCommand;
+                    head->delta = *((float *) &(buffer[2]));
+                    head->time = *((uint32_t *) &(buffer[6]));
+                    head->next = nullptr;
+                } else {
+                    auto *new_command = new struct SteeringCommand;
+                    new_command->delta = *((float *) &(buffer[2]));
+                    new_command->time = *((uint32_t *) &(buffer[6]));
+                    new_command->next = nullptr;
+                    tail->next = new_command;
+                    tail = new_command;
+                }
                 break;
 
             default:
@@ -581,7 +615,7 @@ void loop() {
         delay(5);
 
         switch (c) {
-            case 's':
+            case 'v':
                 v_r = Serial.parseFloat();
 #ifdef REQUIRE_ACTUATORS
                 drive_motor->setSpeed(v_r);
@@ -610,8 +644,23 @@ void loop() {
             case 'r':
                 isRecording = true;
                 break;
-            case 'q':
+            case 's':
                 isRecording = false;
+                break;
+            case 'q':
+                if (head == nullptr) {
+                    head = tail = new struct SteeringCommand;
+                    head->delta = Serial.parseFloat();
+                    head->time = Serial.parseInt();
+                    head->next = nullptr;
+                } else {
+                    auto *new_command = new struct SteeringCommand;
+                    new_command->delta = Serial.parseFloat();
+                    new_command->time = Serial.parseInt();
+                    new_command->next = nullptr;
+                    tail->next = new_command;
+                    tail = new_command;
+                }
                 break;
             case 'z':
                 clearTelemetry();
