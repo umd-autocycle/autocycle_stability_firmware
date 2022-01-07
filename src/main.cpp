@@ -8,6 +8,8 @@
 #include <SPI.h>
 #include <due_can.h>
 #include <AccelStepper.h>
+#include <SPIMemory.h>
+#include <Adafruit_GPS.h>
 
 // Internal libraries
 #include "IMU.h"
@@ -24,8 +26,6 @@
 #include "BikeModel.h"
 #include "Encoder.h"
 #include "ZSS.h"
-
-#include <SPIMemory.h>
 
 
 // States
@@ -68,6 +68,9 @@
 #define REPORT_UPDATE_FREQ  2
 #define STORE_UPDATE_FREQ   100
 
+#define GPSSerial Serial3 // what's the name of the hardware serial port?
+
+Adafruit_GPS gps(&GPSSerial);
 
 #define REQUIRE_ACTUATORS
 #define RADIOCOMM
@@ -98,7 +101,8 @@ SPIFlash flash(6);
 BikeModel bike_model;
 
 KalmanFilter<4, 4, 2> orientation_filter;
-KalmanFilter<2, 1, 1> heading_filter;
+KalmanFilter<2, 2, 1> heading_filter;
+KalmanFilter<4, 4, 1> position_filter;
 
 Controller *controller;
 
@@ -262,6 +266,23 @@ void setup() {
 
     imu.start();                                    // Initialize IMU
 
+    // Initialize GPS
+    Serial.println("Initializing GPS.");
+    gps.begin(9600);  // 9600 NMEA is the default baud rate
+
+    // comment/uncomment lines to change baud rate
+    gps.sendCommand("$PMTK251,9600*17");  // set baud rate to 9600
+    GPSSerial.end();
+    delay(1000);
+    gps.begin(9600);  // must match what's chosen earlier
+
+    gps.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCONLY);  // turn on RMC (recommended minimum)
+    // GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCGGA);  // turn on RMC (recommended minimum) and GGA (fix data) including altitude
+    gps.sendCommand(PMTK_SET_NMEA_UPDATE_10HZ); // 1 Hz recommended, 10 Hz max for 9600 baud/RMCONLY
+    delay(1000);
+    Serial.println("Initialized GPS.");
+
+
     Serial.println("Loading parameters from Flash.");
     // Load parameters from Flash
     if (flash.readAnything(PARAMETER_ADDR, parameters)) {
@@ -305,12 +326,25 @@ void setup() {
     float var_gyro_z = 0.01;
 
     // Initialize heading Kalman filter
-    heading_filter.x = {0, 0};                      // Initial state estimate
-    heading_filter.P = BLA::Identity<2, 2>() * 0.1; // Initial estimate covariance
-    heading_filter.B = {0, 1};
-    heading_filter.C = {0, 1};                      // Sensor matrix
-    heading_filter.R = {                            // Sensor covariance matrix
-            var_gyro_z
+    heading_filter.x = {0, 0};                  // Initial state estimate
+    heading_filter.P = BLA::Identity<2, 2>() * 0.1;  // Initial estimate covariance
+    heading_filter.B = {0, 0};
+    heading_filter.C = BLA::Identity<2, 2>();                  // Sensor matrix
+    heading_filter.R = {                             // Sensor covariance matrix
+            var_gps_angle, 0,
+            0, var_gyro_z
+    };
+
+    // Initialize position Kalman filter
+    position_filter.x = {0, 0, 0, 0};           // Initial state estimate
+    position_filter.P = BLA::Identity<4, 4>() * 0.1; // Initial estimate covariance
+    position_filter.B = {0, 0, 0, 0};
+    position_filter.C = BLA::Identity<4, 4>();       // Sensor matrix
+    position_filter.R = {                            // Sensor covariance matrix
+            parameters.var_phi, 0, 0, 0,        // TODO: Set sensor covariances for GPS
+            0, parameters.var_del, 0, 0,
+            0, 0, parameters.var_dphi, 0,
+            0, 0, 0, parameters.var_ddel
     };
     Serial.println("Initialized Kalman filter.");
 
@@ -344,6 +378,7 @@ void loop() {
     // Update sensor information
     imu.update();
     encoder.update();
+    gps.read();
 #ifdef REQUIRE_ACTUATORS
     torque_motor->update();
 #endif
@@ -358,12 +393,26 @@ void loop() {
             var_heading * dt, var_heading
     };
     heading_filter.predict({0.0f});
-    heading_filter.update({imu.gyroZ()});
+    // TODO: Update only if have new GPS data
+    heading_filter.update({gps.angle, imu.gyroZ()});
     heading = heading_filter.x(0);
     dheading = heading_filter.x(1);
 
     // Get current speed
     v = encoder.getSpeed();
+
+    // Update position Kalman filter parameters
+    position_filter.A = {
+            1, 0, dt, 0,
+            0, 1, 0, dt,
+            0, 0, 1, 0,
+            0, 0, 0, 1
+    };
+    position_filter.Q = {
+           // TODO
+    };
+    position_filter.predict({0.0f});
+    position_filter.update({});
 
     // Update orientation state measurement
     float g_mag = imu.accelY() * imu.accelY() +
