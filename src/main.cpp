@@ -26,6 +26,7 @@
 #include "BikeModel.h"
 #include "Encoder.h"
 #include "ZSS.h"
+#include "Compass.h"
 
 
 // States
@@ -70,8 +71,6 @@
 
 #define GPSSerial Serial3 // what's the name of the hardware serial port?
 
-Adafruit_GPS gps(&GPSSerial);
-
 #define REQUIRE_ACTUATORS
 #define RADIOCOMM
 //#define KALMAN_CALIB
@@ -97,12 +96,14 @@ TorqueMotor *torque_motor;
 DriveMotor *drive_motor;
 Encoder encoder(16, 17);
 SPIFlash flash(6);
+Adafruit_GPS gps(&GPSSerial);
+Compass compass;
 
 BikeModel bike_model;
 
 KalmanFilter<4, 4, 2> orientation_filter;
 KalmanFilter<2, 2, 1> heading_filter;
-KalmanFilter<4, 4, 1> position_filter;
+KalmanFilter<4, 4, 2> position_filter;
 
 Controller *controller;
 
@@ -124,6 +125,15 @@ bool free_running = false;  // Is rotation constrained by the ZSS being deployed
 
 float heading = 0.0;
 float dheading = 0.0;
+float heading_y = 0.0;
+float dheading_y = 0.0;
+
+float lat = 0.0;
+float lon = 0.0;
+float dlat = 0.0;
+float dlon = 0.0;
+float lat_y = 0.0;
+float lon_y = 0.0;
 
 // Reference variables
 float phi_r = 0.0;          // Required roll angle (rad)
@@ -220,7 +230,7 @@ void setup() {
 #ifdef RADIOCOMM
     if (!radio.begin()) {
         Serial.println("Radio not found");
-        while (1);
+        while (true);
     }
     radio.openWritingPipe(writeAddr);
     radio.openReadingPipe(1, readAddr);
@@ -296,6 +306,14 @@ void setup() {
         Serial.println(flash.error(), HEX);
     }
 
+
+    // Initialize magnetometer
+    Serial.println("Initializing compass.");
+    compass.start();
+    compass.rotation = imu.rotation;
+    Serial.println("Initialized compass.");
+
+
     //! Temporary sensor covariance overriding parameters
     parameters.var_v = 0.0004;
     parameters.var_a = 0.02;
@@ -331,20 +349,23 @@ void setup() {
     heading_filter.B = {0, 0};
     heading_filter.C = BLA::Identity<2, 2>();                  // Sensor matrix
     heading_filter.R = {                             // Sensor covariance matrix
-            var_gps_angle, 0,
+            0.1, 0,   // TODO: Set sensor covariances for Magnetometer/GPS
             0, var_gyro_z
     };
 
     // Initialize position Kalman filter
     position_filter.x = {0, 0, 0, 0};           // Initial state estimate
     position_filter.P = BLA::Identity<4, 4>() * 0.1; // Initial estimate covariance
-    position_filter.B = {0, 0, 0, 0};
+    position_filter.B = {0, 0,
+                              0, 0,
+                              1, 0,
+                              0, 1};
     position_filter.C = BLA::Identity<4, 4>();       // Sensor matrix
     position_filter.R = {                            // Sensor covariance matrix
-            parameters.var_phi, 0, 0, 0,        // TODO: Set sensor covariances for GPS
-            0, parameters.var_del, 0, 0,
-            0, 0, parameters.var_dphi, 0,
-            0, 0, 0, parameters.var_ddel
+            0.1, 0, 0, 0,        // TODO: Set sensor covariances for GPS
+            0, 0.1, 0, 0,
+            0, 0, 0.1, 0,
+            0, 0, 0, 0.1
     };
     Serial.println("Initialized Kalman filter.");
 
@@ -378,10 +399,12 @@ void loop() {
     // Update sensor information
     imu.update();
     encoder.update();
+    compass.update();
     gps.read();
 #ifdef REQUIRE_ACTUATORS
     torque_motor->update();
 #endif
+
 
     // Update heading Kalman filter parameters
     heading_filter.A = {
@@ -392,27 +415,44 @@ void loop() {
             var_heading * dt * dt, var_heading * dt,
             var_heading * dt, var_heading
     };
+    heading_y = compass.angle;
+    dheading_y = imu.gyroZ();
     heading_filter.predict({0.0f});
-    // TODO: Update only if have new GPS data
-    heading_filter.update({gps.angle, imu.gyroZ()});
+    heading_filter.update({heading_y, dheading_y});
     heading = heading_filter.x(0);
     dheading = heading_filter.x(1);
+
 
     // Get current speed
     v = encoder.getSpeed();
 
+    // Compute rate of latitude and longitude change given speed and heading estimate
+    dlat = v * cos(heading) * MPS_2_DEGLATPS; // Convert northward speed to degrees of latitude per second
+    dlon = v * sin(heading) * MPS_2_DEGLONPS(lat); // Convert east-west speed to degrees of longitude per second. Conversion is latitude dependent.
+
     // Update position Kalman filter parameters
     position_filter.A = {
             1, 0, dt, 0,
-            0, 1, 0, dt,
-            0, 0, 1, 0,
-            0, 0, 0, 1
+                  0, 1, 0, dt,
+                  0, 0, 1, 0,
+                  0, 0, 0, 1
     };
     position_filter.Q = {
-           // TODO
-    };
-    position_filter.predict({0.0f});
-    position_filter.update({});
+           0.1, 0, 0, 0,
+                0, 0.1, 0, 0,
+                0, 0, 0.1, 0,
+                0, 0, 0, 0.1
+    }; //TODO: Find actual process covariances
+
+    position_filter.predict({dlat - position_filter.x(2), dlon - position_filter.x(3)});
+    // Only update if we have new GPS readings
+    if (gps.newNMEAreceived() && gps.parse(gps.lastNMEA())) {
+        lat_y = gps.latitudeDegrees;
+        lon_y = gps.longitudeDegrees;
+        position_filter.update({lat_y, lon_y, dlat, dlon});
+    }
+    lat = position_filter.x(0);
+    lon = position_filter.x(1);
 
     // Update orientation state measurement
     float g_mag = imu.accelY() * imu.accelY() +
@@ -433,6 +473,7 @@ void loop() {
 //    ddel_f /= DDELAVG;
 //    ddelc = (ddelc + 1) % DDELAVG;
 
+
     // Update orientation Kalman filter parameters
     orientation_filter.A = bike_model.kalmanTransitionMatrix(v, dt, free_running);
     orientation_filter.B = bike_model.kalmanControlsMatrix(v, dt, free_running);
@@ -452,8 +493,10 @@ void loop() {
     orientation_filter.x(3) = ddel_y;
     ddel = orientation_filter.x(3);
 
+
     // Update indicator
     indicator.update();
+
 
     // Act based on machine state, transition if necessary
     switch (state) {
@@ -472,7 +515,6 @@ void loop() {
 
             // Action
             idle();
-
             break;
 
         case CALIB:     // Sensor calibration
@@ -484,8 +526,6 @@ void loop() {
 
             // Action
             calibrate();
-
-
             break;
 
         case MANUAL:    // Manual operation
@@ -497,7 +537,6 @@ void loop() {
 
             // Action
             manual();
-
             break;
 
         case ASSIST:    // Assisted (training wheel) motion, only control heading
@@ -513,7 +552,6 @@ void loop() {
 
             // Action
             assist();
-
             break;
 
         case AUTO:      // Automatic motion, control heading and stability
@@ -529,7 +567,6 @@ void loop() {
 
             // Action
             automatic();
-
             break;
 
         case FALLEN:    // Fallen
