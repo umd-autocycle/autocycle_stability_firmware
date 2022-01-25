@@ -38,8 +38,8 @@ void KalmanFilter<xN, yN, uN>::predict(BLA::Matrix<uN, 1, Array<uN, 1>> u) {
 template<int xN, int yN, int uN>
 void KalmanFilter<xN, yN, uN>::update(BLA::Matrix<yN, 1, Array<yN, 1>> y) {
     auto residual = y - C * x;
-    auto S = C * P * (~C) + R;
-    auto K = P * (~C) * (BLA::Inverse(S));
+    auto s = C * P * (~C) + R;
+    auto K = P * (~C) * (BLA::Inverse(s));
     x = x + K * residual;
     P = (BLA::Identity<xN, xN>() - K * C) * P;
 }
