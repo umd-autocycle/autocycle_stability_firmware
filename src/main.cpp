@@ -69,7 +69,7 @@
 #define REPORT_UPDATE_FREQ  2
 #define STORE_UPDATE_FREQ   100
 
-#define GPSSerial Serial3 // what's the name of the hardware serial port?
+#define GPSSerial Serial3 // Hardware serial port to talk to GPS
 
 #define REQUIRE_ACTUATORS
 #define RADIOCOMM
@@ -123,17 +123,17 @@ float ddel_y = 0.0;         // Steering angle rate measurement (rad/s)
 float v = 0.0;              // Velocity (m/s)
 bool free_running = false;  // Is rotation constrained by the ZSS being deployed?
 
-float heading = 0.0;
-float dheading = 0.0;
-float heading_y = 0.0;
-float dheading_y = 0.0;
+float heading = 0.0;        // Heading relative to true north (rad)
+float dheading = 0.0;       // Rate of heading change (rad/s)
+float heading_y = 0.0;      // Heading magnetometer measurement (rad)
+float dheading_y = 0.0;     // Rate of heading change gyroscope measurement (rad/s)
 
-float lat = 0.0;
-float lon = 0.0;
-float dlat = 0.0;
-float dlon = 0.0;
-float lat_y = 0.0;
-float lon_y = 0.0;
+float lat = 0.0;            // Latitude (deg)
+float lon = 0.0;            // Longitude (deg)
+float dlat = 0.0;           // Rate of latitude change (deg/s)
+float dlon = 0.0;           // Rate of longitude change (deg/s)
+float lat_y = 0.0;          // Latitude GPS measurement (deg)
+float lon_y = 0.0;          // Longitude GPS measurement (deg)
 
 // Reference variables
 float phi_r = 0.0;          // Required roll angle (rad)
@@ -189,7 +189,8 @@ struct __attribute__((__packed__)) StoredParameters {
 
 struct __attribute__((__packed__)) TelemetryFrame {
     uint8_t state;
-    float time, phi, del, dphi, ddel, v_r, v, u, torque, heading, dheading, phi_y, del_y, dphi_y, ddel_y, phi_r, del_r;
+    float time, phi, del, dphi, ddel, v_r, v, u, torque, heading, dheading, lat, lon, dlat, dlon, phi_y, del_y, dphi_y,
+            ddel_y, heading_y, dheading_y, lat_y, lon_y, phi_r, del_r;
 } t_frame;
 static uint32_t storeAddress = TELEMETRY_ADDR;
 
@@ -357,9 +358,9 @@ void setup() {
     position_filter.x = {0, 0, 0, 0};           // Initial state estimate
     position_filter.P = BLA::Identity<4, 4>() * 0.1; // Initial estimate covariance
     position_filter.B = {0, 0,
-                              0, 0,
-                              1, 0,
-                              0, 1};
+                         0, 0,
+                         1, 0,
+                         0, 1};
     position_filter.C = BLA::Identity<4, 4>();       // Sensor matrix
     position_filter.R = {                            // Sensor covariance matrix
             0.1, 0, 0, 0,        // TODO: Set sensor covariances for GPS
@@ -428,20 +429,21 @@ void loop() {
 
     // Compute rate of latitude and longitude change given speed and heading estimate
     dlat = v * cos(heading) * MPS_2_DEGLATPS; // Convert northward speed to degrees of latitude per second
-    dlon = v * sin(heading) * MPS_2_DEGLONPS(lat); // Convert east-west speed to degrees of longitude per second. Conversion is latitude dependent.
+    dlon = v * sin(heading) * MPS_2_DEGLONPS(
+            lat); // Convert east-west speed to degrees of longitude per second. Conversion is latitude dependent.
 
     // Update position Kalman filter parameters
     position_filter.A = {
             1, 0, dt, 0,
-                  0, 1, 0, dt,
-                  0, 0, 1, 0,
-                  0, 0, 0, 1
+            0, 1, 0, dt,
+            0, 0, 1, 0,
+            0, 0, 0, 1
     };
     position_filter.Q = {
-           0.1, 0, 0, 0,
-                0, 0.1, 0, 0,
-                0, 0, 0.1, 0,
-                0, 0, 0, 0.1
+            0.1, 0, 0, 0,
+            0, 0.1, 0, 0,
+            0, 0, 0.1, 0,
+            0, 0, 0, 0.1
     }; //TODO: Find actual process covariances
 
     position_filter.predict({dlat - position_filter.x(2), dlon - position_filter.x(3)});
@@ -856,14 +858,22 @@ void calibrate() {
         while (in_loop) {
 
             if (Serial.available()) {
-                t = Serial.parseFloat();
-                while (Serial.available()) Serial.read();
-                torque_motor->setTorque(t);
+                if (Serial.peek() == 'q') {
+                    Serial.read();
+                    in_loop = false;
+                    calibrated = true;
+                } else {
+                    t = Serial.parseFloat();
+                    while (Serial.available()) Serial.read();
+                    torque_motor->setTorque(t);
+                }
             }
 
             torque_motor->update();
             Serial.println(torque_motor->getTorque());
         }
+
+        user_req = user_req & ~R_CALIB_TORQUE;
     }
 
     if (calibrated) {
@@ -901,10 +911,18 @@ void storeTelemetry() {
         t_frame_page.frames[i].torque = torque;
         t_frame_page.frames[i].heading = heading;
         t_frame_page.frames[i].dheading = dheading;
+        t_frame_page.frames[i].lat = lat;
+        t_frame_page.frames[i].lon = lon;
+        t_frame_page.frames[i].dlat = dlat;
+        t_frame_page.frames[i].dlon = dlon;
         t_frame_page.frames[i].phi_y = phi_y;
         t_frame_page.frames[i].del_y = del_y;
         t_frame_page.frames[i].dphi_y = dphi_y;
         t_frame_page.frames[i].ddel_y = ddel_y;
+        t_frame_page.frames[i].heading_y = heading_y;
+        t_frame_page.frames[i].dheading_y = dheading_y;
+        t_frame_page.frames[i].lat_y = lat_y;
+        t_frame_page.frames[i].lon_y = lon_y;
         t_frame_page.frames[i].phi_r = phi_r;
         t_frame_page.frames[i].del_r = del_r;
 
@@ -988,6 +1006,14 @@ void printTelemetryFrame(TelemetryFrame &telemetryFrame) {
     Serial.print('\t');
     Serial.print(telemetryFrame.dheading, 4);
     Serial.print('\t');
+    Serial.print(telemetryFrame.lat, 7);
+    Serial.print('\t');
+    Serial.print(telemetryFrame.lon, 7);
+    Serial.print('\t');
+    Serial.print(telemetryFrame.dlat, 7);
+    Serial.print('\t');
+    Serial.print(telemetryFrame.dlon, 7);
+    Serial.print('\t');
     Serial.print(telemetryFrame.phi_y, 4);
     Serial.print('\t');
     Serial.print(telemetryFrame.del_y, 4);
@@ -995,6 +1021,14 @@ void printTelemetryFrame(TelemetryFrame &telemetryFrame) {
     Serial.print(telemetryFrame.dphi_y, 4);
     Serial.print('\t');
     Serial.print(telemetryFrame.ddel_y, 4);
+    Serial.print('\t');
+    Serial.print(telemetryFrame.heading_y, 4);
+    Serial.print('\t');
+    Serial.print(telemetryFrame.dheading_y, 4);
+    Serial.print('\t');
+    Serial.print(telemetryFrame.lat_y, 7);
+    Serial.print('\t');
+    Serial.print(telemetryFrame.lon_y, 7);
     Serial.print('\t');
     Serial.print(telemetryFrame.phi_r, 4);
     Serial.print('\t');
@@ -1008,7 +1042,6 @@ void manual() {
 }
 
 void assist() {
-    float er = del_r;
 #ifdef REQUIRE_ACTUATORS
     torque_motor->setPosition(del_r);
     if (v_r == 0)
@@ -1210,6 +1243,10 @@ void report() {
     Serial.print(heading, 4);
     Serial.print('\t');
     Serial.print(dheading, 4);
+    Serial.print('\t');
+    Serial.print(lat, 7);
+    Serial.print('\t');
+    Serial.print(lon, 7);
     Serial.print('\t');
     Serial.print((float) millis() / 1000.0f, 4);
 
