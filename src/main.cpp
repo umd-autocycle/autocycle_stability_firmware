@@ -72,7 +72,7 @@
 #define GPSSerial Serial3 // Hardware serial port to talk to GPS
 
 #define REQUIRE_ACTUATORS
-#define RADIOCOMM
+//#define RADIOCOMM
 //#define KALMAN_CALIB
 
 #ifdef RADIOCOMM
@@ -289,7 +289,7 @@ void setup() {
 
     gps.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCONLY);  // turn on RMC (recommended minimum)
     // GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCGGA);  // turn on RMC (recommended minimum) and GGA (fix data) including altitude
-    gps.sendCommand(PMTK_SET_NMEA_UPDATE_10HZ); // 1 Hz recommended, 10 Hz max for 9600 baud/RMCONLY
+    gps.sendCommand(PMTK_SET_NMEA_UPDATE_1HZ); // 1 Hz recommended, 10 Hz max for 9600 baud/RMCONLY
     delay(1000);
     Serial.println("Initialized GPS.");
 
@@ -363,8 +363,8 @@ void setup() {
                          0, 1};
     position_filter.C = BLA::Identity<4, 4>();       // Sensor matrix
     position_filter.R = {                            // Sensor covariance matrix
-            0.1, 0, 0, 0,        // TODO: Set sensor covariances for GPS
-            0, 0.1, 0, 0,
+            0.00000001, 0, 0, 0,        // TODO: Set sensor covariances for GPS
+            0, 0.00000001, 0, 0,
             0, 0, 0.1, 0,
             0, 0, 0, 0.1
     };
@@ -439,16 +439,16 @@ void loop() {
             0, 0, 1, 0,
             0, 0, 0, 1
     };
-    position_filter.Q = {
-            0.1, 0, 0, 0,
-            0, 0.1, 0, 0,
-            0, 0, 0.1, 0,
-            0, 0, 0, 0.1
-    }; //TODO: Find actual process covariances
+    BLA::Matrix<4, 1, Array<4, 1>> w_pos = {0.5f * 0.2f * dt * dt,
+                                            0.5f * 0.2f * dt * dt,
+                                            0.2f * dt,
+                                            0.2f * dt}; // MAGIC 0.2 guess
+    position_filter.Q = w_pos * (~w_pos);
 
     position_filter.predict({dlat - position_filter.x(2), dlon - position_filter.x(3)});
     // Only update if we have new GPS readings
     if (gps.newNMEAreceived() && gps.parse(gps.lastNMEA())) {
+//        Serial.println("New GPS data!");
         lat_y = gps.latitudeDegrees;
         lon_y = gps.longitudeDegrees;
         position_filter.update({lat_y, lon_y, dlat, dlon});
