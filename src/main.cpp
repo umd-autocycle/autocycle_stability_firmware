@@ -66,7 +66,7 @@
 #define OVERSTEER_THRESH    (PI/3.0)    // Threshold for steering angle before initiating E_STOP
 
 // Loop timing constants (frequencies in Hz)
-#define REPORT_UPDATE_FREQ  2
+#define REPORT_UPDATE_FREQ  10
 #define STORE_UPDATE_FREQ   100
 
 #define GPSSerial Serial3 // Hardware serial port to talk to GPS
@@ -293,6 +293,17 @@ void setup() {
     delay(1000);
     Serial.println("Initialized GPS.");
 
+    while (true) {
+        gps.read();
+        if (gps.newNMEAreceived() && gps.parse(gps.lastNMEA())) {
+            lat_y = gps.latitudeDegrees;
+            lon_y = gps.longitudeDegrees;
+
+            if (lat_y != 0.0 && lon_y != 0.0)
+                break;
+        }
+    }
+
 
     Serial.println("Loading parameters from Flash.");
     // Load parameters from Flash
@@ -345,12 +356,12 @@ void setup() {
     float var_gyro_z = 0.01;
 
     // Initialize heading Kalman filter
-    heading_filter.x = {0, 0};                  // Initial state estimate
+    heading_filter.x = {lat_y, lon_y};                  // Initial state estimate
     heading_filter.P = BLA::Identity<2, 2>() * 0.1;  // Initial estimate covariance
     heading_filter.B = {0, 0};
     heading_filter.C = BLA::Identity<2, 2>();                  // Sensor matrix
     heading_filter.R = {                             // Sensor covariance matrix
-            0.1, 0,   // TODO: Set sensor covariances for Magnetometer/GPS
+            0.0001, 0,   // TODO: Set sensor covariances for Magnetometer/GPS
             0, var_gyro_z
     };
 
@@ -416,7 +427,10 @@ void loop() {
             var_heading * dt * dt, var_heading * dt,
             var_heading * dt, var_heading
     };
-    heading_y = compass.angle;
+//    heading_y = compass.angle;
+    if (v > 0.5) {
+        heading_y = gps.angle * (float) PI / 180.0f;
+    }
     dheading_y = imu.gyroZ();
     heading_filter.predict({0.0f});
     heading_filter.update({heading_y, dheading_y});
