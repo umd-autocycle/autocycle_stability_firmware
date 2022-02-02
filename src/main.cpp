@@ -356,7 +356,7 @@ void setup() {
     float var_gyro_z = 0.01;
 
     // Initialize heading Kalman filter
-    heading_filter.x = {lat_y, lon_y};                  // Initial state estimate
+    heading_filter.x = {0, 0};                  // Initial state estimate
     heading_filter.P = BLA::Identity<2, 2>() * 0.1;  // Initial estimate covariance
     heading_filter.B = {0, 0};
     heading_filter.C = BLA::Identity<2, 2>();                  // Sensor matrix
@@ -366,7 +366,7 @@ void setup() {
     };
 
     // Initialize position Kalman filter
-    position_filter.x = {0, 0, 0, 0};           // Initial state estimate
+    position_filter.x = {lat_y, lon_y, 0, 0};           // Initial state estimate
     position_filter.P = BLA::Identity<4, 4>() * 0.1; // Initial estimate covariance
     position_filter.B = {0, 0,
                          0, 0,
@@ -433,7 +433,15 @@ void loop() {
     }
     dheading_y = imu.gyroZ();
     heading_filter.predict({0.0f});
+    heading = heading_filter.x(0);
+    dheading = heading_filter.x(1);
+    heading_filter.x(0) = fmod(heading, (float) (2.0f * PI));
+    heading_filter.x(1) = fmod(dheading, (float) (2.0f * PI));
     heading_filter.update({heading_y, dheading_y});
+    heading = heading_filter.x(0);
+    dheading = heading_filter.x(1);
+    heading_filter.x(0) = fmod(heading, (float) (2.0f * PI));
+    heading_filter.x(1) = fmod(dheading, (float) (2.0f * PI));
     heading = heading_filter.x(0);
     dheading = heading_filter.x(1);
 
