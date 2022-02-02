@@ -428,9 +428,7 @@ void loop() {
             var_heading * dt, var_heading
     };
 //    heading_y = compass.angle;
-    if (v > 0.5) {
-        heading_y = gps.angle * (float) PI / 180.0f;
-    }
+
     dheading_y = imu.gyroZ();
     heading_filter.predict({0.0f});
     heading = heading_filter.x(0);
@@ -474,6 +472,9 @@ void loop() {
         lat_y = gps.latitudeDegrees;
         lon_y = gps.longitudeDegrees;
         position_filter.update({lat_y, lon_y, dlat, dlon});
+        if (v > 1) {
+            heading_y = gps.angle * (float) PI / 180.0f;
+        }
     }
     lat = position_filter.x(0);
     lon = position_filter.x(1);
@@ -1266,10 +1267,18 @@ void report() {
     Serial.print('\t');
     Serial.print(dheading, 4);
     Serial.print('\t');
-    Serial.print(lat, 7);
+//    Serial.print(heading_y, 4);
+//    Serial.print('\t');
+//    Serial.print(dheading_y, 4);
+//    Serial.print('\t');
+    Serial.print(lat, 8);
     Serial.print('\t');
-    Serial.print(lon, 7);
+    Serial.print(lon, 8);
     Serial.print('\t');
+//    Serial.print(lat_y, 8);
+//    Serial.print('\t');
+//    Serial.print(lon_y, 8);
+//    Serial.print('\t');
     Serial.print((float) millis() / 1000.0f, 4);
 
     Serial.print('\t');

@@ -13,7 +13,7 @@
 
 #define MPS_2_DEGLATPS (1.0f / (1852.0f * 60.0f)) // Meters per second to degrees of latitude per second conversion factor
                                             // A nautical mile is a minute of arc and is 1852.
-#define MPS_2_DEGLONPS(lat) (1.0f / (1852.0f * 60.0f * cos(lat))) // Meters per second to degrees of longitude per second conversion factor
+#define MPS_2_DEGLONPS(lat) (1.0f / (1852.0f * 60.0f * cos(lat * (PI/180.0)))) // Meters per second to degrees of longitude per second conversion factor
                                                                     // Linear distance between degrees of longitude is latitude dependent
 
 class Compass {
