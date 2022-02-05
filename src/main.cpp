@@ -125,7 +125,7 @@ bool free_running = false;  // Is rotation constrained by the ZSS being deployed
 
 float heading = 0.0;        // Heading relative to true north (rad)
 float dheading = 0.0;       // Rate of heading change (rad/s)
-float heading_y = 0.0;      // Heading magnetometer measurement (rad)
+float heading_y = 111.0/180.0*PI;      // Heading magnetometer measurement (rad)
 float dheading_y = 0.0;     // Rate of heading change gyroscope measurement (rad/s)
 
 float lat = 0.0;            // Latitude (deg)
@@ -356,7 +356,7 @@ void setup() {
     float var_gyro_z = 0.01;
 
     // Initialize heading Kalman filter
-    heading_filter.x = {0, 0};                  // Initial state estimate
+    heading_filter.x = {111.0/180.0*PI, 0};                  // Initial state estimate
     heading_filter.P = BLA::Identity<2, 2>() * 0.1;  // Initial estimate covariance
     heading_filter.B = {0, 0};
     heading_filter.C = BLA::Identity<2, 2>();                  // Sensor matrix
