@@ -20,12 +20,17 @@ public:
     void deploy();
     void retract();
     void halt();
+    void run();
 
     bool deploying;
 
 private:
     uint8_t p1, p2;
     int a1_offset, a2_offset;
+    int a1_start, a2_start;
+    int a1_target, a2_target;
+    int a1_setting, a2_setting;
+    unsigned long move_commence;
     Servo *serv1, *serv2;
 };
 

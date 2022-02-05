@@ -125,7 +125,7 @@ bool free_running = false;  // Is rotation constrained by the ZSS being deployed
 
 float heading = 0.0;        // Heading relative to true north (rad)
 float dheading = 0.0;       // Rate of heading change (rad/s)
-float heading_y = 111.0/180.0*PI;      // Heading magnetometer measurement (rad)
+float heading_y = 111.0 / 180.0 * PI;      // Heading magnetometer measurement (rad)
 float dheading_y = 0.0;     // Rate of heading change gyroscope measurement (rad/s)
 
 float lat = 0.0;            // Latitude (deg)
@@ -216,14 +216,14 @@ void countPulse() {
 }
 
 unsigned long mstart = 0;
+static unsigned long last_time;
 
 //#define DDELAVG 100
 //float ddelbox[DDELAVG];
 //int ddelc = 0;
 
 void setup() {
-    zss.start();
-    zss.deploy();
+    zss.start();                                // Initial state is deployed
     Wire.begin();                               // Begin I2C interface
     SPI.begin();                                // Begin Serial Peripheral Interface (SPI)
 
@@ -356,7 +356,7 @@ void setup() {
     float var_gyro_z = 0.01;
 
     // Initialize heading Kalman filter
-    heading_filter.x = {111.0/180.0*PI, 0};                  // Initial state estimate
+    heading_filter.x = {111.0 / 180.0 * PI, 0};                  // Initial state estimate
     heading_filter.P = BLA::Identity<2, 2>() * 0.1;  // Initial estimate covariance
     heading_filter.B = {0, 0};
     heading_filter.C = BLA::Identity<2, 2>();                  // Sensor matrix
@@ -396,11 +396,12 @@ void setup() {
     Serial.println("Finished setup.");
 
     delay(200);
+
+    last_time = millis();
 }
 
 
 void loop() {
-    static unsigned long last_time = millis();
     static unsigned long last_report_time = millis();
     static unsigned long last_store_time = millis();
     static unsigned long timeout = 0;
@@ -785,8 +786,9 @@ void loop() {
         indicator.boop(100);
     }
 
-    // Run stepper
+    // Run stepper and ZSS
     stepper.run();
+    zss.run();
 }
 
 void idle() {
@@ -1379,4 +1381,6 @@ void reset_filters() {
 
     heading_filter.x = {0, 0};                          // Initial state estimate
     heading_filter.P = BLA::Identity<2, 2>() * 0.1;          // Initial estimate covariance
+
+    last_time = millis();
 }
