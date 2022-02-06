@@ -10,7 +10,7 @@
 
 #define ZSS_RETRACT_US      2000
 
-#define ZSS_DEPLOY_MS       4000
+#define ZSS_DEPLOY_MS       4500
 
 class ZSS {
 public:

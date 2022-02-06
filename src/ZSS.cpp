@@ -29,23 +29,27 @@ void ZSS::start() {
 }
 
 void ZSS::retract() {
-    move_commence = millis();
+    if(deploying) {
+        move_commence = millis();
 
-    deploying = false;
-    a1_start = a1_offset;
-    a2_start = a2_offset;
-    a1_target = ZSS_RETRACT_US;
-    a2_target = ZSS_RETRACT_US;
+        deploying = false;
+        a1_start = a1_offset;
+        a2_start = a2_offset;
+        a1_target = ZSS_RETRACT_US;
+        a2_target = ZSS_RETRACT_US;
+    }
 }
 
 void ZSS::deploy() {
-    move_commence = millis();
+    if (!deploying){
+        move_commence = millis();
 
-    deploying = true;
-    a1_start = ZSS_RETRACT_US;
-    a2_start = ZSS_RETRACT_US;
-    a1_target = a1_offset;
-    a2_target = a2_offset;
+        deploying = true;
+        a1_start = ZSS_RETRACT_US;
+        a2_start = ZSS_RETRACT_US;
+        a1_target = a1_offset;
+        a2_target = a2_offset;
+    }
 }
 
 void ZSS::halt() {

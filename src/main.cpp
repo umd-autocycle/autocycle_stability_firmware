@@ -72,7 +72,7 @@
 #define GPSSerial Serial3 // Hardware serial port to talk to GPS
 
 #define REQUIRE_ACTUATORS
-//#define RADIOCOMM
+#define RADIOCOMM
 //#define KALMAN_CALIB
 
 #ifdef RADIOCOMM
@@ -518,6 +518,7 @@ void loop() {
     dphi = orientation_filter.x(2);
     orientation_filter.x(3) = ddel_y;
     ddel = orientation_filter.x(3);
+//    phi = 0; // todo: remove
 
 
     // Update indicator
