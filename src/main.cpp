@@ -649,14 +649,21 @@ void loop() {
             tail = nullptr;
     }
 
-    // Report state, reference, and control values
-    if (millis() - last_report_time >= 1000 / REPORT_UPDATE_FREQ) {
-        report();
-        last_report_time = millis();
-    }
+    // Store telemetry for current frame
     if (millis() - last_store_time >= 1000 / STORE_UPDATE_FREQ && isRecording) {
         storeTelemetry();
         last_store_time = millis();
+    }
+    // Report state, reference, and control values
+    if (millis() - last_report_time >= 1000 / REPORT_UPDATE_FREQ) {
+        // Don't report over radio if we are running
+#ifdef RADIOCOMM
+        if (!isRecording)
+            report();
+#else
+        report();
+#endif
+        last_report_time = millis();
     }
 
 #ifdef RADIOCOMM
