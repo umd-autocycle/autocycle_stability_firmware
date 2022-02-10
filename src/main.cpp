@@ -980,8 +980,6 @@ void retrieveTelemetry() {
         flash.readAnything(address, t_frame_page);
 
         address += PAGE_SIZE;
-        if (address % SECTOR_SIZE == 0)
-            flash.eraseSector(address - SECTOR_SIZE);
 
         // Escape if we have hit the end of recorded data
         if (t_frame_page.frames[0].state == 255)
@@ -1001,14 +999,23 @@ void retrieveTelemetry() {
 }
 
 void clearTelemetry() {
-    for (int i = TELEMETRY_ADDR; i < FLASH_SIZE; i += SECTOR_SIZE) {
+    int i;
+    Serial.println("Erasing flash chip.");
+    for (i = TELEMETRY_ADDR; i < FLASH_SIZE; i += SECTOR_SIZE) {
         if (flash.eraseSector(i)) {
-            Serial.print("Erased sector at ");
-            Serial.println(i, HEX);
+//            Serial.print("Erased sector at ");
+//            Serial.println(i, HEX);
         } else {
             Serial.print("Failed to erase sector at ");
             Serial.println(i, HEX);
+            break;
         }
+    }
+
+    if(i < FLASH_SIZE) {
+        Serial.println("Failed to erase flash chip.");
+    } else {
+        Serial.println("Flash chip erased.");
     }
 
     reset_filters();
