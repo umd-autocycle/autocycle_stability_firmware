@@ -7,9 +7,9 @@
 
 #include <Adafruit_LIS3MDL.h>
 
-#define HARD_IRON_X -46.25
-#define HARD_IRON_Y 41.23
-#define HARD_IRON_Z -31.99
+#define HARD_IRON_X (-46.25)
+#define HARD_IRON_Y (41.23)
+#define HARD_IRON_Z (-31.99)
 
 #define MPS_2_DEGLATPS (1.0f / (1852.0f * 60.0f)) // Meters per second to degrees of latitude per second conversion factor
 // A nautical mile is a minute of arc and is 1852.
