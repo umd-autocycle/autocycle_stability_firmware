@@ -72,7 +72,7 @@
 #define GPSSerial Serial3 // Hardware serial port to talk to GPS
 
 #define REQUIRE_ACTUATORS
-#define RADIOCOMM
+//#define RADIOCOMM
 #define HEADING_CONTROL
 //#define KALMAN_CALIB
 
@@ -1112,7 +1112,7 @@ void manual() {
 void assist() {
 #ifdef REQUIRE_ACTUATORS
     torque_motor->setPosition(del_r);
-    if (v_r == 0)
+    if (v_r == 0 && stepper.currentPosition() == 0)
         physical_brake(true);
 #endif
 }
@@ -1409,7 +1409,7 @@ void home_delta() {
 }
 
 void physical_brake(bool engage) {
-    int steps = floor(74 / (11 * PI) * 200);
+    int steps = floor(35 / (11 * PI) * 200);
 
     if (engage) {
         stepper.moveTo(-steps);

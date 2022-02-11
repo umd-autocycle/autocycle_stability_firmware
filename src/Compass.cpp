@@ -44,4 +44,5 @@ void Compass::update() {
 //    Serial.println();
 
     angle = atan2(-ygo, xgor) + declination + deviation;
+//    Serial.println(angle * 180.0 / PI);
 }
