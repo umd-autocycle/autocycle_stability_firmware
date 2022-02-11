@@ -73,6 +73,7 @@
 
 #define REQUIRE_ACTUATORS
 #define RADIOCOMM
+#define HEADING_CONTROL
 //#define KALMAN_CALIB
 
 #ifdef RADIOCOMM
@@ -98,6 +99,8 @@ Encoder encoder(16, 17);
 SPIFlash flash(6);
 Adafruit_GPS gps(&GPSSerial);
 Compass compass;
+#define K_HEADING 0.5
+#define DEL_R_MAX 0.21
 
 BikeModel bike_model;
 
@@ -125,7 +128,7 @@ bool free_running = false;  // Is rotation constrained by the ZSS being deployed
 
 float heading = 0.0;        // Heading relative to true north (rad)
 float dheading = 0.0;       // Rate of heading change (rad/s)
-float heading_y = 111.0 / 180.0 * PI;      // Heading magnetometer measurement (rad)
+float heading_y = 270.0 / 180.0 * PI;      // Heading magnetometer measurement (rad)
 float dheading_y = 0.0;     // Rate of heading change gyroscope measurement (rad/s)
 
 float lat = 0.0;            // Latitude (deg)
@@ -139,6 +142,7 @@ float lon_y = 0.0;          // Longitude GPS measurement (deg)
 float phi_r = 0.0;          // Required roll angle (rad)
 float del_r = 0.0;          // Required steering angle (rad)
 float v_r = 0.0;            // Required velocity (m/s)
+float heading_r = 270.0 / 180.0 * PI;      // Required heading (rad)
 
 // Control variables
 float u = 0.0;              // Control commanded torque (Nm)
@@ -190,7 +194,7 @@ struct __attribute__((__packed__)) StoredParameters {
 struct __attribute__((__packed__)) TelemetryFrame {
     uint8_t state;
     float time, phi, del, dphi, ddel, v_r, v, u, torque, heading, dheading, lat, lon, dlat, dlon, phi_y, del_y, dphi_y,
-            ddel_y, heading_y, dheading_y, lat_y, lon_y, phi_r, del_r;
+            ddel_y, heading_y, dheading_y, lat_y, lon_y, phi_r, del_r, heading_r;
 } t_frame;
 static uint32_t storeAddress = TELEMETRY_ADDR;
 
@@ -356,7 +360,7 @@ void setup() {
     float var_gyro_z = 0.01;
 
     // Initialize heading Kalman filter
-    heading_filter.x = {111.0 / 180.0 * PI, 0};                  // Initial state estimate
+    heading_filter.x = {270.0 / 180.0 * PI, 0};                  // Initial state estimate
     heading_filter.P = BLA::Identity<2, 2>() * 0.1;  // Initial estimate covariance
     heading_filter.B = {0, 0};
     heading_filter.C = BLA::Identity<2, 2>();                  // Sensor matrix
@@ -491,14 +495,6 @@ void loop() {
     torque = torque_motor->getTorque();
 #endif
 
-    // ddel moving avg
-//    ddelbox[ddelc] = ddel_y;
-//    float ddel_f = 0;
-//    for (float i: ddelbox)
-//        ddel_f += i;
-//    ddel_f /= DDELAVG;
-//    ddelc = (ddelc + 1) % DDELAVG;
-
 
     // Update orientation Kalman filter parameters
     orientation_filter.A = bike_model.kalmanTransitionMatrix(v, dt, free_running);
@@ -518,7 +514,16 @@ void loop() {
     dphi = orientation_filter.x(2);
     orientation_filter.x(3) = ddel_y;
     ddel = orientation_filter.x(3);
-//    phi = 0; // todo: remove
+
+#ifdef HEADING_CONTROL
+    // Calculate steering setpoint based on heading error
+    float e_heading = heading_r - heading;
+    if (e_heading > PI)
+        e_heading -= (float) (2.0 * PI);
+    else if (e_heading < -PI)
+        e_heading += (float) (2.0 * PI);
+    del_r = constrain(K_HEADING * e_heading, -DEL_R_MAX, DEL_R_MAX);
+#endif
 
 
     // Update indicator
@@ -684,6 +689,9 @@ void loop() {
             case 'd':
                 del_r = *((float *) &(buffer[2]));
                 break;
+            case 'h':
+                heading_r = *((float *) &(buffer[2]));
+                break;
             case 'c':
                 user_req = *((uint16_t *) &(buffer[2]));
                 break;
@@ -695,12 +703,6 @@ void loop() {
                 isRecording = true;
                 indicator.yell(500);
                 mstart = millis();
-                break;
-            case 'h':
-                assert_idle();
-                home_delta();
-                delay(250);
-                assert_idle();
                 break;
             case 'r':
                 isRecording = true;
@@ -743,6 +745,9 @@ void loop() {
                 break;
             case 'd':
                 del_r = Serial.parseFloat();
+                break;
+            case 'h':
+                heading_r = Serial.parseFloat();
                 break;
             case 'c':
                 user_req |= Serial.parseInt();
@@ -958,6 +963,7 @@ void storeTelemetry() {
         t_frame_page.frames[i].lon_y = lon_y;
         t_frame_page.frames[i].phi_r = phi_r;
         t_frame_page.frames[i].del_r = del_r;
+        t_frame_page.frames[i].heading_r = heading_r;
 
         i++;
 
@@ -1012,7 +1018,7 @@ void clearTelemetry() {
         }
     }
 
-    if(i < FLASH_SIZE) {
+    if (i < FLASH_SIZE) {
         Serial.println("Failed to erase flash chip.");
     } else {
         Serial.println("Flash chip erased.");
@@ -1073,6 +1079,8 @@ void printTelemetryFrame(TelemetryFrame &telemetryFrame) {
     Serial.print(telemetryFrame.phi_r, 4);
     Serial.print('\t');
     Serial.print(telemetryFrame.del_r, 4);
+    Serial.print('\t');
+    Serial.print(telemetryFrame.heading_r, 4);
     Serial.println();
 }
 
