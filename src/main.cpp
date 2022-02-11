@@ -158,7 +158,7 @@ const int dirPin = A2;
 const int stepPin = A1;
 AccelStepper stepper(AccelStepper::DRIVER, stepPin, dirPin);
 
-ZSS zss(28, 26, 1260, 1430);
+ZSS zss(28, 26);
 
 
 void report();
@@ -172,6 +172,8 @@ void storeTelemetry();
 void retrieveTelemetry();
 
 void clearTelemetry();
+
+void record_current_parameters();
 
 void physical_brake(bool engage);
 
@@ -189,6 +191,7 @@ struct __attribute__((__packed__)) StoredParameters {
     float var_v, var_a, var_phi, var_del, var_dphi, var_ddel;
     int16_t ax_off, ay_off, az_off, gx_off, gy_off, gz_off;
     float imu_tilt;
+    uint32_t zss_a1_offset, zss_a2_offset;
 } parameters;
 
 struct __attribute__((__packed__)) TelemetryFrame {
@@ -222,16 +225,34 @@ void countPulse() {
 unsigned long mstart = 0;
 static unsigned long last_time;
 
-//#define DDELAVG 100
-//float ddelbox[DDELAVG];
-//int ddelc = 0;
 
 void setup() {
-    zss.start();                                // Initial state is deployed
     Wire.begin();                               // Begin I2C interface
     SPI.begin();                                // Begin Serial Peripheral Interface (SPI)
-
     Serial.begin(115200);             // Begin Main Serial (UART to USB) communication
+
+    flash.begin();                               // Begin SPI comm to flash memory
+
+    Serial.println("Loading parameters from Flash.");
+    // Load parameters from Flash
+    if (flash.readAnything(PARAMETER_ADDR, parameters)) {
+        Serial.println("Loaded parameters from FLash.");
+        Serial.println(parameters.imu_tilt);
+    } else {
+        Serial.print("Failed to load parameters from Flash, error code: 0x");
+        Serial.println(flash.error(), HEX);
+    }
+
+    if (parameters.zss_a1_offset == 0xFFFFFFFF || parameters.zss_a2_offset == 0xFFFFFFFF) {
+        parameters.zss_a1_offset = 1260;
+        parameters.zss_a2_offset = 1430;
+    }
+    Serial.print(parameters.zss_a1_offset);
+    Serial.print('\t');
+    Serial.println(parameters.zss_a2_offset);
+    zss.start(parameters.zss_a1_offset, parameters.zss_a2_offset);      // Initial state is deployed
+
+
 #ifdef RADIOCOMM
     if (!radio.begin()) {
         Serial.println("Radio not found");
@@ -248,10 +269,9 @@ void setup() {
     delay(1000);                          // Wait for Serial interfaces to initialize
 
 
-    Can0.begin(CAN_BPS_1000K);                  // Begin 1M baud rate CAN interface, no enable pin
+    Can0.begin(CAN_BPS_1000K);          // Begin 1M baud rate CAN interface, no enable pin
     Can0.watchFor();                            // Watch for all incoming CAN-Bus messages
 
-    flash.begin();                               // Begin SPI comm to ferroelectric RAM
 
     analogWriteResolution(12);              // Enable expanded PWM and ADC resolution
     analogReadResolution(12);
@@ -280,6 +300,10 @@ void setup() {
 #endif
 
     imu.start();                                    // Initialize IMU
+    imu.configure(2, 2, 3, parameters.imu_tilt);  // Set accelerometer and gyro resolution, on-chip low-pass filter
+    imu.set_accel_offsets(parameters.ax_off, parameters.ay_off, parameters.az_off);
+    imu.set_gyro_offsets(parameters.gx_off, parameters.gy_off, parameters.gz_off);
+
 
     // Initialize GPS
     Serial.println("Initializing GPS.");
@@ -295,8 +319,9 @@ void setup() {
     // GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCGGA);  // turn on RMC (recommended minimum) and GGA (fix data) including altitude
     gps.sendCommand(PMTK_SET_NMEA_UPDATE_1HZ); // 1 Hz recommended, 10 Hz max for 9600 baud/RMCONLY
     delay(1000);
-    Serial.println("Initialized GPS.");
+    Serial.println("Initialized GPS, waiting for readings.");
 
+    // Wait until we have a real GPS reading
     while (true) {
         gps.read();
         if (gps.newNMEAreceived() && gps.parse(gps.lastNMEA())) {
@@ -307,20 +332,7 @@ void setup() {
                 break;
         }
     }
-
-
-    Serial.println("Loading parameters from Flash.");
-    // Load parameters from Flash
-    if (flash.readAnything(PARAMETER_ADDR, parameters)) {
-        Serial.println("Loaded parameters from FLash.");
-        imu.configure(2, 2, 3, parameters.imu_tilt);  // Set accelerometer and gyro resolution, on-chip low-pass filter
-        imu.set_accel_offsets(parameters.ax_off, parameters.ay_off, parameters.az_off);
-        imu.set_gyro_offsets(parameters.gx_off, parameters.gy_off, parameters.gz_off);
-        Serial.println(parameters.imu_tilt);
-    } else {
-        Serial.print("Failed to load parameters from Flash, error code: 0x");
-        Serial.println(flash.error(), HEX);
-    }
+    Serial.println("Initialized GPS, readings confirmed.");
 
 
     // Initialize magnetometer
@@ -790,6 +802,12 @@ void loop() {
             case 'z':
                 clearTelemetry();
                 break;
+            case 'w':
+                zss.adjustOffsets(Serial.parseInt(), Serial.parseInt());
+                parameters.zss_a1_offset = zss.a1_offset;
+                parameters.zss_a2_offset = zss.a2_offset;
+                record_current_parameters();
+                break;
 
             default:
                 break;
@@ -915,23 +933,25 @@ void calibrate() {
     }
 
     if (calibrated) {
-        if (flash.eraseSector(PARAMETER_ADDR)) {
-            delay(10);
-            if (flash.writeAnything(PARAMETER_ADDR, parameters)) {
-                Serial.println("Recorded new parameters.");
-            } else {
-                Serial.print("Failed to record new calibration parameters, error: 0x");
-                Serial.println(flash.error(), HEX);
-            }
-        } else {
-            Serial.print("Failed to erase parameter sector, error: ");
-            Serial.println(flash.error(), HEX);
-        }
-
+        record_current_parameters();
         reset_filters();
     }
 }
 
+void record_current_parameters() {
+    if (flash.eraseSector(PARAMETER_ADDR)) {
+        delay(10);
+        if (flash.writeAnything(PARAMETER_ADDR, parameters)) {
+            Serial.println("Recorded new parameters.");
+        } else {
+            Serial.print("Failed to record new calibration parameters, error: 0x");
+            Serial.println(flash.error(), HEX);
+        }
+    } else {
+        Serial.print("Failed to erase parameter sector, error: ");
+        Serial.println(flash.error(), HEX);
+    }
+}
 
 void storeTelemetry() {
     static int i = 0;

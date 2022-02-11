@@ -14,22 +14,24 @@
 
 class ZSS {
 public:
-    ZSS(uint8_t p1, uint8_t p2, int a1_offset, int a2_offset);
+    ZSS(uint8_t p1, uint8_t p2);
 
-    void start();
+    void start(unsigned int a1_offset, unsigned int a2_offset);
     void deploy();
     void retract();
     void halt();
     void run();
 
+    void adjustOffsets(unsigned int a1_off, unsigned int a2_off);
+
     bool deploying;
+    unsigned int a1_offset{}, a2_offset{};
 
 private:
     uint8_t p1, p2;
-    int a1_offset, a2_offset;
-    int a1_start, a2_start;
-    int a1_target, a2_target;
-    int a1_setting, a2_setting;
+    unsigned int a1_start{}, a2_start{};
+    unsigned int a1_target{}, a2_target{};
+    unsigned int a1_setting{}, a2_setting{};
     unsigned long move_commence;
     Servo *serv1, *serv2;
 };

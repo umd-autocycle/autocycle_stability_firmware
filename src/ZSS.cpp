@@ -4,21 +4,22 @@
 
 #include "ZSS.h"
 
-ZSS::ZSS(uint8_t p1, uint8_t p2, int a1_offset, int a2_offset) {
+ZSS::ZSS(uint8_t p1, uint8_t p2) {
     this->p1 = p1;
     this->p2 = p2;
-    this->a1_offset = a1_offset;
-    this->a2_offset = a2_offset;
     deploying = true;
     move_commence = 0;
-    a1_setting = a1_target = a1_start = a1_offset;
-    a2_setting = a2_target = a2_start = a2_offset;
 
     serv1 = new Servo();
     serv2 = new Servo();
 }
 
-void ZSS::start() {
+void ZSS::start(unsigned int a1_off,unsigned  int a2_off) {
+    this->a1_offset = a1_off;
+    this->a2_offset = a2_off;
+    a1_setting = a1_target = a1_start = a1_offset;
+    a2_setting = a2_target = a2_start = a2_offset;
+
     pinMode(p1, OUTPUT);
     pinMode(p2, OUTPUT);
     serv1->attach(p1);
@@ -29,7 +30,7 @@ void ZSS::start() {
 }
 
 void ZSS::retract() {
-    if(deploying) {
+    if (deploying) {
         move_commence = millis();
 
         deploying = false;
@@ -41,7 +42,7 @@ void ZSS::retract() {
 }
 
 void ZSS::deploy() {
-    if (!deploying){
+    if (!deploying) {
         move_commence = millis();
 
         deploying = true;
@@ -66,4 +67,19 @@ void ZSS::run() {
         serv1->writeMicroseconds(a1_setting);
         serv2->writeMicroseconds(a2_setting);
     }
+}
+
+void ZSS::adjustOffsets(unsigned int a1_off, unsigned int a2_off) {
+    if (deploying) {
+        move_commence = millis();
+
+        deploying = true;
+        a1_start = a1_offset;
+        a2_start = a2_offset;
+        a1_target = a1_off;
+        a2_target = a2_off;
+    }
+
+    a1_offset = a1_off;
+    a2_offset = a2_off;
 }
