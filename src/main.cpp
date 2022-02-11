@@ -466,8 +466,8 @@ void loop() {
 
     // Compute rate of latitude and longitude change given speed and heading estimate
     dlat = v * cos(heading) * MPS_2_DEGLATPS; // Convert northward speed to degrees of latitude per second
-    dlon = v * sin(heading) * MPS_2_DEGLONPS(
-            lat); // Convert east-west speed to degrees of longitude per second. Conversion is latitude dependent.
+    dlon = v * sin(heading) * MPS_2_DEGLONPS(lat); // Convert east-west speed to degrees of longitude per second.
+    // (Conversion is latitude dependent.)
 
     // Update position Kalman filter parameters
     position_filter.A = {
