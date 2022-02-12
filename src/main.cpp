@@ -75,6 +75,7 @@
 //#define RADIOCOMM
 #define HEADING_CONTROL
 //#define KALMAN_CALIB
+//#define COMPASS_ENABLED
 
 #ifdef RADIOCOMM
 
@@ -334,12 +335,13 @@ void setup() {
     }
     Serial.println("Initialized GPS, readings confirmed.");
 
-
+#ifdef COMPASS_ENABLED
     // Initialize magnetometer
     Serial.println("Initializing compass.");
     compass.start();
     compass.rotation = imu.rotation;
     Serial.println("Initialized compass.");
+#endif
 
 
     //! Temporary sensor covariance overriding parameters
@@ -428,7 +430,9 @@ void loop() {
     // Update sensor information
     imu.update();
     encoder.update();
+#ifdef COMPASS_ENABLED
     compass.update();
+#endif
     gps.read();
 #ifdef REQUIRE_ACTUATORS
     torque_motor->update();
@@ -589,7 +593,7 @@ void loop() {
                 assert_fallen();
             if (v > HIGH_V_THRESH && v_r > HIGH_V_THRESH && millis() - mstart > 1000)
                 assert_automatic();
-            if (v < 0.5 && v_r == 0)
+            if (v < 0.05 && v_r == 0)
                 assert_idle();
             if (user_req & R_STOP)
                 assert_emergency_stop();
@@ -1316,14 +1320,14 @@ void report() {
 //    Serial.print('\t');
 //    Serial.print(dheading_y, 4);
 //    Serial.print('\t');
-    Serial.print(lat, 8);
-    Serial.print('\t');
-    Serial.print(lon, 8);
-    Serial.print('\t');
-//    Serial.print(lat_y, 8);
+//    Serial.print(lat, 8);
 //    Serial.print('\t');
-//    Serial.print(lon_y, 8);
+//    Serial.print(lon, 8);
 //    Serial.print('\t');
+    Serial.print(lat_y, 8);
+    Serial.print('\t');
+    Serial.print(lon_y, 8);
+    Serial.print('\t');
     Serial.print((float) millis() / 1000.0f, 4);
 
     Serial.print('\t');
