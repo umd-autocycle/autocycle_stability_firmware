@@ -552,8 +552,11 @@ void loop() {
             // Transitions
             if (fabs(phi) > FTHRESH)
                 assert_fallen();
-            if (v > 0.6 || v_r > 0)
+            if (v > 0.6 || v_r > 0){
+                while(!torque_motor->switchOn());
                 assert_assist();
+                while(!torque_motor->enableOperation());
+            }
             if (user_req & R_CALIB_MODE)
                 assert_calibrate();
             if (user_req & R_MANUAL)
@@ -913,6 +916,7 @@ void calibrate() {
         bool in_loop = true;
         float t;
         torque_motor->setMode(OP_PROFILE_TORQUE);
+        while (!torque_motor->switchOn());
         while (!torque_motor->enableOperation());
 
         while (in_loop) {
@@ -922,6 +926,7 @@ void calibrate() {
                     Serial.read();
                     in_loop = false;
                     calibrated = true;
+                    while(!torque_motor->shutdown());
                 } else {
                     t = Serial.parseFloat();
                     while (Serial.available()) Serial.read();
@@ -1177,7 +1182,6 @@ void assert_assist() {
     zss.deploy();
 #ifdef REQUIRE_ACTUATORS
     torque_motor->setMode(OP_PROFILE_POSITION);
-    while (!torque_motor->enableOperation());
 #endif
 
     indicator.disablePulse();
@@ -1190,7 +1194,6 @@ void assert_automatic() {
     free_running = true;
 #ifdef REQUIRE_ACTUATORS
     torque_motor->setMode(OP_PROFILE_TORQUE);
-    while (!torque_motor->enableOperation());
 #endif
     zss.retract();
 

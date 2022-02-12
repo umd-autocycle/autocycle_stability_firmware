@@ -202,7 +202,6 @@ void TorqueMotor::autoSetup() {
 }
 
 void TorqueMotor::setMode(uint16_t mode) {
-    while (!shutdown());
     uint32_t submode_select = 0;
 
     switch (mode) {
@@ -277,7 +276,6 @@ void TorqueMotor::setMode(uint16_t mode) {
             break;
     }
 
-    while (!switchOn());
 }
 
 void TorqueMotor::calibrate(){
