@@ -72,7 +72,7 @@
 #define GPSSerial Serial3 // Hardware serial port to talk to GPS
 
 #define REQUIRE_ACTUATORS
-//#define RADIOCOMM
+#define RADIOCOMM
 #define HEADING_CONTROL
 //#define KALMAN_CALIB
 //#define COMPASS_ENABLED
@@ -493,7 +493,7 @@ void loop() {
         lat_y = gps.latitudeDegrees;
         lon_y = gps.longitudeDegrees;
         position_filter.update({lat_y, lon_y, dlat, dlon});
-        if (v > 1) {
+        if (v > 2.8) {
             heading_y = gps.angle * (float) PI / 180.0f;
         }
     }
