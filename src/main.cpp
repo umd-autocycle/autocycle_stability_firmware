@@ -72,8 +72,8 @@
 #define GPSSerial Serial3 // Hardware serial port to talk to GPS
 
 #define REQUIRE_ACTUATORS
-#define RADIOCOMM
-#define HEADING_CONTROL
+//#define RADIOCOMM
+//#define HEADING_CONTROL
 //#define KALMAN_CALIB
 //#define COMPASS_ENABLED
 
@@ -434,7 +434,8 @@ void loop() {
 #ifdef COMPASS_ENABLED
     compass.update();
 #endif
-    gps.read();
+    for (int i = 0; i < 20 && gps.available(); i++)
+        gps.read();
 #ifdef REQUIRE_ACTUATORS
     torque_motor->update();
 #endif
@@ -481,6 +482,8 @@ void loop() {
     position_filter.Q = w_pos * (~w_pos);
 
     position_filter.predict({dlat - position_filter.x(2), dlon - position_filter.x(3)});
+    position_filter.x(2) = dlat;
+    position_filter.x(3) = dlon;
     // Only update if we have new GPS readings
     if (gps.newNMEAreceived() && gps.parse(gps.lastNMEA())) {
 //        Serial.println("New GPS data!");
@@ -1327,14 +1330,14 @@ void report() {
 //    Serial.print('\t');
 //    Serial.print(dheading_y, 4);
 //    Serial.print('\t');
-//    Serial.print(lat, 8);
-//    Serial.print('\t');
-//    Serial.print(lon, 8);
-//    Serial.print('\t');
-    Serial.print(lat_y, 8);
+    Serial.print(lat, 8);
     Serial.print('\t');
-    Serial.print(lon_y, 8);
+    Serial.print(lon, 8);
     Serial.print('\t');
+//    Serial.print(lat_y, 8);
+//    Serial.print('\t');
+//    Serial.print(lon_y, 8);
+//    Serial.print('\t');
     Serial.print((float) millis() / 1000.0f, 4);
 
     Serial.print('\t');
