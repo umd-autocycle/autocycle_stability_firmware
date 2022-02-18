@@ -56,7 +56,7 @@
 #define TM_NODE_ID          127
 #define TM_CURRENT_MAX      1000
 #define TM_TORQUE_MAX       1000
-#define TM_TORQUE_SLOPE     10000   // Thousandths of max torque per second
+#define TM_TORQUE_SLOPE     40000   // Thousandths of max torque per second
 
 // State transition constants
 #define FTHRESH             (PI * 38.0/180.0)    // Threshold for being fallen over
@@ -535,12 +535,14 @@ void loop() {
 
 #ifdef HEADING_CONTROL
     // Calculate steering setpoint based on heading error
-    float e_heading = heading_r - heading;
-    if (e_heading > PI)
-        e_heading -= (float) (2.0 * PI);
-    else if (e_heading < -PI)
-        e_heading += (float) (2.0 * PI);
-    del_r = constrain(K_HEADING * e_heading, -DEL_R_MAX, DEL_R_MAX);
+    if (state == AUTO) {
+        float e_heading = heading_r - heading;
+        if (e_heading > PI)
+            e_heading -= (float) (2.0 * PI);
+        else if (e_heading < -PI)
+            e_heading += (float) (2.0 * PI);
+        del_r = constrain(K_HEADING * e_heading, -DEL_R_MAX, DEL_R_MAX);
+    }
 #endif
 
 
