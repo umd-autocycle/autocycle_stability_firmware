@@ -9,34 +9,34 @@
 
 using namespace BLA;
 
-template<int xN, int yN, int uN>
+template<int xN, int yN, int uN, typename dtype = float>
 class KalmanFilter {
 public:
-    void predict(BLA::Matrix<uN, 1, Array<uN, 1>> u);
+    void predict(BLA::Matrix<uN, 1, Array<uN, 1, dtype>> u);
 
-    void update(BLA::Matrix<yN, 1, Array<yN, 1>> y);
+    void update(BLA::Matrix<yN, 1, Array<yN, 1, dtype>> y);
 
 
-    BLA::Matrix<xN, 1, Array<xN, 1>> x;   // State estimate
-    BLA::Matrix<xN, xN, Array<xN, xN>> P;  // State estimate covariance matrix
+    BLA::Matrix<xN, 1, Array<xN, 1, dtype>> x;   // State estimate
+    BLA::Matrix<xN, xN, Array<xN, xN, dtype>> P;  // State estimate covariance matrix
 
-    BLA::Matrix<xN, xN, Array<xN, xN>> A;  // State transition matrix
-    BLA::Matrix<xN, uN, Array<xN, uN>> B;  // Control matrix
-    BLA::Matrix<yN, xN, Array<yN, xN>> C;  // Sensor matrix
+    BLA::Matrix<xN, xN, Array<xN, xN, dtype>> A;  // State transition matrix
+    BLA::Matrix<xN, uN, Array<xN, uN, dtype>> B;  // Control matrix
+    BLA::Matrix<yN, xN, Array<yN, xN, dtype>> C;  // Sensor matrix
 
-    BLA::Matrix<xN, xN, Array<xN, xN>> Q;  // Process covariance matrix
-    BLA::Matrix<yN, yN, Array<yN, yN>> R;  // Measurement covariance matrix
+    BLA::Matrix<xN, xN, Array<xN, xN, dtype>> Q;  // Process covariance matrix
+    BLA::Matrix<yN, yN, Array<yN, yN, dtype>> R;  // Measurement covariance matrix
 };
 
 
-template<int xN, int yN, int uN>
-void KalmanFilter<xN, yN, uN>::predict(BLA::Matrix<uN, 1, Array<uN, 1>> u) {
+template<int xN, int yN, int uN, typename dtype>
+void KalmanFilter<xN, yN, uN, dtype>::predict(BLA::Matrix<uN, 1, Array<uN, 1, dtype>> u) {
     x = A * x + B * u;
     P = A * P * (~A) + Q;
 }
 
-template<int xN, int yN, int uN>
-void KalmanFilter<xN, yN, uN>::update(BLA::Matrix<yN, 1, Array<yN, 1>> y) {
+template<int xN, int yN, int uN, typename dtype>
+void KalmanFilter<xN, yN, uN, dtype>::update(BLA::Matrix<yN, 1, Array<yN, 1, dtype>> y) {
     auto residual = y - C * x;
     auto s = C * P * (~C) + R;
     auto K = P * (~C) * (BLA::Inverse(s));

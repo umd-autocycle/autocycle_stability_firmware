@@ -107,7 +107,7 @@ BikeModel bike_model;
 
 KalmanFilter<4, 4, 2> orientation_filter;
 KalmanFilter<2, 2, 1> heading_filter;
-KalmanFilter<4, 4, 2> position_filter;
+KalmanFilter<4, 4, 2, double> position_filter;
 
 Controller *controller;
 
@@ -132,12 +132,12 @@ float dheading = 0.0;       // Rate of heading change (rad/s)
 float heading_y = 270.0 / 180.0 * PI;      // Heading magnetometer measurement (rad)
 float dheading_y = 0.0;     // Rate of heading change gyroscope measurement (rad/s)
 
-float lat = 0.0;            // Latitude (deg)
-float lon = 0.0;            // Longitude (deg)
-float dlat = 0.0;           // Rate of latitude change (deg/s)
-float dlon = 0.0;           // Rate of longitude change (deg/s)
-float lat_y = 0.0;          // Latitude GPS measurement (deg)
-float lon_y = 0.0;          // Longitude GPS measurement (deg)
+double lat = 0.0;            // Latitude (deg)
+double lon = 0.0;            // Longitude (deg)
+double dlat = 0.0;           // Rate of latitude change (deg/s)
+double dlon = 0.0;           // Rate of longitude change (deg/s)
+double lat_y = 0.0;          // Latitude GPS measurement (deg)
+double lon_y = 0.0;          // Longitude GPS measurement (deg)
 
 // Reference variables
 float phi_r = 0.0;          // Required roll angle (rad)
@@ -197,8 +197,9 @@ struct __attribute__((__packed__)) StoredParameters {
 
 struct __attribute__((__packed__)) TelemetryFrame {
     uint8_t state;
-    float time, phi, del, dphi, ddel, v_r, v, u, torque, heading, dheading, lat, lon, dlat, dlon, phi_y, del_y, dphi_y,
-            ddel_y, heading_y, dheading_y, lat_y, lon_y, phi_r, del_r, heading_r;
+    float time, phi, del, dphi, ddel, v_r, v, u, torque, heading, dheading, phi_y, del_y, dphi_y,
+            ddel_y, heading_y, dheading_y, phi_r, del_r, heading_r;
+    double lat, lon, dlat, dlon, lat_y, lon_y;
 } t_frame;
 static uint32_t storeAddress = TELEMETRY_ADDR;
 
@@ -553,10 +554,10 @@ void loop() {
             // Transitions
             if (fabs(phi) > FTHRESH)
                 assert_fallen();
-            if (v > 0.6 || v_r > 0){
-                while(!torque_motor->switchOn());
+            if (v > 0.6 || v_r > 0) {
+                while (!torque_motor->switchOn());
                 assert_assist();
-                while(!torque_motor->enableOperation());
+                while (!torque_motor->enableOperation());
             }
             if (user_req & R_CALIB_MODE)
                 assert_calibrate();
@@ -927,7 +928,7 @@ void calibrate() {
                     Serial.read();
                     in_loop = false;
                     calibrated = true;
-                    while(!torque_motor->shutdown());
+                    while (!torque_motor->shutdown());
                 } else {
                     t = Serial.parseFloat();
                     while (Serial.available()) Serial.read();
