@@ -311,14 +311,14 @@ void setup() {
     gps.begin(9600);  // 9600 NMEA is the default baud rate
 
     // comment/uncomment lines to change baud rate
-    gps.sendCommand("$PMTK251,9600*17");  // set baud rate to 9600
+    gps.sendCommand("$PMTK251,57600*2C");  // set baud rate to 57600
     GPSSerial.end();
     delay(1000);
-    gps.begin(9600);  // must match what's chosen earlier
+    gps.begin(57600);  // must match what's chosen earlier
 
     gps.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCONLY);  // turn on RMC (recommended minimum)
     // GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCGGA);  // turn on RMC (recommended minimum) and GGA (fix data) including altitude
-    gps.sendCommand(PMTK_SET_NMEA_UPDATE_1HZ); // 1 Hz recommended, 10 Hz max for 9600 baud/RMCONLY
+    gps.sendCommand(PMTK_SET_NMEA_UPDATE_10HZ); // 1 Hz recommended, 10 Hz max for 9600 baud/RMCONLY
     delay(1000);
     Serial.println("Initialized GPS, waiting for readings.");
 
@@ -376,10 +376,10 @@ void setup() {
     // Initialize heading Kalman filter
     heading_filter.x = {270.0 / 180.0 * PI, 0};                  // Initial state estimate
     heading_filter.P = BLA::Identity<2, 2>() * 0.1;  // Initial estimate covariance
-    heading_filter.B = {0, 0};
+    heading_filter.B = {0, 1};
     heading_filter.C = BLA::Identity<2, 2>();                  // Sensor matrix
     heading_filter.R = {                             // Sensor covariance matrix
-            0.0001, 0,   // TODO: Set sensor covariances for Magnetometer/GPS
+            0.000001, 0,   // TODO: Set sensor covariances for Magnetometer/GPS
             0, var_gyro_z
     };
 
@@ -451,18 +451,11 @@ void loop() {
 //    heading_y = compass.angle;
 
     dheading_y = imu.gyroZ();
-    heading_filter.predict({0.0f});
+    heading_filter.predict({dheading_y - dheading});
     heading = heading_filter.x(0);
     dheading = heading_filter.x(1);
     heading_filter.x(0) = fmod(heading, (float) (2.0f * PI));
     heading_filter.x(1) = fmod(dheading, (float) (2.0f * PI));
-    heading_filter.update({heading_y, dheading_y});
-    heading = heading_filter.x(0);
-    dheading = heading_filter.x(1);
-    heading_filter.x(0) = fmod(heading, (float) (2.0f * PI));
-    heading_filter.x(1) = fmod(dheading, (float) (2.0f * PI));
-    heading = heading_filter.x(0);
-    dheading = heading_filter.x(1);
 
 
     // Get current speed
@@ -496,6 +489,14 @@ void loop() {
         if (v > 2.8) {
             heading_y = gps.angle * (float) PI / 180.0f;
         }
+
+        heading_filter.update({heading_y, dheading_y});
+        heading = heading_filter.x(0);
+        dheading = heading_filter.x(1);
+        heading_filter.x(0) = fmod(heading, (float) (2.0f * PI));
+        heading_filter.x(1) = fmod(dheading, (float) (2.0f * PI));
+        heading = heading_filter.x(0);
+        dheading = heading_filter.x(1);
     }
     lat = position_filter.x(0);
     lon = position_filter.x(1);
