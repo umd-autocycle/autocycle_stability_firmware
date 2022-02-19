@@ -475,10 +475,10 @@ void loop() {
             0, 0, 1, 0,
             0, 0, 0, 1
     };
-    BLA::Matrix<4, 1, Array<4, 1>> w_pos = {0.5f * 0.2f * dt * dt,
-                                            0.5f * 0.2f * dt * dt,
-                                            0.2f * dt,
-                                            0.2f * dt}; // MAGIC 0.2 guess
+    BLA::Matrix<4, 1, Array<4, 1, double>> w_pos = {0.5 * 0.2 * dt * dt,
+                                            0.5 * 0.2 * dt * dt,
+                                            0.2 * dt,
+                                            0.2 * dt}; // MAGIC 0.2 guess
     position_filter.Q = w_pos * (~w_pos);
 
     position_filter.predict({dlat - position_filter.x(2), dlon - position_filter.x(3)});
