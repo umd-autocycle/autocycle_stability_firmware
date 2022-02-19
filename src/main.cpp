@@ -266,14 +266,8 @@ void setup() {
     radio.startListening();
 #endif
 
-
-    Serial1.begin(1200);              // Begin Bafang Serial (UART) communication
-    delay(1000);                          // Wait for Serial interfaces to initialize
-
-
     Can0.begin(CAN_BPS_1000K);          // Begin 1M baud rate CAN interface, no enable pin
     Can0.watchFor();                            // Watch for all incoming CAN-Bus messages
-
 
     analogWriteResolution(12);              // Enable expanded PWM and ADC resolution
     analogReadResolution(12);
@@ -296,6 +290,8 @@ void setup() {
 
     Serial.println("Initializing Drive Motor.");
     // Initialize Bafang drive motor
+    Serial1.begin(1200);              // Begin Bafang Serial (UART) communication
+    while(!Serial1);                            // Wait for Serial interface to initialize
     drive_motor = new DriveMotor(DAC0);
     drive_motor->start();
     Serial.println("Initialized Drive Motor.");
