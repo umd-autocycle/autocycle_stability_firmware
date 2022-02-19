@@ -414,8 +414,6 @@ void setup() {
 
     Serial.println("Finished setup.");
 
-    delay(200);
-
     last_time = millis();
 }
 
@@ -699,7 +697,6 @@ void loop() {
 
 #ifdef RADIOCOMM
     if (TELEMETRY.available()) {
-        delay(20);
         uint8_t buffer[32];
         TELEMETRY.read(buffer, 32);
         uint8_t c = buffer[0];
@@ -760,7 +757,6 @@ void loop() {
 
     if (Serial.available()) {
         uint8_t c = Serial.read();
-        delay(5);
 
         switch (c) {
             case 'v':
@@ -905,7 +901,6 @@ void calibrate() {
 //    }
 
     if (user_req & R_CALIB_TILT) {
-        delay(100);
 
         if (imu.calibrateXZRotation()) {
             indicator.beepstring((uint8_t) 0b10101010);
@@ -956,7 +951,6 @@ void calibrate() {
 
 void record_current_parameters() {
     if (flash.eraseSector(PARAMETER_ADDR)) {
-        delay(10);
         if (flash.writeAnything(PARAMETER_ADDR, parameters)) {
             Serial.println("Recorded new parameters.");
         } else {
@@ -1251,7 +1245,6 @@ uint8_t checksum(const uint8_t *buffer, int len) {
 void report() {
 #ifdef RADIOCOMM
     TELEMETRY.stopListening();
-    delay(20);
     uint8_t frame[32];
 
     frame[0] = 13;          // State telemetry frame header
@@ -1268,7 +1261,6 @@ void report() {
     frame[31] = 0;
 
     TELEMETRY.write(frame, 32);
-    delay(20);
 
 
 //    frame[0] = 14;          // Setpoint telemetry frame header
@@ -1286,7 +1278,6 @@ void report() {
 //
 //
 //    TELEMETRY.write(frame, 32);
-//    delay(20);
 
 
 //    frame[0] = 15;          // Raw sensor telemetry frame header
@@ -1304,7 +1295,6 @@ void report() {
 //
 //
 //    TELEMETRY.write(frame, 32);
-//    delay(20);
 
     TELEMETRY.startListening();
 #else
