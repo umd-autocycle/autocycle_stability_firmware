@@ -72,7 +72,7 @@
 #define GPSSerial Serial3 // Hardware serial port to talk to GPS
 
 #define REQUIRE_ACTUATORS
-//#define RADIOCOMM
+#define RADIOCOMM
 //#define HEADING_CONTROL
 //#define KALMAN_CALIB
 //#define COMPASS_ENABLED
@@ -291,7 +291,7 @@ void setup() {
     Serial.println("Initializing Drive Motor.");
     // Initialize Bafang drive motor
     Serial1.begin(1200);              // Begin Bafang Serial (UART) communication
-    while(!Serial1);                            // Wait for Serial interface to initialize
+    while (!Serial1);                            // Wait for Serial interface to initialize
     drive_motor = new DriveMotor(DAC0);
     drive_motor->start();
     Serial.println("Initialized Drive Motor.");
@@ -470,9 +470,9 @@ void loop() {
             0, 0, 0, 1
     };
     BLA::Matrix<4, 1, Array<4, 1, double>> w_pos = {0.5 * 0.2 * dt * dt,
-                                            0.5 * 0.2 * dt * dt,
-                                            0.2 * dt,
-                                            0.2 * dt}; // MAGIC 0.2 guess
+                                                    0.5 * 0.2 * dt * dt,
+                                                    0.2 * dt,
+                                                    0.2 * dt}; // MAGIC 0.2 guess
     position_filter.Q = w_pos * (~w_pos);
 
     position_filter.predict({dlat - position_filter.x(2), dlon - position_filter.x(3)});
@@ -692,61 +692,64 @@ void loop() {
     }
 
 #ifdef RADIOCOMM
-    if (TELEMETRY.available()) {
-        uint8_t buffer[32];
-        TELEMETRY.read(buffer, 32);
-        uint8_t c = buffer[0];
-        Serial.print(c);
-        Serial.println(buffer[1]);
+    uint8_t pipenum;
+    if (TELEMETRY.available(&pipenum)) {
+        if (pipenum == 1) {
+            uint8_t buffer[32];
+            TELEMETRY.read(buffer, 32);
+            uint8_t c = buffer[0];
+            Serial.print(c);
+            Serial.println(buffer[1]);
 
 
-        switch (c) {
-            case 'v':
-                v_r = *((float *) &(buffer[2]));
-                drive_motor->setSpeed(v_r);
-                break;
-            case 'd':
-                del_r = *((float *) &(buffer[2]));
-                break;
-            case 'h':
-                heading_r = *((float *) &(buffer[2]));
-                break;
-            case 'c':
-                user_req = *((uint16_t *) &(buffer[2]));
-                break;
-            case 't':
-                v_r = *((float *) &(buffer[2]));
-                drive_motor->setSpeed(v_r);
-                timeout = millis() + *((uint32_t *) &(buffer[6]));
-                user_req |= R_TIMEOUT;
-                isRecording = true;
-                indicator.yell(500);
-                mstart = millis();
-                break;
-            case 'r':
-                isRecording = true;
-                break;
-            case 's':
-                isRecording = false;
-                break;
-            case 'q':
-                if (head == nullptr) {
-                    head = tail = new struct SteeringCommand;
-                    head->delta = *((float *) &(buffer[2]));
-                    head->time = *((uint32_t *) &(buffer[6]));
-                    head->next = nullptr;
-                } else {
-                    auto *new_command = new struct SteeringCommand;
-                    new_command->delta = *((float *) &(buffer[2]));
-                    new_command->time = *((uint32_t *) &(buffer[6]));
-                    new_command->next = nullptr;
-                    tail->next = new_command;
-                    tail = new_command;
-                }
-                break;
+            switch (c) {
+                case 'v':
+                    v_r = *((float *) &(buffer[2]));
+                    drive_motor->setSpeed(v_r);
+                    break;
+                case 'd':
+                    del_r = *((float *) &(buffer[2]));
+                    break;
+                case 'h':
+                    heading_r = *((float *) &(buffer[2]));
+                    break;
+                case 'c':
+                    user_req = *((uint16_t *) &(buffer[2]));
+                    break;
+                case 't':
+                    v_r = *((float *) &(buffer[2]));
+                    drive_motor->setSpeed(v_r);
+                    timeout = millis() + *((uint32_t *) &(buffer[6]));
+                    user_req |= R_TIMEOUT;
+                    isRecording = true;
+                    indicator.yell(500);
+                    mstart = millis();
+                    break;
+                case 'r':
+                    isRecording = true;
+                    break;
+                case 's':
+                    isRecording = false;
+                    break;
+                case 'q':
+                    if (head == nullptr) {
+                        head = tail = new struct SteeringCommand;
+                        head->delta = *((float *) &(buffer[2]));
+                        head->time = *((uint32_t *) &(buffer[6]));
+                        head->next = nullptr;
+                    } else {
+                        auto *new_command = new struct SteeringCommand;
+                        new_command->delta = *((float *) &(buffer[2]));
+                        new_command->time = *((uint32_t *) &(buffer[6]));
+                        new_command->next = nullptr;
+                        tail->next = new_command;
+                        tail = new_command;
+                    }
+                    break;
 
-            default:
-                break;
+                default:
+                    break;
+            }
         }
     }
 #endif
