@@ -193,6 +193,7 @@ struct __attribute__((__packed__)) StoredParameters {
     int16_t ax_off, ay_off, az_off, gx_off, gy_off, gz_off;
     float imu_tilt;
     uint32_t zss_a1_offset, zss_a2_offset;
+    uint16_t radio_channel;
 } parameters;
 
 struct __attribute__((__packed__)) TelemetryFrame {
@@ -262,7 +263,8 @@ void setup() {
     }
     radio.openWritingPipe(writeAddr);
     radio.openReadingPipe(1, readAddr);
-    radio.setPALevel(RF24_PA_HIGH);
+    radio.setPALevel(RF24_PA_MAX);
+    radio.setChannel(parameters.radio_channel);
     radio.startListening();
 #endif
 
@@ -815,6 +817,15 @@ void loop() {
                 zss.adjustOffsets(Serial.parseInt(), Serial.parseInt());
                 parameters.zss_a1_offset = zss.a1_offset;
                 parameters.zss_a2_offset = zss.a2_offset;
+                record_current_parameters();
+                break;
+            case 'k':
+                parameters.radio_channel = Serial.parseInt();
+#ifdef RADIOCOMM
+                radio.stopListening();
+                radio.setChannel(parameters.radio_channel);
+                radio.startListening();
+#endif
                 record_current_parameters();
                 break;
 
