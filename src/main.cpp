@@ -100,7 +100,7 @@ Encoder encoder(16, 17);
 SPIFlash flash(6);
 Adafruit_GPS gps(&GPSSerial);
 Compass compass;
-#define K_HEADING 0.5
+#define K_HEADING 0.1
 #define DEL_R_MAX 0.21
 
 BikeModel bike_model;
