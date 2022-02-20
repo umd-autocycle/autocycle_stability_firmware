@@ -56,7 +56,7 @@
 #define TM_NODE_ID          127
 #define TM_CURRENT_MAX      1000
 #define TM_TORQUE_MAX       1000
-#define TM_TORQUE_SLOPE     40000   // Thousandths of max torque per second
+#define TM_TORQUE_SLOPE     10000   // Thousandths of max torque per second
 
 // State transition constants
 #define FTHRESH             (PI * 38.0/180.0)    // Threshold for being fallen over
