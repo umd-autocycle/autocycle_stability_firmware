@@ -225,7 +225,7 @@ void countPulse() {
     encoder.countPulse();
 }
 
-unsigned long mstart = 0;
+long mstart = -1;
 static unsigned long last_time;
 
 
@@ -293,7 +293,8 @@ void setup() {
     Serial.println("Initializing Drive Motor.");
     // Initialize Bafang drive motor
     Serial1.begin(1200);              // Begin Bafang Serial (UART) communication
-    while (!Serial1);                            // Wait for Serial interface to initialize
+    Serial.println("Waiting for Drive Motor.");
+    delay(1000);
     drive_motor = new DriveMotor(DAC0);
     drive_motor->start();
     Serial.println("Initialized Drive Motor.");
@@ -720,12 +721,9 @@ void loop() {
                     break;
                 case 't':
                     v_r = *((float *) &(buffer[2]));
-                    drive_motor->setSpeed(v_r);
-                    timeout = millis() + *((uint32_t *) &(buffer[6]));
+                    mstart = millis() + 5000; // start in 5s
+                    timeout = mstart + *((uint32_t *) &(buffer[6]));
                     user_req |= R_TIMEOUT;
-                    isRecording = true;
-                    indicator.yell(500);
-                    mstart = millis();
                     break;
                 case 'r':
                     isRecording = true;
@@ -777,14 +775,9 @@ void loop() {
                 break;
             case 't':
                 v_r = Serial.parseFloat();
-#ifdef REQUIRE_ACTUATORS
-                drive_motor->setSpeed(v_r);
-#endif
-                timeout = millis() + Serial.parseInt();
+                mstart = millis() + 5000; // wait 5s
+                timeout = mstart + Serial.parseInt();
                 user_req |= R_TIMEOUT;
-                isRecording = true;
-                indicator.yell(500);
-                mstart = millis();
                 break;
             case 'f':
                 retrieveTelemetry();
@@ -835,6 +828,14 @@ void loop() {
         while (Serial.available() > 0)
             Serial.read();
         indicator.boop(100);
+    }
+
+    if (mstart > 0 && millis() > mstart && !isRecording) {
+        Serial.println("We're going!");
+        isRecording = true;
+#ifdef REQUIRE_ACTUATORS
+        drive_motor->setSpeed(v_r);
+#endif
     }
 
     // Run stepper and ZSS
