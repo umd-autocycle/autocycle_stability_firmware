@@ -483,7 +483,7 @@ void loop() {
     };
 //    heading_y = compass.angle;
 
-    dheading_y = imu.gyroZ();
+    dheading_y = imu.gyroZ() * cos(phi) + imu.gyroY() * sin(phi);
     heading_filter.predict({dheading_y - dheading});
     heading = heading_filter.x(0);
     dheading = heading_filter.x(1);
@@ -542,7 +542,7 @@ void loop() {
         dheading = heading_filter.x(1);
     }
 #else
-    position_filter.predict({0,0});
+    position_filter.predict({0, 0});
     position_filter.update({dlat, dlon});
 #endif
     lat = position_filter.x(0);
