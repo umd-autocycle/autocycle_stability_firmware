@@ -9,7 +9,6 @@
 #include <due_can.h>
 #include <AccelStepper.h>
 #include <SPIMemory.h>
-#include <Adafruit_GPS.h>
 
 // Internal libraries
 #include "IMU.h"
@@ -69,13 +68,20 @@
 #define REPORT_UPDATE_FREQ  10
 #define STORE_UPDATE_FREQ   100
 
-#define GPSSerial Serial3 // Hardware serial port to talk to GPS
 
 #define REQUIRE_ACTUATORS
 #define RADIOCOMM
 //#define HEADING_CONTROL
 //#define KALMAN_CALIB
 //#define COMPASS_ENABLED
+//#define GPS_ENABLED
+
+#ifdef GPS_ENABLED
+#define GPSSerial Serial3 // Hardware serial port to talk to GPS
+
+#include <Adafruit_GPS.h>
+
+#endif
 
 #ifdef RADIOCOMM
 
@@ -98,17 +104,25 @@ TorqueMotor *torque_motor;
 DriveMotor *drive_motor;
 Encoder encoder(16, 17);
 SPIFlash flash(6);
+#ifdef GPS_ENABLED
 Adafruit_GPS gps(&GPSSerial);
+#endif
+#ifdef COMPASS_ENABLED
 Compass compass;
+#endif
 #define K_HEADING 0.1
 #define DEL_R_MAX 0.21
 
 BikeModel bike_model;
 
 KalmanFilter<4, 4, 2> orientation_filter;
+#ifdef GPS_ENABLED
 KalmanFilter<2, 2, 1> heading_filter;
 KalmanFilter<4, 4, 2, double> position_filter;
-
+#else
+KalmanFilter<2, 1, 1> heading_filter;
+KalmanFilter<4, 2, 2, double> position_filter;
+#endif
 Controller *controller;
 
 
@@ -292,7 +306,7 @@ void setup() {
 
     Serial.println("Initializing Drive Motor.");
     // Initialize Bafang drive motor
-    Serial1.begin(1200);              // Begin Bafang Serial (UART) communication
+    DRIVE_SERIAL.begin(1200);              // Begin Bafang Serial (UART) communication
     Serial.println("Waiting for Drive Motor.");
     delay(1000);
     drive_motor = new DriveMotor(DAC0);
@@ -305,7 +319,7 @@ void setup() {
     imu.set_accel_offsets(parameters.ax_off, parameters.ay_off, parameters.az_off);
     imu.set_gyro_offsets(parameters.gx_off, parameters.gy_off, parameters.gz_off);
 
-
+#ifdef GPS_ENABLED
     // Initialize GPS
     Serial.println("Initializing GPS.");
     gps.begin(9600);  // 9600 NMEA is the default baud rate
@@ -334,6 +348,7 @@ void setup() {
         }
     }
     Serial.println("Initialized GPS, readings confirmed.");
+#endif
 
 #ifdef COMPASS_ENABLED
     // Initialize magnetometer
@@ -377,11 +392,19 @@ void setup() {
     heading_filter.x = {270.0 / 180.0 * PI, 0};                  // Initial state estimate
     heading_filter.P = BLA::Identity<2, 2>() * 0.1;  // Initial estimate covariance
     heading_filter.B = {0, 1};
+#ifdef GPS_ENABLED
     heading_filter.C = BLA::Identity<2, 2>();                  // Sensor matrix
     heading_filter.R = {                             // Sensor covariance matrix
             0.000001, 0,   // TODO: Set sensor covariances for Magnetometer/GPS
             0, var_gyro_z
     };
+#else
+    heading_filter.C = {0, 1};
+    heading_filter.R = {
+            var_gyro_z
+    };
+#endif
+
 
     // Initialize position Kalman filter
     position_filter.x = {lat_y, lon_y, 0, 0};           // Initial state estimate
@@ -390,6 +413,7 @@ void setup() {
                          0, 0,
                          1, 0,
                          0, 1};
+#ifdef GPS_ENABLED
     position_filter.C = BLA::Identity<4, 4>();       // Sensor matrix
     position_filter.R = {                            // Sensor covariance matrix
             0.00000001, 0, 0, 0,        // TODO: Set sensor covariances for GPS
@@ -397,6 +421,14 @@ void setup() {
             0, 0, 0.1, 0,
             0, 0, 0, 0.1
     };
+#else
+    position_filter.C = {0, 0, 1, 0,
+                         0, 0, 0, 1};
+    position_filter.R = {                            // Sensor covariance matrix
+            0.00000001, 0,
+            0, 0.00000001
+    };
+#endif
     Serial.println("Initialized Kalman filter.");
 
     Serial.println("Initializing encoder and interrupts.");
@@ -431,8 +463,10 @@ void loop() {
 #ifdef COMPASS_ENABLED
     compass.update();
 #endif
+#ifdef GPS_ENABLED
     for (int i = 0; i < 20 && gps.available(); i++)
         gps.read();
+#endif
 #ifdef REQUIRE_ACTUATORS
     torque_motor->update();
 #endif
@@ -455,6 +489,13 @@ void loop() {
     dheading = heading_filter.x(1);
     heading_filter.x(0) = fmod(heading, (float) (2.0f * PI));
     heading_filter.x(1) = fmod(dheading, (float) (2.0f * PI));
+#ifndef GPS_ENABLED
+    heading_filter.update({dheading_y});
+    heading = heading_filter.x(0);
+    dheading = heading_filter.x(1);
+    heading_filter.x(0) = fmod(heading, (float) (2.0f * PI));
+    heading_filter.x(1) = fmod(dheading, (float) (2.0f * PI));
+#endif
 
 
     // Get current speed
@@ -478,6 +519,7 @@ void loop() {
                                                     0.2 * dt}; // MAGIC 0.2 guess
     position_filter.Q = w_pos * (~w_pos);
 
+#ifdef GPS_ENABLED
     position_filter.predict({dlat - position_filter.x(2), dlon - position_filter.x(3)});
     position_filter.x(2) = dlat;
     position_filter.x(3) = dlon;
@@ -499,6 +541,10 @@ void loop() {
         heading = heading_filter.x(0);
         dheading = heading_filter.x(1);
     }
+#else
+    position_filter.predict({0,0});
+    position_filter.update({dlat, dlon});
+#endif
     lat = position_filter.x(0);
     lon = position_filter.x(1);
 

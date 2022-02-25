@@ -8,6 +8,7 @@
 #include <Arduino.h>
 
 // Communication constants
+#define DRIVE_SERIAL    Serial1
 #define TAG_READ        0x11
 #define TAG_WRITE       0x16
 
