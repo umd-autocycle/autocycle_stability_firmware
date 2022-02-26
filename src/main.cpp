@@ -70,7 +70,7 @@
 
 
 #define REQUIRE_ACTUATORS
-#define RADIOCOMM
+//#define RADIOCOMM
 //#define HEADING_CONTROL
 //#define KALMAN_CALIB
 //#define COMPASS_ENABLED
@@ -542,7 +542,7 @@ void loop() {
         dheading = heading_filter.x(1);
     }
 #else
-    position_filter.predict({0, 0});
+    position_filter.predict({dlat - position_filter.x(2), dlon - position_filter.x(3)});
     position_filter.update({dlat, dlon});
 #endif
     lat = position_filter.x(0);
@@ -581,13 +581,15 @@ void loop() {
 
 #ifdef HEADING_CONTROL
     // Calculate steering setpoint based on heading error
+    float e_heading = heading_r - heading;
+    if (e_heading > PI)
+        e_heading -= (float) (2.0 * PI);
+    else if (e_heading < -PI)
+        e_heading += (float) (2.0 * PI);
     if (state == AUTO) {
-        float e_heading = heading_r - heading;
-        if (e_heading > PI)
-            e_heading -= (float) (2.0 * PI);
-        else if (e_heading < -PI)
-            e_heading += (float) (2.0 * PI);
         del_r = constrain(K_HEADING * e_heading, -DEL_R_MAX, DEL_R_MAX);
+    } else if (state == ASSIST) {
+        del_r = constrain(e_heading, -DEL_R_MAX, DEL_R_MAX);
     }
 #endif
 
