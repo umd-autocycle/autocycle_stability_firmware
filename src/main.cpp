@@ -75,6 +75,7 @@
 //#define KALMAN_CALIB
 //#define COMPASS_ENABLED
 //#define GPS_ENABLED
+#define INSPECT_TIME
 
 #ifdef GPS_ENABLED
 #define GPSSerial Serial3 // Hardware serial port to talk to GPS
@@ -453,6 +454,9 @@ void loop() {
     static unsigned long last_report_time = millis();
     static unsigned long last_store_time = millis();
     static unsigned long timeout = 0;
+#ifdef INSPECT_TIME
+    unsigned long ref = micros();
+#endif
 
     dt = (float) (millis() - last_time) / 1000.0f;
     last_time = millis();
@@ -460,6 +464,8 @@ void loop() {
     // Update sensor information
     imu.update();
     encoder.update();
+    // Get current speed
+    v = encoder.getSpeed();
 #ifdef COMPASS_ENABLED
     compass.update();
 #endif
@@ -469,6 +475,11 @@ void loop() {
 #endif
 #ifdef REQUIRE_ACTUATORS
     torque_motor->update();
+#endif
+#ifdef INSPECT_TIME
+    Serial.print(micros() - ref);
+    Serial.println(" us to read sensors.");
+    ref = micros();
 #endif
 
 
@@ -496,10 +507,12 @@ void loop() {
     heading_filter.x(0) = fmod(heading, (float) (2.0f * PI));
     heading_filter.x(1) = fmod(dheading, (float) (2.0f * PI));
 #endif
+#ifdef INSPECT_TIME
+    Serial.print(micros() - ref);
+    Serial.println(" us to Kalman filter heading.");
+    ref = micros();
+#endif
 
-
-    // Get current speed
-    v = encoder.getSpeed();
 
     // Compute rate of latitude and longitude change given speed and heading estimate
     dlat = v * cos(heading) * MPS_2_DEGLATPS; // Convert northward speed to degrees of latitude per second
@@ -547,6 +560,11 @@ void loop() {
 #endif
     lat = position_filter.x(0);
     lon = position_filter.x(1);
+#ifdef INSPECT_TIME
+    Serial.print(micros() - ref);
+    Serial.println(" us to Kalman filter position.");
+    ref = micros();
+#endif
 
     // Update orientation state measurement
     float g_mag = imu.accelY() * imu.accelY() +
@@ -578,6 +596,11 @@ void loop() {
     dphi = orientation_filter.x(2);
     orientation_filter.x(3) = ddel_y;
     ddel = orientation_filter.x(3);
+#ifdef INSPECT_TIME
+    Serial.print(micros() - ref);
+    Serial.println(" us to Kalman filter orientation.");
+    ref = micros();
+#endif
 
 #ifdef HEADING_CONTROL
     // Calculate steering setpoint based on heading error
@@ -591,6 +614,11 @@ void loop() {
     } else if (state == ASSIST) {
         del_r = constrain(e_heading, -DEL_R_MAX, DEL_R_MAX);
     }
+#endif
+#ifdef INSPECT_TIME
+    Serial.print(micros() - ref);
+    Serial.println(" us to set steering from heading.");
+    ref = micros();
 #endif
 
 
@@ -698,6 +726,11 @@ void loop() {
             indicator.setPassiveRGB(0, 0, 0);
             break;
     }
+#ifdef INSPECT_TIME
+    Serial.print(micros() - ref);
+    Serial.println(" us to perform state action and transitions.");
+    ref = micros();
+#endif
 
     if ((user_req & R_TIMEOUT) && !zss.deploying && millis() + ZSS_DEPLOY_MS > timeout) {
         zss.deploy();
@@ -741,6 +774,11 @@ void loop() {
 #endif
         last_report_time = millis();
     }
+#ifdef INSPECT_TIME
+    Serial.print(micros() - ref);
+    Serial.println(" us to process time-based triggers.");
+    ref = micros();
+#endif
 
 #ifdef RADIOCOMM
     uint8_t pipenum;
@@ -885,10 +923,20 @@ void loop() {
         drive_motor->setSpeed(v_r);
 #endif
     }
+#ifdef INSPECT_TIME
+    Serial.print(micros() - ref);
+    Serial.println(" us to process commands.");
+    ref = micros();
+#endif
 
     // Run stepper and ZSS
     stepper.run();
     zss.run();
+#ifdef INSPECT_TIME
+    Serial.print(micros() - ref);
+    Serial.println(" us to run stepper and ZSS.");
+    ref = micros();
+#endif
 }
 
 void idle() {
