@@ -75,7 +75,7 @@
 //#define KALMAN_CALIB
 //#define COMPASS_ENABLED
 //#define GPS_ENABLED
-#define INSPECT_TIME
+//#define INSPECT_TIME
 
 #ifdef GPS_ENABLED
 #define GPSSerial Serial3 // Hardware serial port to talk to GPS
@@ -612,7 +612,7 @@ void loop() {
     if (state == AUTO) {
         del_r = constrain(K_HEADING * e_heading, -DEL_R_MAX, DEL_R_MAX);
     } else if (state == ASSIST) {
-        del_r = constrain(e_heading, -DEL_R_MAX, DEL_R_MAX);
+        del_r = constrain(0.25 * e_heading, -DEL_R_MAX, DEL_R_MAX);
     }
 #endif
 #ifdef INSPECT_TIME
