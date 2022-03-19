@@ -75,7 +75,7 @@
 //#define KALMAN_CALIB
 //#define COMPASS_ENABLED
 #define GPS_ENABLED
-#define INSPECT_TIME
+//#define INSPECT_TIME
 
 #ifdef GPS_ENABLED
 #define GPSSerial Serial3 // Hardware serial port to talk to GPS
