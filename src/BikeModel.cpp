@@ -112,68 +112,55 @@ BikeModel::BikeModel() {
     float s_u = m_f * u + f * m_t * x_t;
 
     /* Computation of equivalent linearized matrices */
-    M = {
-            t_xx, f_lx + f * t_xz,
-            f_lx + f * t_xz, f_ll + 2 * f * f_lz + f * f * t_zz,
-    };
-
-    K0 = {
-            g * m_t * z_t, -g * s_u,
-            -g * s_u, -g * s_u * sin(lam),
-    };
-
-    K2 = {
-            0, (s_t - m_t * z_t) * cos(lam) / w,
-            0, (s_u + s_f * sin(lam)) * cos(lam) / w,
-    };
-
-    C1 = {
-            0, f * s_t + s_f * cos(lam) + t_xz * cos(lam) / w - f * m_t * z_t,
-            -(f * s_t + s_f * cos(lam)), f_lz * cos(lam) / w + f * (s_u + t_zz * cos(lam) / w),
-    };
+//    M = {
+//            t_xx, f_lx + f * t_xz,
+//            f_lx + f * t_xz, f_ll + 2 * f * f_lz + f * f * t_zz,
+//    };
+//
+//    K0 = {
+//            g * m_t * z_t, -g * s_u,
+//            -g * s_u, -g * s_u * sin(lam),
+//    };
+//
+//    K2 = {
+//            0, (s_t - m_t * z_t) * cos(lam) / w,
+//            0, (s_u + s_f * sin(lam)) * cos(lam) / w,
+//    };
+//
+//    C1 = {
+//            0, f * s_t + s_f * cos(lam) + t_xz * cos(lam) / w - f * m_t * z_t,
+//            -(f * s_t + s_f * cos(lam)), f_lz * cos(lam) / w + f * (s_u + t_zz * cos(lam) / w),
+//    };
 
     // Newly ID'd system dynamics
-    M = {
-            26.67504339, 1.21856943,
-            1.21856943, 0.59438128
-    };
-    C1 = {
-            0., 4.97370516,
-            -0.98015773, 2.43085255
-    };
-    K0 = {
-            -210.6481775, 1.14387605,
-            1.14387605, 3.2817143
-    };
-    K2 = {
-            0., 21.88145723,
-            0., -0.86196881
-    };
 
     M_inv = BLA::Inverse(M);
 }
 
 BLA::Matrix<4, 4> BikeModel::dynamicsMatrix(float v, bool free_running) {
+    const auto a11 = BLA::Zeros<2, 2>();
+    const auto a12 = BLA::Identity<2, 2>();
+    const auto a1 = a11 || a12;
+
     if (free_running) {
-        auto a11 = BLA::Zeros<2, 2>();
-        auto a12 = BLA::Identity<2, 2>();
         auto a21 = M_inv * (K0 + K2 * (v * v)) * (-1);
         auto a22 = M_inv * C1 * (-v);
-        return (a11 || a12) && (a21 || a22);
+        return (a1) && (a21 || a22);
     } else {
-        auto a11 = BLA::Zeros<2, 2>();
-        auto a12 = BLA::Identity<2, 2>();
         auto a21 = BLA::Zeros<2, 2>();
         auto a22 = BLA::Zeros<2, 2>();
-        return (a11 || a12) && (a21 || a22);
+        return (a1) && (a21 || a22);
     }
 }
 
 BLA::Matrix<4, 2> BikeModel::controlsMatrix(float v, bool free_running) {
+    const auto free = BLA::Zeros<2, 2>() && M_inv;
+    const auto locked = BLA::Zeros<2, 2>() && BLA::Zeros<2, 2>();
+
     if (free_running)
-        return BLA::Zeros<2, 2>() && M_inv;
+        return free;
     else
-        return BLA::Zeros<2, 2>() && BLA::Zeros<2, 2>();
+        return locked;
 }
 
 BLA::Matrix<4, 4> BikeModel::kalmanTransitionMatrix(float v, float dt, bool free_running) {

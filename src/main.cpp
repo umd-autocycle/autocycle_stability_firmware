@@ -75,7 +75,7 @@
 //#define KALMAN_CALIB
 //#define COMPASS_ENABLED
 #define GPS_ENABLED
-//#define INSPECT_TIME
+#define INSPECT_TIME
 
 #ifdef GPS_ENABLED
 #define GPSSerial Serial3 // Hardware serial port to talk to GPS
@@ -457,6 +457,7 @@ void loop() {
 #ifdef INSPECT_TIME
     unsigned long ref = micros();
 #endif
+    bool new_gps_data = false;
 
     dt = (float) (millis() - last_time) / 1000.0f;
     last_time = millis();
@@ -472,6 +473,8 @@ void loop() {
 #ifdef GPS_ENABLED
     for (int i = 0; i < 20 && gps.available(); i++)
         gps.read();
+    if (gps.newNMEAreceived() && gps.parse(gps.lastNMEA()))
+        new_gps_data = true;
 #endif
 #ifdef REQUIRE_ACTUATORS
     torque_motor->update();
@@ -500,7 +503,22 @@ void loop() {
     dheading = heading_filter.x(1);
     heading_filter.x(0) = fmod(heading, (float) (2.0f * PI));
     heading_filter.x(1) = fmod(dheading, (float) (2.0f * PI));
-#ifndef GPS_ENABLED
+    heading = heading_filter.x(0);
+    dheading = heading_filter.x(1);
+#ifdef GPS_ENABLED
+    // Update if we have new GPS data and are moving fast enough
+    if (new_gps_data && v > 2.8) {
+        heading_y = gps.angle * (float) PI / 180.0f;
+
+        heading_filter.update({heading_y, dheading_y});
+        heading = heading_filter.x(0);
+        dheading = heading_filter.x(1);
+        heading_filter.x(0) = fmod(heading, (float) (2.0f * PI));
+        heading_filter.x(1) = fmod(dheading, (float) (2.0f * PI));
+        heading = heading_filter.x(0);
+        dheading = heading_filter.x(1);
+    }
+#else
     heading_filter.update({dheading_y});
     heading = heading_filter.x(0);
     dheading = heading_filter.x(1);
@@ -514,62 +532,10 @@ void loop() {
 #endif
 
 
-    // Compute rate of latitude and longitude change given speed and heading estimate
-    dlat = v * cos(heading) * MPS_2_DEGLATPS; // Convert northward speed to degrees of latitude per second
-    dlon = v * sin(heading) * MPS_2_DEGLONPS(lat); // Convert east-west speed to degrees of longitude per second.
-    // (Conversion is latitude dependent.)
-
-    // Update position Kalman filter parameters
-    position_filter.A = {
-            1, 0, dt, 0,
-            0, 1, 0, dt,
-            0, 0, 1, 0,
-            0, 0, 0, 1
-    };
-    BLA::Matrix<4, 1, Array<4, 1, double>> w_pos = {0.5 * 0.2 * dt * dt,
-                                                    0.5 * 0.2 * dt * dt,
-                                                    0.2 * dt,
-                                                    0.2 * dt}; // MAGIC 0.2 guess
-    position_filter.Q = w_pos * (~w_pos);
-
-#ifdef GPS_ENABLED
-    position_filter.predict({dlat - position_filter.x(2), dlon - position_filter.x(3)});
-    position_filter.x(2) = dlat;
-    position_filter.x(3) = dlon;
-    // Only update if we have new GPS readings
-    if (gps.newNMEAreceived() && gps.parse(gps.lastNMEA())) {
-//        Serial.println("New GPS data!");
-        lat_y = gps.latitudeDegrees;
-        lon_y = gps.longitudeDegrees;
-        position_filter.update({lat_y, lon_y, dlat, dlon});
-        if (v > 2.8) {
-            heading_y = gps.angle * (float) PI / 180.0f;
-        }
-
-        heading_filter.update({heading_y, dheading_y});
-        heading = heading_filter.x(0);
-        dheading = heading_filter.x(1);
-        heading_filter.x(0) = fmod(heading, (float) (2.0f * PI));
-        heading_filter.x(1) = fmod(dheading, (float) (2.0f * PI));
-        heading = heading_filter.x(0);
-        dheading = heading_filter.x(1);
-    }
-#else
-    position_filter.predict({dlat - position_filter.x(2), dlon - position_filter.x(3)});
-    position_filter.update({dlat, dlon});
-#endif
-    lat = position_filter.x(0);
-    lon = position_filter.x(1);
-#ifdef INSPECT_TIME
-    Serial.print(micros() - ref);
-    Serial.println(" us to Kalman filter position.");
-    ref = micros();
-#endif
-
     // Update orientation state measurement
     float g_mag = imu.accelY() * imu.accelY() +
                   imu.accelZ() * imu.accelZ();    // Check if measured orientation gravity vector exceeds feasibility
-    phi_y = g_mag <= 10 * 10 ? atan2(-imu.accelY(), imu.accelZ()) : phi_y;
+    phi_y = g_mag <= 10.0f * 10.0f ? atan2(-imu.accelY(), imu.accelZ()) : phi_y;
     dphi_y = -imu.gyroX();
 #ifdef REQUIRE_ACTUATORS
     del_y = torque_motor->getPosition();
@@ -612,7 +578,7 @@ void loop() {
     if (state == AUTO) {
         del_r = constrain(K_HEADING * e_heading, -DEL_R_MAX, DEL_R_MAX);
     } else if (state == ASSIST) {
-        del_r = constrain(0.5 * e_heading, -4*DEL_R_MAX, 4*DEL_R_MAX);
+        del_r = constrain(0.5 * e_heading, -4 * DEL_R_MAX, 4 * DEL_R_MAX);
     }
 #endif
 #ifdef INSPECT_TIME
@@ -729,6 +695,47 @@ void loop() {
 #ifdef INSPECT_TIME
     Serial.print(micros() - ref);
     Serial.println(" us to perform state action and transitions.");
+    ref = micros();
+#endif
+
+    // Compute rate of latitude and longitude change given speed and heading estimate
+    dlat = v * cos(heading) * MPS_2_DEGLATPS; // Convert northward speed to degrees of latitude per second
+    dlon = v * sin(heading) * MPS_2_DEGLONPS(lat); // Convert east-west speed to degrees of longitude per second.
+    // (Conversion is latitude dependent.)
+
+    // Update position Kalman filter parameters
+    position_filter.A = {
+            1, 0, dt, 0,
+            0, 1, 0, dt,
+            0, 0, 1, 0,
+            0, 0, 0, 1
+    };
+    BLA::Matrix<4, 1, Array<4, 1, double>> w_pos = {0.5 * 0.2 * dt * dt,
+                                                    0.5 * 0.2 * dt * dt,
+                                                    0.2 * dt,
+                                                    0.2 * dt}; // MAGIC 0.2 guess
+    position_filter.Q = w_pos * (~w_pos);
+
+#ifdef GPS_ENABLED
+    position_filter.predict({dlat - position_filter.x(2), dlon - position_filter.x(3)});
+    position_filter.x(2) = dlat;
+    position_filter.x(3) = dlon;
+    // Only update if we have new GPS readings
+    if (new_gps_data) {
+        lat_y = gps.latitudeDegrees;
+        lon_y = gps.longitudeDegrees;
+        position_filter.update({lat_y, lon_y, dlat, dlon});
+    }
+#else
+    position_filter.predict({dlat - position_filter.x(2), dlon - position_filter.x(3)});
+    position_filter.update({dlat, dlon});
+#endif
+
+    lat = position_filter.x(0);
+    lon = position_filter.x(1);
+#ifdef INSPECT_TIME
+    Serial.print(micros() - ref);
+    Serial.println(" us to Kalman filter position.");
     ref = micros();
 #endif
 
