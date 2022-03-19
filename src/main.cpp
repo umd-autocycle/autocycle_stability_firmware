@@ -71,10 +71,10 @@
 
 #define REQUIRE_ACTUATORS
 //#define RADIOCOMM
-//#define HEADING_CONTROL
+#define HEADING_CONTROL
 //#define KALMAN_CALIB
 //#define COMPASS_ENABLED
-//#define GPS_ENABLED
+#define GPS_ENABLED
 //#define INSPECT_TIME
 
 #ifdef GPS_ENABLED
@@ -612,7 +612,7 @@ void loop() {
     if (state == AUTO) {
         del_r = constrain(K_HEADING * e_heading, -DEL_R_MAX, DEL_R_MAX);
     } else if (state == ASSIST) {
-        del_r = constrain(0.25 * e_heading, -DEL_R_MAX, DEL_R_MAX);
+        del_r = constrain(0.5 * e_heading, -4*DEL_R_MAX, 4*DEL_R_MAX);
     }
 #endif
 #ifdef INSPECT_TIME
@@ -1427,14 +1427,14 @@ void report() {
 //    Serial.print('\t');
 //    Serial.print(dheading_y, 4);
 //    Serial.print('\t');
-    Serial.print(lat, 8);
-    Serial.print('\t');
-    Serial.print(lon, 8);
-    Serial.print('\t');
-//    Serial.print(lat_y, 8);
+//    Serial.print(lat, 8);
 //    Serial.print('\t');
-//    Serial.print(lon_y, 8);
+//    Serial.print(lon, 8);
 //    Serial.print('\t');
+    Serial.print(lat_y, 8);
+    Serial.print('\t');
+    Serial.print(lon_y, 8);
+    Serial.print('\t');
     Serial.print((float) millis() / 1000.0f, 4);
 
     Serial.print('\t');
