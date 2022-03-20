@@ -70,7 +70,7 @@
 
 
 #define REQUIRE_ACTUATORS
-//#define RADIOCOMM
+#define RADIOCOMM
 #define HEADING_CONTROL
 //#define KALMAN_CALIB
 //#define COMPASS_ENABLED
@@ -535,7 +535,7 @@ void loop() {
     // Update orientation state measurement
     float g_mag = imu.accelY() * imu.accelY() +
                   imu.accelZ() * imu.accelZ();    // Check if measured orientation gravity vector exceeds feasibility
-    phi_y = g_mag <= 10.0f * 10.0f ? atan2(-imu.accelY(), imu.accelZ()) : phi_y;
+    phi_y = (g_mag <= 10.0f * 10.0f || g_mag >= 6.0f * 6.0f) ? atan2(-imu.accelY(), imu.accelZ()) : phi_y;
     dphi_y = -imu.gyroX();
 #ifdef REQUIRE_ACTUATORS
     del_y = torque_motor->getPosition();
@@ -756,7 +756,11 @@ void loop() {
     }
 
     if (mstart > 0 && head != nullptr && millis() - mstart >= head->time) {
+#ifdef HEADING_CONTROL
+        heading_r = head->delta;
+#else
         del_r = head->delta;
+#endif
         auto temp = head;
         head = head->next;
         free(temp);
