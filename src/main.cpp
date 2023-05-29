@@ -70,12 +70,13 @@
 
 
 #define REQUIRE_ACTUATORS
-#define RADIOCOMM
-#define HEADING_CONTROL
+//#define RADIOCOMM
+//#define HEADING_CONTROL
 //#define KALMAN_CALIB
 //#define COMPASS_ENABLED
-#define GPS_ENABLED
+//#define GPS_ENABLED
 //#define INSPECT_TIME
+#define DEMO_MODE
 
 #ifdef GPS_ENABLED
 #define GPSSerial Serial3 // Hardware serial port to talk to GPS
@@ -587,6 +588,10 @@ void loop() {
     ref = micros();
 #endif
 
+//#ifdef DEMO_MODE
+//    del_r = constrain(3*phi, -5 * DEL_R_MAX, 5 * DEL_R_MAX);
+//#endif
+
 
     // Update indicator
     indicator.update();
@@ -759,7 +764,7 @@ void loop() {
 #ifdef HEADING_CONTROL
         heading_r = head->delta;
 #else
-        del_r = head->delta;
+//        del_r = head->delta;
 #endif
         auto temp = head;
         head = head->next;
@@ -781,7 +786,7 @@ void loop() {
         if (!isRecording)
             report();
 #else
-        report();
+       // report();
 #endif
         last_report_time = millis();
     }
@@ -872,7 +877,7 @@ void loop() {
                 break;
             case 't':
                 v_r = Serial.parseFloat();
-                mstart = millis() + 5000; // wait 5s
+                mstart = millis() + 500; // wait 5s
                 timeout = mstart + Serial.parseInt();
                 user_req |= R_TIMEOUT;
                 break;
@@ -927,7 +932,7 @@ void loop() {
         indicator.boop(100);
     }
 
-    if (mstart > 0 && millis() > mstart && !isRecording) {
+    if (mstart > 0 && millis() > mstart && v_r > 0) { //} && !isRecording) {
         Serial.println("We're going!");
         isRecording = true;
 #ifdef REQUIRE_ACTUATORS
@@ -1246,11 +1251,16 @@ void assist() {
 }
 
 void automatic() {
+
     auto k = bike_model.K0 + bike_model.K2 * v * v;
     phi_r = -k(0, 1) * del_r / k(0, 0);
     u = controller->control(phi, del, dphi, ddel, phi_r, del_r, v, dt);
 #ifdef REQUIRE_ACTUATORS
+#ifdef DEMO_MODE
+    torque_motor->setPosition(del_r);
+#else
     torque_motor->setTorque(u);
+#endif
 #endif
 }
 
@@ -1311,7 +1321,7 @@ void assert_assist() {
 void assert_automatic() {
     state = AUTO;
     free_running = true;
-#ifdef REQUIRE_ACTUATORS
+#if defined(REQUIRE_ACTUATORS) && !defined(DEMO_MODE)
     torque_motor->setMode(OP_PROFILE_TORQUE);
 #endif
     zss.retract();

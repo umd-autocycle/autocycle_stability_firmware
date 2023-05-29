@@ -154,6 +154,7 @@ BikeModel::BikeModel() {
 }
 
 BLA::Matrix<4, 4> BikeModel::dynamicsMatrix(float v, bool free_running) {
+    free_running = false; // AHHHHHH
     if (free_running) {
         auto a11 = BLA::Zeros<2, 2>();
         auto a12 = BLA::Identity<2, 2>();
@@ -170,6 +171,7 @@ BLA::Matrix<4, 4> BikeModel::dynamicsMatrix(float v, bool free_running) {
 }
 
 BLA::Matrix<4, 2> BikeModel::controlsMatrix(float v, bool free_running) {
+    free_running = false; // AHHHHHH
     if (free_running)
         return BLA::Zeros<2, 2>() && M_inv;
     else
